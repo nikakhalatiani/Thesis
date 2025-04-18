@@ -3,10 +3,10 @@ class PropertyTester:
         self.func = function_under_test
         self.properties = {
             "commutativity": False,
-            "associativity": False,
-            "idempotence": False,
-            "has_identity": False,
-            "has_inverses": False,
+            # "associativity": False,
+            # "idempotence": False,
+            # "has_identity": False,
+            # "has_inverses": False,
             # Add more properties as needed
         }
         self.identity_element = None

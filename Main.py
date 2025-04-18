@@ -19,29 +19,28 @@ def parse_example(fan, fuzzed_string: str):
     """Parse a fuzzed string and return a tuple of (a, b, b_rev, a_rev)."""
     try:
         for tree in fan.parse(fuzzed_string):
-            pair = tree.children[0]  # <start> → <pair>
+            pair = tree.children[0]  # <start> → <expr> → <term> + <term>
             a = str(pair.children[0])
             b = str(pair.children[2])
-            # b_rev = str(pair.children[4])
-            # a_rev = str(pair.children[6])
-            # print typeof a, b, b_rev, a_rev but just one time
-            # for i in range(1):
-            #     print(f"Types: {type(a)}, {type(b)}, {type(b_rev)}, {type(a_rev)}")
             return a, b
     except FandangoParseError as e:
         print(f"❌ Parsing failed at position {e.position} in '{fuzzed_string}'")
     return None
 
 def main():
-    spec_path = 'rev.fan'
+    spec_path = 'add_pair.fan'
     number_of_examples = 200
     fan, examples = generate_examples(spec_path, number_of_examples)
 
-    # Create property tester for the function
+    # Function under test FUT1
     def add(x, y):
+        return x + y
+
+    # Function under test FUT2
+    def add_pair(x, y):
         return int(x) + int(y)
 
-    property_tester = PropertyTester(add)
+    property_tester = PropertyTester(add_pair)
 
     # Collect test inputs
     input_sets = []
