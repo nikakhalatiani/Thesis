@@ -1,5 +1,5 @@
 <start>   ::= <expr>
-<expr>    ::= <term> " + " <term>
+<expr>    ::= <term> ", " <term>
 
 <term>    ::= <number>
 <number>  ::= <digit>+

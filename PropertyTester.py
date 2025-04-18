@@ -1,39 +1,43 @@
 class PropertyTester:
-    def __init__(self, function_under_test):
-        self.func = function_under_test
-        self.properties = {
-            "commutativity": False,
-            # "associativity": False,
-            # "idempotence": False,
-            # "has_identity": False,
-            # "has_inverses": False,
-            # Add more properties as needed
-        }
-        self.identity_element = None
+    def __init__(self):
+        self.properties = {}
         self.counter_examples = {}
+        self.confidence_levels = {}
 
-    def test_commutativity(self, inputs):
-        """Test if f(a, b) == f(b, a) for all inputs."""
-        a, b = inputs
-        result1 = self.func(a, b)
-        result2 = self.func(b, a)
-        if result1 != result2:
-            self.properties["commutativity"] = False
-            self.counter_examples["commutativity"] = (a, b, result1, result2)
-            return False
-        return True
+    def test_property(self, property_def, function, input_set):
+        """Test a specific property for a function and input set."""
+        result = property_def.test_function(function, input_set)
+        return result
 
-    # Similar methods for other properties
+    def infer_properties(self, function, property_defs, input_sets):
+        """Infer properties for a specific function."""
+        # Initialize properties
+        properties = {prop.name: True for prop in property_defs}
+        counter_examples = {}
+        confidence = {prop.name: 0 for prop in property_defs}
+        total_tests = {prop.name: 0 for prop in property_defs}
 
-    def infer_properties(self, input_sets):
-        """Run all property tests on all input sets."""
-        # Initialize all properties as potentially true
-        for prop in self.properties:
-            self.properties[prop] = True
+        # Test each property with appropriate input sets
+        for prop in property_defs:
+            for inputs in input_sets:
+                print(f"Testing property {prop.name} with inputs: {inputs}")
+                if len(inputs) >= prop.arity:  # Check if we have enough inputs
+                    total_tests[prop.name] += 1
+                    if self.test_property(prop, function, inputs[:prop.arity]):
+                        confidence[prop.name] += 1
+                    else:
+                        properties[prop.name] = False
+                        if prop.name not in counter_examples:
+                            counter_examples[prop.name] = (inputs[:prop.arity],
+                                                           function.call(*inputs[:prop.arity]),
+                                                           function.call(*reversed(inputs[:prop.arity])))
+                # else:
+                #     # Not enough inputs for this property
+                #     raise(ValueError(f"Not enough inputs for property {prop.name}. Expected {prop.arity}, got {len(inputs)}."))
 
-        # Test each property with each input set
-        for inputs in input_sets:
-            self.test_commutativity(inputs)
-            # Call other property test methods
+        # Calculate confidence levels
+        for prop in property_defs:
+            if total_tests[prop.name] > 0:
+                self.confidence_levels[prop.name] = confidence[prop.name] / total_tests[prop.name]
 
-        return self.properties, self.counter_examples
+        return properties, counter_examples, self.confidence_levels
