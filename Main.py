@@ -7,10 +7,10 @@ def generate_examples(spec_file_path: str, num_examples: int):
     """Load spec and generate examples using fuzz()."""
     with open(spec_file_path) as spec_file:
         fan = Fandango(spec_file)
-    print("📦 Fuzzing examples:")
+    # print("📦 Fuzzing examples:")
     examples = fan.fuzz(desired_solutions=num_examples, population_size=num_examples)
-    for example in examples:
-        print(str(example))
+    # for example in examples:
+    #     print(str(example))
     return fan, examples
 
 
@@ -37,7 +37,8 @@ def run_property_inference(config):
         # Test properties
         tester = PropertyTester()
         properties, counter_examples, confidence = tester.infer_properties(
-            func, config.properties_to_test, input_sets)
+            func, config.properties_to_test, input_sets,
+            early_stopping=config.early_stopping)  # Pass early stopping config
 
         # Store results
         func_name = func.func.__name__
@@ -86,10 +87,13 @@ def main():
     config.add_function(subtract, arg_converter=int)
     config.add_function(subtract2, arg_converter=int, result_comparator=abs_compare)
 
-    config.add_property("commutativity")
+    config.add_property("Commutativity")
+    config.add_property("Associativity")
     config.set_grammar("Grammars/pair.fan")
     config.set_parser(binary_parser)
-    config.example_count = 5
+    config.example_count = 300
+    # Configure early stopping (set to True to stop testing a property after finding a counter-example)
+    config.set_early_stopping(True)  # Change to True to enable early stopping
 
     # Run inference
     results = run_property_inference(config)

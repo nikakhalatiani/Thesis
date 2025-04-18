@@ -4,12 +4,13 @@ class PropertyTester:
         self.counter_examples = {}
         self.confidence_levels = {}
 
-    def test_property(self, property_def, function, input_set):
+    @staticmethod
+    def test_property(property_def, function, input_set):
         """Test a specific property for a function and input set."""
         result = property_def.test_function(function, input_set)
         return result
 
-    def infer_properties(self, function, property_defs, input_sets):
+    def infer_properties(self, function, property_defs, input_sets, early_stopping=False):
         """Infer properties for a specific function."""
         # Initialize properties
         properties = {prop.name: True for prop in property_defs}
@@ -19,21 +20,28 @@ class PropertyTester:
 
         # Test each property with appropriate input sets
         for prop in property_defs:
+            found_counter_example = False
+
             for inputs in input_sets:
-                print(f"Testing property {prop.name} with inputs: {inputs}")
+                # Skip testing if we already found a counter-example and early stopping is enabled
+                if early_stopping and found_counter_example:
+                    break
+
                 if len(inputs) >= prop.arity:  # Check if we have enough inputs
                     total_tests[prop.name] += 1
-                    if self.test_property(prop, function, inputs[:prop.arity]):
+                    inputs_for_test = inputs[:prop.arity]
+
+                    # Get test result and counter-example data if it fails
+                    success, counter_example_data = self.test_property(prop, function, inputs_for_test)
+
+                    if success:
                         confidence[prop.name] += 1
                     else:
                         properties[prop.name] = False
+                        found_counter_example = True
+                        # Store the first counter-example we find
                         if prop.name not in counter_examples:
-                            counter_examples[prop.name] = (inputs[:prop.arity],
-                                                           function.call(*inputs[:prop.arity]),
-                                                           function.call(*reversed(inputs[:prop.arity])))
-                # else:
-                #     # Not enough inputs for this property
-                #     raise(ValueError(f"Not enough inputs for property {prop.name}. Expected {prop.arity}, got {len(inputs)}."))
+                            counter_examples[prop.name] = counter_example_data
 
         # Calculate confidence levels
         for prop in property_defs:

@@ -1,24 +1,32 @@
 from FunctionUnderTest import FunctionUnderTest
 from PropertyDefinition import PropertyDefinition
 
-def commutativity_test2(function, inputs):
+
+def commutativity_test(function, inputs):
     a, b = inputs
     result1 = function.call(a, b)
     result2 = function.call(b, a)
-    return function.compare_results(result1, result2)
+    success = function.compare_results(result1, result2)
 
+    if success:
+        return True, None
+    else:
+        return False, {
+                f"{function.func.__name__}({a},{b})": result1,
+                f"{function.func.__name__}({b},{a})": result2
+        }
+
+def associativity_test(function, inputs):
+    a, b, c = inputs
+    result1 = function.call(a, function.call(b, c))
+    result2 = function.call(function.call(a, b), c)
+    return function.compare_results(result1, result2)
 
 # Add properties to a registry
 property_registry = {
-    "commutativity": PropertyDefinition("commutativity", commutativity_test2, 2)    # Add more properties
+    "Commutativity": PropertyDefinition("Commutativity", commutativity_test, 2),
+    "Associativity": PropertyDefinition("Associativity", associativity_test, 3),
 }
-
-class PropertyDefinition:
-    def __init__(self, name, test_function, arity=2):
-        self.name = name
-        self.test_function = test_function
-        self.arity = arity  # Number of arguments the property test needs
-
 
 
 class PropertyInferenceConfig:
@@ -28,6 +36,8 @@ class PropertyInferenceConfig:
         self.grammar_specs = []
         self.input_parsers = []
         self.example_count = 100
+        self.early_stopping = False  # Default: test all inputs
+
 
     def add_function(self, func, arg_converter=None, result_comparator=None):
         fut = FunctionUnderTest(func, arg_converter, result_comparator)
@@ -46,4 +56,9 @@ class PropertyInferenceConfig:
 
     def set_parser(self, parser):
         self.input_parsers.append(parser)
+        return self
+
+    def set_early_stopping(self, early_stopping=True):
+        """Configure whether to stop testing a property after finding a counter-example."""
+        self.early_stopping = early_stopping
         return self
