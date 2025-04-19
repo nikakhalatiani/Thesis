@@ -1,6 +1,6 @@
-from FunctionUnderTest import FunctionUnderTest
-from PropertyDefinition import PropertyDefinition
-from PropertyRegistry import PropertyRegistry
+from core.function_under_test import FunctionUnderTest
+from config.property_definition import PropertyDefinition
+from config.property_registry import PropertyRegistry
 
 from typing import Any
 

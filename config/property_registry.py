@@ -1,5 +1,5 @@
-from PropertyDefinition import PropertyDefinition
-from FunctionUnderTest import FunctionUnderTest
+from config.property_definition import PropertyDefinition
+from core.function_under_test import FunctionUnderTest
 
 from collections.abc import Callable
 from typing import Any

@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from typing import Any
 
-from FunctionUnderTest import FunctionUnderTest
+from core.function_under_test import FunctionUnderTest
 
 
 class PropertyDefinition:

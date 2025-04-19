@@ -1,7 +1,7 @@
-from FunctionUnderTest import FunctionUnderTest
-from PropertyDefinition import PropertyDefinition
-from InputParser import InputParser
-from PropertyRegistry import PropertyRegistry
+from core.function_under_test import FunctionUnderTest
+from config.property_definition import PropertyDefinition
+from input.input_parser import InputParser
+from config.property_registry import PropertyRegistry
 
 
 class PropertyInferenceConfig:

@@ -1,10 +1,10 @@
-from PropertyTester import PropertyTester
-from InputParser import InputParser
-from PropertyInferenceConfig import PropertyInferenceConfig
-from PropertyRegistry import PropertyRegistry
-from FunctionUnderTest import FunctionUnderTest
-from PropertyInferenceEngine import PropertyInferenceEngine
-from Functions import Functions
+from core.property_tester import PropertyTester
+from input.input_parser import InputParser
+from config.property_inference_config import PropertyInferenceConfig
+from config.property_registry import PropertyRegistry
+from core.function_under_test import FunctionUnderTest
+from core.property_inference_engine import PropertyInferenceEngine
+from input.functions import Functions
 
 import inspect
 

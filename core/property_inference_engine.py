@@ -1,9 +1,9 @@
 from fandango import Fandango
 from fandango.language.tree import DerivationTree
 
-from PropertyInferenceConfig import PropertyInferenceConfig
-from PropertyTester import PropertyTester
-from InputParser import InputParser
+from config.property_inference_config import PropertyInferenceConfig
+from core.property_tester import PropertyTester
+from input.input_parser import InputParser
 
 
 class PropertyInferenceEngine:
