@@ -1,8 +1,14 @@
+from collections.abc import Callable
+from typing import Any
+
+
 class FunctionUnderTest:
-    def __init__(self, func, arg_converter=None, result_comparator=None):
-        self.func = func
-        self.arg_converter = arg_converter or (lambda x: x)  # Default: no conversion
-        self.result_comparator = result_comparator or (lambda x, y: x == y)  # Default: equality
+    def __init__(self, func: Callable, arg_converter: Callable | None = None,
+                 result_comparator: Callable | None = None):
+        self.func: Callable = func
+        self.arg_converter: Callable = arg_converter or (lambda x: x)  # Default: no conversion
+        self.result_comparator: Callable[[Any, Any], bool] = result_comparator or (
+            lambda x, y: x == y)  # Default: equality
 
     def call(self, *args):
         """
@@ -21,5 +27,15 @@ class FunctionUnderTest:
         converted_args = [self.arg_converter(arg) for arg in args]
         return self.func(*converted_args)
 
-    def compare_results(self, result1, result2):
+    def compare_results(self, result1, result2) -> bool:
+        """
+          Compares two results using the result comparator.
+
+          Args:
+              result1: The first result to compare.
+              result2: The second result to compare.
+
+          Returns:
+              True if the results are equal **according to the comparator**, False otherwise.
+        """
         return self.result_comparator(result1, result2)
