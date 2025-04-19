@@ -14,7 +14,7 @@ class PropertyRegistry:
         self._properties: dict[str, PropertyDefinition] = {}
 
     def register(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | None]],
-                 arity: int) -> None:
+                 arity: int) -> 'PropertyRegistry':
         """
         Register a new property with the registry.
 
@@ -22,10 +22,15 @@ class PropertyRegistry:
             name: The name of the property
             test_function: The function implementing the property test
             arity: The number of arguments the test function requires
+
+        Returns:
+            The updated registry instance
         """
         assert name not in self._properties, "Property already registered"
         assert arity >= 0, "Arity must be non-negative"
         self._properties[name] = PropertyDefinition(name, test_function, arity)
+
+        return self
 
     def get(self, name: str) -> PropertyDefinition:
         """
