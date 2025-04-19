@@ -17,14 +17,14 @@ def main():
     # 2) build config
     binary_parser = InputParser(InputParser.extract_two_numbers)
     config = (PropertyInferenceConfig(registry, example_count=1000)
-              .set_default_grammar("Grammars/pair.fan")
+              .set_default_grammar("grammars/pair.fan")
               .set_default_parser(binary_parser)
               .set_early_stopping(False))
 
     # TODO think about what to do instead of defining comparator here and creating dictionaries for overrides
     def abs_compare(x, y):
         return abs(x) == abs(y)
-    grammar_overrides = {"subtract": "Grammars/pair2.fan", "divide": "Grammars/pair2.fan"}
+    grammar_overrides = {"subtract": "grammars/pair2.fan", "divide": "grammars/pair2.fan"}
     parser_overrides = {"subtract": binary_parser}
     comparator_overrides = {"subtract": abs_compare}
     # TODO think about what to do when strings are passed and Error is raised without line below

@@ -46,7 +46,7 @@
 #
 #
 # def main():
-#     spec_path = 'Grammars/test.fan'
+#     spec_path = 'grammars/test.fan'
 #     number_of_examples = 5
 #
 #     fan, examples = generate_examples(spec_path, number_of_examples)
