@@ -40,3 +40,10 @@ class InputParser:
         except FandangoParseError as e:
             print(f"❌ Parsing failed at position {e.position} in '{tree}'")
         return None
+
+    @staticmethod
+    def extract_two_numbers(tree: DerivationTree) -> tuple[str, str]:
+        pair = tree.children[0]  # <start> → <expr>
+        a = str(pair.children[0])  # <expr> → <term> ", " <term>
+        b = str(pair.children[2])
+        return a, b

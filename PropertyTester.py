@@ -1,5 +1,6 @@
 from FunctionUnderTest import FunctionUnderTest
 from PropertyDefinition import PropertyDefinition
+from PropertyRegistry import PropertyRegistry
 
 from typing import Any
 
@@ -14,10 +15,11 @@ class PropertyTester:
         confidence_levels: Stores confidence levels for each property.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, registry: PropertyRegistry) -> None:
         self.properties: dict[str, bool] = {}
         self.counter_examples: dict[str, dict[str, str] | None] = {}
         self.confidence_levels: dict[str, float] = {}
+        self._registry = registry
 
     @staticmethod
     def test_property(property_def: PropertyDefinition, function: FunctionUnderTest, input_set: Any) -> tuple[
@@ -37,6 +39,33 @@ class PropertyTester:
         result: tuple[bool, dict[str, str] | None] = property_def.test_function(function, input_set)
         return result
 
+    @staticmethod
+    def commutativity_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | None]:
+        a, b = inputs
+        r1, r2 = function.call(a, b), function.call(b, a)
+        if function.compare_results(r1, r2):
+            return True, None
+        else:
+            return False, {
+                f"{function.func.__name__}({a},{b})": r1 if isinstance(r1, str) else repr(r1),
+                f"{function.func.__name__}({b},{a})": r2 if isinstance(r2, str) else repr(r2),
+            }
+
+    @staticmethod
+    def associativity_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | None]:
+        a, b, c = inputs
+        r1, r2 = function.call(a, function.call(b, c)), function.call(function.call(a, b), c)
+
+        if function.compare_results(r1, r2):
+            return True, None
+        else:
+            return False, {
+                f"{function.func.__name__}({a},{function.func.__name__}({b},{c}))": r1 \
+                    if isinstance(r1, str) else repr(r1),
+                f"{function.func.__name__}({function.func.__name__}({a},{b}),{c})": r2 \
+                    if isinstance(r2, str) else repr(r2)
+            }
+
     def infer_properties(self, function: FunctionUnderTest, property_defs: list[PropertyDefinition],
                          input_sets: list[Any], early_stopping: bool = False) -> tuple[
         dict[str, bool], dict[str, dict[str, str] | None], dict[str, float]]:
@@ -55,6 +84,9 @@ class PropertyTester:
                 - A dictionary of counter-examples for properties that fail.
                 - A dictionary of confidence levels for each property.
         """
+        if not property_defs:
+            property_defs = list(self._registry.get_all().values())
+
         properties: dict[str, bool] = {prop.name: True for prop in property_defs}
         counter_examples: dict[str, dict[str, str] | None] = {}
         confidence: dict[str, int] = {prop.name: 0 for prop in property_defs}

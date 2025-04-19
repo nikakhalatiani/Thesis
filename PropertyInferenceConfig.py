@@ -20,7 +20,7 @@ class PropertyInferenceConfig:
         early_stopping: Whether to stop testing a property after finding a counter-example.
     """
 
-    def __init__(self, registry: PropertyRegistry):
+    def __init__(self, registry: PropertyRegistry, example_count: int = 100) -> None:
         self.registry: PropertyRegistry = registry
         self.functions_under_test: list[FunctionUnderTest] = []
         self.properties_to_test: list[PropertyDefinition] = []
@@ -28,7 +28,7 @@ class PropertyInferenceConfig:
         self.default_parser: InputParser | None = None
         self.function_to_grammar: dict[str, str] = {}
         self.function_to_parser: dict[str, InputParser] = {}
-        self.example_count: int = 100
+        self.example_count: int = example_count
         self.early_stopping: bool = False
 
     def add_function(

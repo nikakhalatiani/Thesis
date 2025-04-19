@@ -3,4 +3,4 @@
 
 <term>    ::= <number>
 <number>  ::= <digit>+
-<digit>   ::= "0" | "1"
+<digit>   ::= "1" | "2"
