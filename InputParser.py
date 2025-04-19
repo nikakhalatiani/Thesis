@@ -11,14 +11,14 @@ class InputParser:
     A parser that extracts inputs from a derivation tree using a specified extraction strategy.
     """
 
-    def __init__(self, extraction_strategy: Callable):
+    def __init__(self, extraction_strategy: Callable) -> None:
         """
         Initialize the InputParser with an extraction strategy.
 
         Args:
             extraction_strategy: A function that takes a parse tree and returns the extracted inputs.
         """
-        self.extraction_strategy = extraction_strategy
+        self.extraction_strategy: Callable = extraction_strategy
 
     def parse(self, fan: Fandango, tree: DerivationTree) -> Any | None:
         """

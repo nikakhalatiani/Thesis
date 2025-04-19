@@ -3,14 +3,24 @@ from typing import Any
 
 
 class FunctionUnderTest:
-    def __init__(self, func: Callable, arg_converter: Callable | None = None,
-                 result_comparator: Callable | None = None):
-        self.func: Callable = func
-        self.arg_converter: Callable = arg_converter or (lambda x: x)  # Default: no conversion
-        self.result_comparator: Callable[[Any, Any], bool] = result_comparator or (
-            lambda x, y: x == y)  # Default: equality
+    """
+    A function under test, along with optional argument conversion and result comparison logic.
 
-    def call(self, *args):
+    Attributes:
+        func: The function to be tested.
+        arg_converter: A function to convert arguments before passing them to `func`.
+                                          Defaults to an identity function if not provided.
+        result_comparator: A function to compare results of `func`.
+                                             Defaults to equality comparison if not provided.
+    """
+
+    def __init__(self, func: Callable, arg_converter: Callable | None = None,
+                 result_comparator: Callable | None = None) -> None:
+        self.func: Callable = func
+        self.arg_converter: Callable = arg_converter or (lambda x: x)
+        self.result_comparator: Callable[[Any, Any], bool] = result_comparator or (lambda x, y: x == y)
+
+    def call(self, *args: Any) -> Any:
         """
           Calls the function under test with the provided arguments after applying the argument converter.
 
@@ -27,7 +37,7 @@ class FunctionUnderTest:
         converted_args = [self.arg_converter(arg) for arg in args]
         return self.func(*converted_args)
 
-    def compare_results(self, result1, result2) -> bool:
+    def compare_results(self, result1: Any, result2: Any) -> bool:
         """
           Compares two results using the result comparator.
 

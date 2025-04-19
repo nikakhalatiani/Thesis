@@ -1,16 +1,20 @@
 from PropertyDefinition import PropertyDefinition
+from FunctionUnderTest import FunctionUnderTest
 
 from collections.abc import Callable
+from typing import Any
+
 
 class PropertyRegistry:
     """
     A registry for managing property definitions.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._properties: dict[str, PropertyDefinition] = {}
 
-    def register(self, name: str, test_function: Callable, arity: int) -> None:
+    def register(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | None]],
+                 arity: int) -> None:
         """
         Register a new property with the registry.
 

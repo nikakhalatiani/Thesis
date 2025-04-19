@@ -1,5 +1,24 @@
+from collections.abc import Callable
+from typing import Any
+
+from FunctionUnderTest import FunctionUnderTest
+
+
 class PropertyDefinition:
-    def __init__(self, name, test_function, arity=2):
-        self.name = name
-        self.test_function = test_function
-        self.arity = arity  # Number of arguments the property test needs
+    """
+    Property definition for testing functions.
+
+    Attributes:
+        name: The name of the property.
+        test_function:
+            The function used to test the property. It takes a `FunctionUnderTest` instance
+            and inputs, and returns a tuple containing a boolean indicating success and
+            an optional dictionary of counterexamples.
+        arity: The number of arguments required by the property test.
+    """
+
+    def __init__(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | None]],
+                 arity: int) -> None:
+        self.name: str = name
+        self.test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | None]] = test_function
+        self.arity: int = arity
