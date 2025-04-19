@@ -23,6 +23,8 @@ class PropertyRegistry:
             test_function: The function implementing the property test
             arity: The number of arguments the test function requires
         """
+        assert name not in self._properties, "Property already registered"
+        assert arity >= 0, "Arity must be non-negative"
         self._properties[name] = PropertyDefinition(name, test_function, arity)
 
     def get(self, name: str) -> PropertyDefinition:

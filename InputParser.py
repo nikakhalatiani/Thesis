@@ -9,15 +9,13 @@ from collections.abc import Callable
 class InputParser:
     """
     A parser that extracts inputs from a derivation tree using a specified extraction strategy.
+
+    Attributes:
+            extraction_strategy: A function that takes a parse tree and returns the extracted inputs.
     """
 
     def __init__(self, extraction_strategy: Callable) -> None:
-        """
-        Initialize the InputParser with an extraction strategy.
 
-        Args:
-            extraction_strategy: A function that takes a parse tree and returns the extracted inputs.
-        """
         self.extraction_strategy: Callable = extraction_strategy
 
     def parse(self, fan: Fandango, tree: DerivationTree) -> Any | None:
@@ -36,6 +34,7 @@ class InputParser:
         """
         try:
             # TODO ask if parsing DerivationTree is better than parsing str
+            # TODO maybe it will always return tuple, NOT SURE
             for tree in fan.parse(tree):
                 return self.extraction_strategy(tree)
         except FandangoParseError as e:
