@@ -11,8 +11,8 @@ class Functions:
     def subtract(x, y):
         return x - y
 
-    @staticmethod
-    def divide(x, y):
-        if y == 0:
-            raise ZeroDivisionError("division by zero")
-        return x / y
+    # @staticmethod
+    # def divide(x, y):
+    #     if y == 0:
+    #         raise ZeroDivisionError("division by zero")
+    #     return x / y

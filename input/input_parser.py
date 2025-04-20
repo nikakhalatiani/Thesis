@@ -47,3 +47,91 @@ class InputParser:
         a = str(pair.children[0])  # <expr> → <term> ", " <term>
         b = str(pair.children[2])
         return a, b
+
+    @staticmethod
+    def extract_elements_recursive(tree: DerivationTree, expected_count: int = None) -> tuple:
+        """
+        Extract elements from a derivation tree with recursive structure.
+
+        Handles grammar structures where expr -> term, expr -> term, expr -> ... -> term
+
+        Args:
+            tree: The derivation tree to extract elements from
+            expected_count: Optional number of elements to expect (for validation)
+
+        Returns:
+            A tuple containing the extracted elements
+        """
+        elements = []
+
+        def collect_terms(node):
+            if not hasattr(node, 'children') or not node.children:
+                # Base case: this is a leaf node
+                elements.append(str(node))
+                return
+
+            # Check if this is a term node
+            if str(node.symbol) == 'term':
+                elements.append(str(node))
+                return
+
+            # Process all children
+            for child in node.children:
+                collect_terms(child)
+
+        # Start collecting from the root
+        collect_terms(tree)
+
+        # Remove any empty strings or separator elements
+        elements = [e for e in elements if e and e.strip() and e.strip() != ',']
+
+        # Check if we have the expected number of elements
+        if expected_count is not None and len(elements) != expected_count:
+            raise ValueError(f"Expected {expected_count} elements, but found {len(elements)}")
+
+        return tuple(elements)
+
+    # TODO compare with extract_elements_recursive
+    @staticmethod
+    def extract_elements_and_clean(tree: DerivationTree, expected_count: int = None) -> tuple:
+        """
+        Extract elements from a derivation tree and clean up any comma separators.
+
+        Args:
+            tree: The derivation tree to extract elements from
+            expected_count: Optional number of elements to expect (for validation)
+
+        Returns:
+            A tuple containing the cleaned extracted elements
+        """
+        # Get to the expression node
+        expr_node = tree.children[0]  # <start> → <expr>
+
+        # Extract all raw elements
+        raw_elements = []
+        current_node = expr_node
+
+        # Keep extracting until we reach the end of the recursive structure
+        while hasattr(current_node, 'children') and current_node.children:
+            # First child is always a term
+            raw_elements.append(str(current_node.children[0]))
+
+            # If there are more children, continue with the last child (expr)
+            if len(current_node.children) > 2:
+                current_node = current_node.children[2]  # Skip the comma separator
+            else:
+                break
+
+        # Clean up elements (remove commas and extra whitespace)
+        cleaned_elements = []
+        for element in raw_elements:
+            # Split by comma and take the first part
+            parts = element.split(',')
+            print (f"Parts: {parts}", element)
+            cleaned_elements.append(parts[0].strip())
+
+        # Check if we have the expected number of elements
+        if expected_count is not None and len(cleaned_elements) != expected_count:
+            raise ValueError(f"Expected {expected_count} elements, but found {len(cleaned_elements)}")
+
+        return tuple(cleaned_elements)
