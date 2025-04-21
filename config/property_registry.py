@@ -13,7 +13,7 @@ class PropertyRegistry:
     def __init__(self) -> None:
         self._properties: dict[str, PropertyDefinition] = {}
 
-    def register(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | None]],
+    def register(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | str]],
                  arity: int) -> 'PropertyRegistry':
         """
         Register a new property with the registry.

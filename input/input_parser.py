@@ -64,14 +64,16 @@ class InputParser:
         """
         elements = []
 
-        def collect_terms(node):
+        def collect_terms(node: DerivationTree):
             if not hasattr(node, 'children') or not node.children:
                 # Base case: this is a leaf node
+                print(f"Found leaf node: {node}")
                 elements.append(str(node))
                 return
 
             # Check if this is a term node
-            if str(node.symbol) == 'term':
+            if node.is_terminal():
+                print(f"Found terminal node: {node}")
                 elements.append(str(node))
                 return
 
@@ -116,22 +118,14 @@ class InputParser:
             # First child is always a term
             raw_elements.append(str(current_node.children[0]))
 
-            # If there are more children, continue with the last child (expr)
+            # If there are more children, continue with second child
             if len(current_node.children) > 2:
-                current_node = current_node.children[2]  # Skip the comma separator
+                current_node = current_node.children[2]  # 2 is the index to skip the separator (comma)
             else:
                 break
 
-        # Clean up elements (remove commas and extra whitespace)
-        cleaned_elements = []
-        for element in raw_elements:
-            # Split by comma and take the first part
-            parts = element.split(',')
-            print (f"Parts: {parts}", element)
-            cleaned_elements.append(parts[0].strip())
-
         # Check if we have the expected number of elements
-        if expected_count is not None and len(cleaned_elements) != expected_count:
-            raise ValueError(f"Expected {expected_count} elements, but found {len(cleaned_elements)}")
+        if expected_count is not None and len(raw_elements) != expected_count:
+            raise ValueError(f"Expected {expected_count} elements, but found {len(raw_elements)}")
 
-        return tuple(cleaned_elements)
+        return tuple(raw_elements)

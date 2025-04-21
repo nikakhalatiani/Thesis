@@ -17,8 +17,8 @@ class PropertyDefinition:
         arity: The number of arguments required by the property test.
     """
 
-    def __init__(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | None]],
+    def __init__(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | str]],
                  arity: int) -> None:
         self.name: str = name
-        self.test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | None]] = test_function
+        self.test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | str]] = test_function
         self.arity: int = arity

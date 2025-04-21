@@ -8,15 +8,20 @@ from input.functions import Functions
 
 import inspect
 
+
 def main():
     # 1) build property registry
     registry = PropertyRegistry() \
         .register("Commutativity", PropertyTester.commutativity_test, 2)
     registry.register("Associativity", PropertyTester.associativity_test, 3)
+    # registry.register("Right Idempotence", PropertyTester.right_idempotence_test, 2)
+    # registry.register("Left Idempotence", PropertyTester.left_idempotence_test, 2)
+    # registry.register("Full Idempotence", PropertyTester.full_idempotence_test, 2)
+    # registry = PropertyRegistry().register("Idempotence", PropertyTester.idempotence_test, 1) \
 
     # 2) build config
     binary_parser = InputParser(InputParser.extract_elements_and_clean)
-    config = (PropertyInferenceConfig(registry, example_count=100)
+    config = (PropertyInferenceConfig(registry, example_count=200)
               .set_default_grammar("grammars/digits_list.fan")
               .set_default_parser(binary_parser)
               .set_early_stopping(False))
@@ -24,12 +29,12 @@ def main():
     # TODO think about what to do instead of defining comparator here and creating dictionaries for overrides
     def abs_compare(x, y):
         return abs(x) == abs(y)
+
     grammar_overrides = {"subtract": "grammars/digits_list.fan", "divide": "grammars/digits_list.fan"}
     parser_overrides = {"subtract": binary_parser}
     comparator_overrides = {"subtract": abs_compare}
     # TODO think about what to do when strings are passed and Error is raised without line below
-    converter_overrides = {"multiply": int, "subtract": int, "divide": int}
-
+    converter_overrides = {"multiply": int, "subtract": int, "divide": int, "project": int}
 
     for name, func in inspect.getmembers(Functions, predicate=inspect.isfunction):
         converter = converter_overrides.get(name)
