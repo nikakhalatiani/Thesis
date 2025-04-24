@@ -33,7 +33,7 @@ class PropertyInferenceEngine:
             input_sets = [i for i in input_sets if i is not None]
 
             tester = PropertyTester(self.config.registry)
-            properties, counter_examples, confidence = tester.infer_properties(
+            properties, examples, confidence = tester.infer_properties(
                 fut,
                 self.config.properties_to_test,
                 input_sets,
@@ -49,7 +49,7 @@ class PropertyInferenceEngine:
 
             results[key] = {
                 "properties": properties,
-                "counter_examples": counter_examples,
+                "examples": examples,
                 "confidence": confidence
             }
 

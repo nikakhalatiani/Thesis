@@ -49,6 +49,7 @@ class PropertyRegistry:
             raise KeyError(f"Property '{name}' not found in registry")
         return self._properties[name]
 
+    @property
     def get_all(self) -> dict[str, PropertyDefinition]:
         """
         Get all registered properties.

@@ -59,15 +59,21 @@ def main():
         holds: bool
         for prop, holds in result["properties"].items():
             confidence: int = result["confidence"].get(prop, 0) * 100
-            status = "✅" if holds else "❌"
+            status = "🟢" if holds else "🔴"
             decision = (
                 f"{status} {prop} (Confidence: {confidence:.1f}%)"
                 if holds
                 else f"{status} {prop} (Confidence: {100 - confidence:.1f}%)"
             )
             print(decision)
-            if not holds and prop in result["counter_examples"]:
-                print(f"🚫 Counter-example: {result['counter_examples'][prop]}")
+            if isinstance(result["examples"][prop], dict):
+                for key, value in result["examples"][prop].items():
+                    if isinstance(value, str):
+                        print(f"\t {key}: {value}")
+                    else:
+                        print(f"\t {key}: {repr(value)}")
+            else:
+                print(f"\t {result['examples'][prop]}")
 
 
 if __name__ == "__main__":
