@@ -33,7 +33,6 @@ class InputParser:
             FandangoParseError: If parsing fails, an error message is printed.
         """
         try:
-            # TODO ask if parsing DerivationTree is better than parsing str
             # TODO maybe it will always return tuple, NOT SURE
             for tree in fan.parse(tree):
                 return self.extraction_strategy(tree)
