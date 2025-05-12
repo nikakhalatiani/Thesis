@@ -1,36 +1,35 @@
 from fandango import Fandango
 
-def test_last_name_startswith_S():
-    # Load the grammar
-    with open("./grammars/persons-faker.fan", "r") as f:
+def all_terms_nonzero(example: str) -> bool:
+    try:
+        terms = example.split(",")
+        return all(int(term.strip()) != 0 for term in terms)
+    except ValueError:
+        return False
+
+def test_constraints(max_attempts=100):
+    with open("./grammars/digits_list.fan", "r") as f:
         fan = Fandango(f)
 
-    constraint = "<last_name>.startswith('S')"
-    print(f"🔍 Testing extra constraint: {constraint}")
+    for attempt in range(1, max_attempts + 1):
+        print(f"\nAttempt {attempt} of {max_attempts}...\n")
 
-    # Generate examples
-    examples = fan.fuzz(
-        desired_solutions=200,
-        extra_constraints=[constraint]
-    )
+        examples = fan.fuzz(
+            desired_solutions=200,
+            population_size=220
+        )
 
-    print("\n📦 Generated Examples:")
-    for i, example in enumerate(examples, 1):
-        example_str = str(example)
-        print(f"{i:3}: {example_str}")
-
-        try:
-            person_part, age_part = example_str.split(",")
-            first_name, last_name = person_part.split(" ")
-
-            if not last_name.startswith('S'):
-                print(f"❌ Constraint violated! Last name '{last_name}' does not start with 'S' in: {example_str}")
+        for i, example in enumerate(examples, 1):
+            example_str = str(example)
+            print(f"{i:3}: {example_str}")
+            if not all_terms_nonzero(example_str):
+                print(f"\nDetected 0 inside example: {example_str}")
+                print(f"\nConstraint violation detected on attempt {attempt}!")
                 return
-        except ValueError:
-            print(f"⚠️ Could not parse example correctly: {example_str}")
-            return
 
-    print("\n✅ No violations found. Extra constraint seems to work!")
+        print(f"\nNo violations found in attempt {attempt}, trying again...")
+
+    print(f"\nReached {max_attempts} attempts with no violations.")
 
 if __name__ == "__main__":
-    test_last_name_startswith_S()
+    test_constraints()

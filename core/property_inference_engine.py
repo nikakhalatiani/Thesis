@@ -15,7 +15,9 @@ class PropertyInferenceEngine:
         with open(path_to_grammar) as spec_file:
             fan: Fandango = Fandango(spec_file)
             # print("📦 Fuzzing examples:")
-            examples: list[DerivationTree] = fan.fuzz(desired_solutions=num_examples)
+            examples: list[DerivationTree] = fan.fuzz(desired_solutions=int(num_examples),
+                                                      population_size=int(num_examples * 1.1)
+                                                      )
             # for example in examples:
             #     print(str(example))
         return fan, examples
@@ -42,8 +44,8 @@ class PropertyInferenceEngine:
 
             # key: str = f"{name} ({idx + 1}/{len(self.config.functions_under_test)})"
             key: str = (f"{'function ' + fut.func.__name__}" " with "
-                             f"{fut.arg_converter.__name__ if fut.arg_converter.__name__ != '<lambda>' else 'default'}" " converter and "
-                             f"{fut.result_comparator.__name__ if fut.result_comparator.__name__ != '<lambda>' else 'default'}" " comparator")
+                        f"{fut.arg_converter.__name__ if fut.arg_converter.__name__ != '<lambda>' else 'default'}" " converter and "
+                        f"{fut.result_comparator.__name__ if fut.result_comparator.__name__ != '<lambda>' else 'default'}" " comparator")
 
             # key: str = f"{fut.func.__name__}"
 

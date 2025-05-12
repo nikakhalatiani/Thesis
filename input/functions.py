@@ -1,21 +1,47 @@
-class Functions:
+from input.function_metadata import grammar
+
+# --- Optional helpers and aliases ------------------------------------------
+
+def comparator_abs(x, y):
+    # “equal up to absolute‐value”
+    return abs(x) == abs(y)
+
+# alias the generic test to just the one function that needs it:
+comparator_subtract = comparator_abs
+
+
+def converter_int(x):
+    # parse every argument as int
+    return int(x)
+
+converter_add = converter_int
+converter_multiply = converter_int
+converter_subtract = converter_int
+converter_divide = converter_int
+
+
+# --- functions under test ---------------------------------------------
+
+class Calculator:
     @staticmethod
-    def add(x, y):
-        return x + y
+    def subtract(x, y):
+        return x - y
 
     @staticmethod
     def multiply(x, y):
         return x * y
 
     @staticmethod
-    def subtract(x, y):
-        return x - y
+    def add(x, y):
+        return x + y
 
-    # @staticmethod
-    # def divide(x, y):
-    #     if y == 0:
-    #         raise ZeroDivisionError("division by zero")
-    #     return x / y
+    @staticmethod
+    @grammar("./grammars/test.fan")
+    def divide(x, y):
+        if y == 0:
+            raise ZeroDivisionError("Denominator cannot be zero")
+        return x / y
+
 
     # @staticmethod
     # def first(x, y):
