@@ -55,7 +55,8 @@ class Calculator:
     # def max(x, y):
     #     """Returns the maximum of two arguments. Idempotent for all three: right, left, and full idempotency."""
     #     return x if x >= y else y
-    #
+
+    # # TODO modify framework to run on not just two args
     # @staticmethod
     # def project(x):
     #     return x

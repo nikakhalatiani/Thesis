@@ -29,8 +29,9 @@ def main(user_funcs_path: str = "input/functions.py"):
     # registry = PropertyRegistry().register("Idempotence", PropertyTester.idempotence_test, 1) \
 
     # 2) build base config
-    default_parser = InputParser(InputParser.extract_elements_and_clean)
-    config = (PropertyInferenceConfig(registry, example_count=100)
+    default_parser = InputParser(InputParser.extract_elements_recursive)
+    # TODO ask if custom distributions for grammar is available
+    config = (PropertyInferenceConfig(registry, example_count=5)
               .set_default_grammar("grammars/digits_list.fan")
               .set_default_parser(default_parser)
               .set_early_stopping(False))
@@ -88,16 +89,19 @@ def main(user_funcs_path: str = "input/functions.py"):
         prop: str
         holds: bool
         for prop, holds in result["properties"].items():
-            confidence: int = result["confidence"].get(prop, 0) * 100
+            confidence = result["confidence"].get(prop, 0) * 100
+            tests_run = result["total_tests"].get(prop, 0)
+            max_tests = config.example_count
             status = "🟢" if holds else "🔴"
             decision = (
-                f"{status} {prop} (Confidence: {confidence:.1f}%)"
-                if holds
-                else f"{status} {prop} (Confidence: {100 - confidence:.1f}%)"
+                f"{status} {prop} (Confidence: {confidence:.1f}%); Tests run to infer: {tests_run})"
+                # if holds
+                # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%); Tests run to infer: {tests_run})"
             )
             print(decision)
-            if isinstance(result["examples"][prop], dict):
-                for key, value in result["examples"][prop].items():
+            examples = result["examples"][prop]
+            if isinstance(examples, dict):
+                for key, value in examples.items():
                     if isinstance(value, str):
                         print(f"\t {key}: {value}")
                     else:

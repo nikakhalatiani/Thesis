@@ -119,7 +119,7 @@ class PropertyTester:
 
     def infer_properties(self, function: FunctionUnderTest, property_defs: list[PropertyDefinition],
                          input_sets: list[Any], early_stopping: bool = False) -> tuple[
-        dict[str, bool], dict[str, dict[str, str] | str], dict[str, float]]:
+        dict[str, bool], dict[str, dict[str, str] | str], dict[str, float], dict[str, int]]:
         """
         Infer properties for a specific function.
 
@@ -166,6 +166,7 @@ class PropertyTester:
                         properties[prop.name] = False
                         found_example = True
                         if isinstance(examples[prop.name], dict):
+                            # TODO change 6 to be configurable
                             if len(examples[prop.name]) < 6:
                                 # Store multiple examples if it's a dict with less than 6 entries
                                 examples[prop.name].update(example_data)
@@ -179,4 +180,4 @@ class PropertyTester:
             if total_tests[prop.name] > 0:
                 self.confidence_levels[prop.name] = confidence[prop.name] / total_tests[prop.name]
 
-        return properties, examples, self.confidence_levels
+        return properties, examples, self.confidence_levels, total_tests

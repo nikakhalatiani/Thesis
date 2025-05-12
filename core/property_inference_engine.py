@@ -14,11 +14,11 @@ class PropertyInferenceEngine:
     def _generate_examples(path_to_grammar: str, num_examples: int) -> tuple[Fandango, list[DerivationTree]]:
         with open(path_to_grammar) as spec_file:
             fan: Fandango = Fandango(spec_file)
-            # print("📦 Fuzzing examples:")
+            print("📦 Fuzzing examples:")
             examples: list[DerivationTree] = fan.fuzz(desired_solutions=int(num_examples),
                                                       population_size=int(num_examples * 1.1))
-            # for example in examples:
-            #     print(str(example))
+            for example in examples:
+                print(str(example))
         return fan, examples
 
     def run(self) -> dict[str, dict[str, dict]]:
@@ -33,8 +33,12 @@ class PropertyInferenceEngine:
             input_sets = [parser.parse(fan, tree) for tree in examples]
             input_sets = [i for i in input_sets if i is not None]
 
+            from collections import Counter
+            counts = Counter(len(s) for s in input_sets)
+            print("🎲 input‐tuple length distribution:", counts)
+
             tester = PropertyTester(self.config.registry)
-            properties, examples, confidence = tester.infer_properties(
+            properties, examples, confidence, total_tests = tester.infer_properties(
                 fut,
                 self.config.properties_to_test,
                 input_sets,
@@ -52,6 +56,7 @@ class PropertyInferenceEngine:
                 "properties": properties,
                 "examples": examples,
                 "confidence": confidence,
+                "total_tests": total_tests,
             }
 
         return results
