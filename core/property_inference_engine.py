@@ -16,8 +16,7 @@ class PropertyInferenceEngine:
             fan: Fandango = Fandango(spec_file)
             # print("📦 Fuzzing examples:")
             examples: list[DerivationTree] = fan.fuzz(desired_solutions=int(num_examples),
-                                                      population_size=int(num_examples * 1.1)
-                                                      )
+                                                      population_size=int(num_examples * 1.1))
             # for example in examples:
             #     print(str(example))
         return fan, examples
@@ -52,7 +51,7 @@ class PropertyInferenceEngine:
             results[key] = {
                 "properties": properties,
                 "examples": examples,
-                "confidence": confidence
+                "confidence": confidence,
             }
 
         return results

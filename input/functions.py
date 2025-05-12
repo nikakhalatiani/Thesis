@@ -1,17 +1,15 @@
 from input.function_metadata import grammar
 
+import sys
 # --- Optional helpers and aliases ------------------------------------------
 
 def comparator_abs(x, y):
-    # “equal up to absolute‐value”
     return abs(x) == abs(y)
 
-# alias the generic test to just the one function that needs it:
 comparator_subtract = comparator_abs
 
 
 def converter_int(x):
-    # parse every argument as int
     return int(x)
 
 converter_add = converter_int
@@ -20,7 +18,7 @@ converter_subtract = converter_int
 converter_divide = converter_int
 
 
-# --- functions under test ---------------------------------------------
+# --- Functions under test ---------------------------------------------
 
 class Calculator:
     @staticmethod
@@ -39,7 +37,7 @@ class Calculator:
     @grammar("./grammars/test.fan")
     def divide(x, y):
         if y == 0:
-            raise ZeroDivisionError("Denominator cannot be zero")
+            return sys.maxsize
         return x / y
 
 

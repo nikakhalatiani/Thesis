@@ -75,7 +75,7 @@ def main(user_funcs_path: str = "input/functions.py"):
         config.add_function(fut, grammar=gram, parser=pars)
 
     # specify the properties to test if none are provided all properties are tested
-    config.add_property("Commutativity")
+    # config.add_property("Commutativity")
     # config.add_property("Associativity")
 
     # 3) run

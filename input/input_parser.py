@@ -41,13 +41,6 @@ class InputParser:
         return None
 
     @staticmethod
-    def extract_two_numbers(tree: DerivationTree) -> tuple[str, str]:
-        pair = tree.children[0]  # <start> → <expr>
-        a = str(pair.children[0])  # <expr> → <term> ", " <term>
-        b = str(pair.children[2])
-        return a, b
-
-    @staticmethod
     def extract_elements_recursive(tree: DerivationTree, expected_count: int = None) -> tuple:
         """
         Extract elements from a derivation tree with recursive structure.
