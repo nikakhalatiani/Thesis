@@ -1,12 +1,18 @@
 from input.function_metadata import grammar
 
 import sys
+import math
 # --- Optional helpers and aliases ------------------------------------------
 
 def comparator_abs(x, y):
     return abs(x) == abs(y)
 
+def comparator_close(x, y):
+    return math.isclose(x, y)
+
 comparator_subtract = comparator_abs
+comparator_divide = comparator_close
+comparator_multiply = comparator_close
 
 
 def converter_int(x):

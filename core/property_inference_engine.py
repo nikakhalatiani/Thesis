@@ -2,6 +2,7 @@ from fandango import Fandango
 from fandango.language.tree import DerivationTree
 
 from typing import TypedDict
+from collections.abc import Callable
 
 from config.property_inference_config import PropertyInferenceConfig
 from core.property_tester import PropertyTester
@@ -52,10 +53,24 @@ class PropertyInferenceEngine:
                 early_stopping=self.config.early_stopping
             )
 
+            def get_name(helper: Callable) -> str:
+                helper_name = helper.__name__
+                if helper_name.startswith('_'):
+                    return 'default'
+                elif helper_name == '<lambda>':
+                    return 'default'
+                else:
+                    return helper_name
+
+            # Get the name of function and converters properly
+            func_name = fut.func.__name__
+            arg_converter_name = get_name(fut.arg_converter)
+            result_comparator_name = get_name(fut.result_comparator)
+
+            # Create the key with proper string formatting - no nested f-strings
+            key: str = f"function {func_name} with {arg_converter_name} converter and {result_comparator_name} comparator"
+
             # key: str = f"{name} ({idx + 1}/{len(self.config.functions_under_test)})"
-            key: str = (f"{'function ' + fut.func.__name__}" " with "
-                        f"{fut.arg_converter.__name__ if fut.arg_converter.__name__ != '<lambda>' else 'default'}" " converter and "
-                        f"{fut.result_comparator.__name__ if fut.result_comparator.__name__ != '<lambda>' else 'default'}" " comparator")
 
             # key: str = f"{fut.func.__name__}"
 
