@@ -18,7 +18,7 @@ def load_user_module(path: str, module_name: str):
 
 
 
-def main(user_funcs_path: str = "input/functions.py"):
+def main(user_funcs_path: str = "input/calculator.py"):
     # 1) build property registry
     registry = PropertyRegistry() \
         .register("Commutativity", PropertyTester.commutativity_test, 2)
@@ -31,14 +31,14 @@ def main(user_funcs_path: str = "input/functions.py"):
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
     # TODO ask if custom distributions for grammar is available
-    config = (PropertyInferenceConfig(registry, example_count=200)
-              .set_default_grammar("grammars/digits_list.fan")
+    config = (PropertyInferenceConfig(registry, example_count=100)
+              .set_default_grammar("grammars/expr-float.fan")
               .set_default_parser(default_parser)
               .set_early_stopping(False)
-              .set_max_counterexamples(10)
+              .set_max_counterexamples(3)
               )
 
-    # 3) dynamically load the user’s functions.py
+    # 3) dynamically load the user’s calculator.py
     module = load_user_module(user_funcs_path, "user_functions")
     functions = getattr(module, "Calculator")
 
@@ -64,8 +64,6 @@ def main(user_funcs_path: str = "input/functions.py"):
         for name, obj in vars(module).items()
         if name.startswith("parser_")
     }
-
-    # TODO think about what to do when strings are passed and Error is raised without conversion
 
     # 5) register every static method under Functions, wiring overrides by name
     for func_name, func in inspect.getmembers(functions, inspect.isfunction):

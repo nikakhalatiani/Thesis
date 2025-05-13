@@ -21,10 +21,10 @@ def converter_float(x):
 # converter_subtract = converter_int
 # converter_divide = converter_int
 
-converter_add = converter_float
-converter_multiply = converter_float
-converter_subtract = converter_float
-converter_divide = converter_float
+# converter_add = converter_float
+# converter_multiply = converter_float
+# converter_subtract = converter_float
+# converter_divide = converter_float
 
 
 # --- Functions under test ---------------------------------------------
