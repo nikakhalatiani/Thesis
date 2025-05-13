@@ -1,10 +1,17 @@
 from fandango import Fandango
 from fandango.language.tree import DerivationTree
 
+from typing import TypedDict
+
 from config.property_inference_config import PropertyInferenceConfig
 from core.property_tester import PropertyTester
 from input.input_parser import InputParser
 
+class InferenceResult(TypedDict):
+    properties: dict[str, bool]
+    counter_examples:  dict[str, list[dict[str, str] | str]]
+    confidence: dict[str, float]
+    total_tests: dict[str, int]
 
 class PropertyInferenceEngine:
     def __init__(self, config: PropertyInferenceConfig) -> None:
@@ -14,15 +21,15 @@ class PropertyInferenceEngine:
     def _generate_examples(path_to_grammar: str, num_examples: int) -> tuple[Fandango, list[DerivationTree]]:
         with open(path_to_grammar) as spec_file:
             fan: Fandango = Fandango(spec_file)
-            print("📦 Fuzzing examples:")
+            # print("📦 Fuzzing examples:")
             examples: list[DerivationTree] = fan.fuzz(desired_solutions=int(num_examples),
                                                       population_size=int(num_examples * 1.1))
-            for example in examples:
-                print(example.to_string())
+            # for example in examples:
+            #     print(example.to_string())
         return fan, examples
 
-    def run(self) -> dict[str, dict[str, dict]]:
-        results: dict[str, dict[str, dict]] = {}
+    def run(self) ->  dict[str, InferenceResult]:
+        results: dict[str, InferenceResult] = {}
         for idx, fut in enumerate(self.config.functions_under_test):
             name: str = fut.func.__name__
             grammar: str = self.config.function_to_grammar.get(name, self.config.default_grammar)
@@ -37,8 +44,8 @@ class PropertyInferenceEngine:
             # counts = Counter(len(s) for s in input_sets)
             # print("🎲 input‐tuple length distribution:", counts)
 
-            tester = PropertyTester(self.config.registry)
-            properties, examples, confidence, total_tests = tester.infer_properties(
+            tester = PropertyTester(registry=self.config.registry, max_examples=self.config.max_counterexamples)
+            properties, counter_examples, confidence, total_tests = tester.infer_properties(
                 fut,
                 self.config.properties_to_test,
                 input_sets,
@@ -52,11 +59,11 @@ class PropertyInferenceEngine:
 
             # key: str = f"{fut.func.__name__}"
 
-            results[key] = {
-                "properties": properties,
-                "examples": examples,
-                "confidence": confidence,
-                "total_tests": total_tests,
-            }
+            results[key] = InferenceResult(
+                properties=properties,
+                counter_examples=counter_examples,
+                confidence=confidence,
+                total_tests=total_tests,
+            )
 
         return results

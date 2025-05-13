@@ -4,7 +4,6 @@ from config.property_registry import PropertyRegistry
 
 from typing import Any
 
-
 class PropertyTester:
     """
     A class to test and infer properties of functions under test.
@@ -15,11 +14,12 @@ class PropertyTester:
         confidence_levels: Stores confidence levels for each property.
     """
 
-    def __init__(self, registry: PropertyRegistry) -> None:
+    def __init__(self, registry: PropertyRegistry, max_examples: int) -> None:
         self.properties: dict[str, bool] = {}
         self.examples: dict[str, dict[str, str] | str] = {}
         self.confidence_levels: dict[str, float] = {}
         self._registry = registry
+        self._max_examples = max_examples
 
     @staticmethod
     def test_property(property_def: PropertyDefinition, function: FunctionUnderTest, input_set: Any) -> tuple[
@@ -119,7 +119,7 @@ class PropertyTester:
 
     def infer_properties(self, function: FunctionUnderTest, property_defs: list[PropertyDefinition],
                          input_sets: list[Any], early_stopping: bool = False) -> tuple[
-        dict[str, bool], dict[str, dict[str, str] | str], dict[str, float], dict[str, int]]:
+        dict[str, bool], dict[str, list[dict[str, str] | str]], dict[str, float], dict[str, int]]:
         """
         Infer properties for a specific function.
 
@@ -139,45 +139,50 @@ class PropertyTester:
             property_defs = list(self._registry.get_all.values())
 
         properties: dict[str, bool] = {prop.name: True for prop in property_defs}
-        examples: dict[str, dict[str, str] | str] = {prop.name: {} for prop in property_defs}
+        counter_examples: dict[str, list[dict[str, str] | str]] = {prop.name: [] for prop in property_defs}
         confidence: dict[str, int] = {prop.name: 0 for prop in property_defs}
         total_tests: dict[str, int] = {prop.name: 0 for prop in property_defs}
 
         # Test each property with appropriate input sets
         for prop in property_defs:
-            found_example: bool = False
+            found_counter_example: bool = False
             for inputs in input_sets:
                 # Skip testing if we already found a counter-example and early stopping is enabled
-                if early_stopping and found_example:
+                if early_stopping and found_counter_example:
                     break
-                if len(inputs) >= prop.arity:  # Check if we have enough inputs for testing the property
-                    total_tests[prop.name] += 1
-                    inputs_for_test = inputs[:prop.arity]
+                if len(inputs) < prop.arity:  # Check if we have enough inputs for testing the property
+                    continue
+                total_tests[prop.name] += 1
 
-                    # Get test result and counter-example data if it fails
-                    success, example_data = self.test_property(prop, function, inputs_for_test)
+                # Get test result and counter-example data if it fails
+                success, example_data = self.test_property(prop, function, inputs[:prop.arity])
 
-                    if success:
-                        confidence[prop.name] += 1
-                        if not found_example:
-                            examples[prop.name] = example_data
-                            assert isinstance(examples[prop.name], str), "Failed to store example data as string"
+                if success:
+                    confidence[prop.name] += 1
+                    if not found_counter_example:
+                        assert isinstance(example_data, str), (
+                            f"Expected success example to be str, got {type(example_data)}"
+                        )
+                        counter_examples[prop.name] = [example_data]
+                else:
+                    properties[prop.name] = False
+                    found_counter_example = True
+                    assert isinstance(example_data, dict), (
+                        f"Expected failure example to be dict, got {type(example_data)}"
+                    )
+                    lst = counter_examples[prop.name]
+                    # if we already have a dict‐based list, append up to the max
+                    if lst and isinstance(lst[0], dict):
+                        if len(lst) < self._max_examples:
+                            lst.append(example_data)
                     else:
-                        properties[prop.name] = False
-                        found_example = True
-                        if isinstance(examples[prop.name], dict):
-                            # TODO change 6 to be configurable
-                            if len(examples[prop.name]) < 6:
-                                # Store multiple examples if it's a dict with less than 6 entries
-                                examples[prop.name].update(example_data)
-                        else:
-                            # Overwrite the example data if it's not a dict to store multiple examples
-                            examples[prop.name] = example_data
-                        assert isinstance(examples[prop.name], dict), "Failed to store counter-example data as dict"
+                        # either we had an empty list, or a success‐string,
+                        # so overwrite with a new failure‐list
+                        counter_examples[prop.name] = [example_data]
 
         # Calculate confidence levels
         for prop in property_defs:
             if total_tests[prop.name] > 0:
                 self.confidence_levels[prop.name] = confidence[prop.name] / total_tests[prop.name]
 
-        return properties, examples, self.confidence_levels, total_tests
+        return properties, counter_examples, self.confidence_levels, total_tests

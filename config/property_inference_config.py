@@ -30,6 +30,7 @@ class PropertyInferenceConfig:
         self.function_to_parser: dict[str, InputParser] = {}
         self.example_count: int = example_count
         self.early_stopping: bool = False
+        self.max_counterexamples: int = 1
 
     def add_function(
             self,
@@ -103,7 +104,7 @@ class PropertyInferenceConfig:
 
     def set_early_stopping(self, early_stopping: bool = True) -> 'PropertyInferenceConfig':
         """
-        Enable or disable early stopping .
+        Enable or disable early stopping.
 
         Args:
             early_stopping: Whether to enable early stopping.
@@ -112,4 +113,9 @@ class PropertyInferenceConfig:
             The updated configuration instance.
         """
         self.early_stopping = early_stopping
+        return self
+
+    def set_max_counterexamples(self, n: int) -> "PropertyInferenceConfig":
+        """How many failing examples to store for each property."""
+        self.max_counterexamples = n
         return self

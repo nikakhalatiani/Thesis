@@ -31,10 +31,12 @@ def main(user_funcs_path: str = "input/functions.py"):
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
     # TODO ask if custom distributions for grammar is available
-    config = (PropertyInferenceConfig(registry, example_count=100)
-              .set_default_grammar("grammars/expr.fan")
+    config = (PropertyInferenceConfig(registry, example_count=200)
+              .set_default_grammar("grammars/digits_list.fan")
               .set_default_parser(default_parser)
-              .set_early_stopping(False))
+              .set_early_stopping(False)
+              .set_max_counterexamples(10)
+              )
 
     # 3) dynamically load the user’s functions.py
     module = load_user_module(user_funcs_path, "user_functions")
@@ -91,7 +93,6 @@ def main(user_funcs_path: str = "input/functions.py"):
         for prop, holds in result["properties"].items():
             confidence = result["confidence"].get(prop, 0) * 100
             tests_run = result["total_tests"].get(prop, 0)
-            max_tests = config.example_count
             status = "🟢" if holds else "🔴"
             decision = (
                 f"{status} {prop} (Confidence: {confidence:.1f}%); Tests ran to infer: {tests_run})"
@@ -99,15 +100,16 @@ def main(user_funcs_path: str = "input/functions.py"):
                 # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%); Tests run to infer: {tests_run})"
             )
             print(decision)
-            examples = result["examples"][prop]
-            if isinstance(examples, dict):
-                for key, value in examples.items():
-                    if isinstance(value, str):
-                        print(f"\t {key}: {value}")
-                    else:
-                        print(f"\t {key}: {repr(value)}")
-            else:
-                print(f"\t {result['examples'][prop]}")
+            counter_examples = result["counter_examples"][prop]
+            for ex in counter_examples:
+                if isinstance(ex, dict):
+                    for call_repr, outcome in ex.items():
+                        if isinstance(outcome, str):
+                            print(f"\t {call_repr}: {outcome}")
+                        else:
+                            print(f"\t {call_repr}: {repr(outcome)}")
+                else:
+                    print(f"\t {ex}")
 
 
 if __name__ == "__main__":
