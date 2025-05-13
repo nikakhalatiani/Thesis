@@ -1,7 +1,5 @@
-from typing import Any
-
 from fandango import FandangoParseError, Fandango
-from fandango.language.tree import DerivationTree
+from fandango.language.tree import DerivationTree, NonTerminal
 
 from collections.abc import Callable
 
@@ -18,7 +16,7 @@ class InputParser:
 
         self.extraction_strategy: Callable = extraction_strategy
 
-    def parse(self, fan: Fandango, tree: DerivationTree) -> Any | None:
+    def parse(self, fan: Fandango, tree: DerivationTree) -> tuple | None:
         """
         Parse a derivation tree and extract inputs using the extraction strategy.
 
@@ -33,7 +31,6 @@ class InputParser:
             FandangoParseError: If parsing fails, an error message is printed.
         """
         try:
-            # TODO maybe it will always return tuple, NOT SURE
             for tree in fan.parse(tree):
                 return self.extraction_strategy(tree)
         except FandangoParseError as e:
@@ -41,83 +38,57 @@ class InputParser:
         return None
 
     @staticmethod
-    def extract_elements_recursive(tree: DerivationTree, expected_count: int = None) -> tuple:
+    def extract_all_numbers_with_tree_api(tree: DerivationTree) -> tuple[str, ...]:
         """
-        Extract elements from a derivation tree with recursive structure.
-
-        Handles grammar structures where expr -> term, expr -> term, expr -> ... -> term
-
-        Args:
-            tree: The derivation tree to extract elements from
-            expected_count: Optional number of elements to expect (for validation)
-
-        Returns:
-            A tuple containing the extracted elements
+        Extract every <number> subtree in one go, using the tree API,
+        and return their string values in the order they appear.
         """
-        elements = []
+        # Construct the NonTerminal
+        number_nt = NonTerminal("<number>")
 
-        def collect_terms(node: DerivationTree):
-            if not hasattr(node, 'children') or not node.children:
-                # Base case: this is a leaf node
-                print(f"Found leaf node: {node}")
-                elements.append(str(node))
+        # Walk the entire tree
+        number_nodes = tree.find_all_trees(number_nt)
+
+        elements = tuple(node.to_string() for node in number_nodes)
+
+        return elements
+
+    @staticmethod
+    def old_basic_recursion_with_built_in_detector(tree: DerivationTree) -> tuple[str, ...]:
+
+        elements: list[str] = []
+
+        def visit(node: DerivationTree):
+            children = node.children
+            # If this node has children and its entire text is a number, treat it as one <number>
+            if children and node.is_num():
+                elements.append(node.to_string())
                 return
+            # Otherwise, recurse into all children
+            for child in children:
+                visit(child)
 
-            # Check if this is a term node
-            if node.is_terminal():
-                print(f"Found terminal node: {node}")
-                elements.append(str(node))
-                return
+        visit(tree)
 
-            # Process all children
-            for child in node.children:
-                collect_terms(child)
-
-        # Start collecting from the root
-        collect_terms(tree)
-
-        # Remove any empty strings or separator elements
-        elements = [e for e in elements if e and e.strip() and e.strip() != ',']
-
-        # Check if we have the expected number of elements
-        if expected_count is not None and len(elements) != expected_count:
-            raise ValueError(f"Expected {expected_count} elements, but found {len(elements)}")
-
+        print(elements)
         return tuple(elements)
 
-    # TODO compare with extract_elements_recursive
     @staticmethod
-    def extract_elements_and_clean(tree: DerivationTree, expected_count: int = None) -> tuple:
-        """
-        Extract elements from a derivation tree and clean up any comma separators.
+    def basic_recursion_with_built_in_detector(tree: DerivationTree) -> tuple[str, ...]:
 
-        Args:
-            tree: The derivation tree to extract elements from
-            expected_count: Optional number of elements to expect (for validation)
+        elements: list[str] = []
 
-        Returns:
-            A tuple containing the cleaned extracted elements
-        """
-        # Get to the expression node
-        expr_node = tree.children[0]  # <start> → <expr>
+        def visit(node: DerivationTree):
+            if node.is_num():
+                # Get the actual value represented by the node
+                value = node.value()
+                if value is not None:
+                    elements.append(str(value))
+                return
 
-        # Extract all raw elements
-        raw_elements = []
-        current_node = expr_node
+            for child in node.children:
+                visit(child)
 
-        # Keep extracting until we reach the end of the recursive structure
-        while hasattr(current_node, 'children') and current_node.children:
-            # First child is always a term
-            raw_elements.append(str(current_node.children[0]))
+        visit(tree)
 
-            # If there are more children, continue with second child
-            if len(current_node.children) > 2:
-                current_node = current_node.children[2]  # 2 is the index to skip the separator (comma)
-            else:
-                break
-
-        # Check if we have the expected number of elements
-        if expected_count is not None and len(raw_elements) != expected_count:
-            raise ValueError(f"Expected {expected_count} elements, but found {len(raw_elements)}")
-
-        return tuple(raw_elements)
+        return tuple(elements)

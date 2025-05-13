@@ -18,7 +18,7 @@ class PropertyInferenceEngine:
             examples: list[DerivationTree] = fan.fuzz(desired_solutions=int(num_examples),
                                                       population_size=int(num_examples * 1.1))
             for example in examples:
-                print(str(example))
+                print(example.to_string())
         return fan, examples
 
     def run(self) -> dict[str, dict[str, dict]]:
@@ -33,9 +33,9 @@ class PropertyInferenceEngine:
             input_sets = [parser.parse(fan, tree) for tree in examples]
             input_sets = [i for i in input_sets if i is not None]
 
-            from collections import Counter
-            counts = Counter(len(s) for s in input_sets)
-            print("🎲 input‐tuple length distribution:", counts)
+            # from collections import Counter
+            # counts = Counter(len(s) for s in input_sets)
+            # print("🎲 input‐tuple length distribution:", counts)
 
             tester = PropertyTester(self.config.registry)
             properties, examples, confidence, total_tests = tester.infer_properties(

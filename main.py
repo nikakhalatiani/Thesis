@@ -29,10 +29,10 @@ def main(user_funcs_path: str = "input/functions.py"):
     # registry = PropertyRegistry().register("Idempotence", PropertyTester.idempotence_test, 1) \
 
     # 2) build base config
-    default_parser = InputParser(InputParser.extract_elements_recursive)
+    default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
     # TODO ask if custom distributions for grammar is available
-    config = (PropertyInferenceConfig(registry, example_count=5)
-              .set_default_grammar("grammars/digits_list.fan")
+    config = (PropertyInferenceConfig(registry, example_count=100)
+              .set_default_grammar("grammars/expr.fan")
               .set_default_parser(default_parser)
               .set_early_stopping(False))
 
@@ -94,7 +94,7 @@ def main(user_funcs_path: str = "input/functions.py"):
             max_tests = config.example_count
             status = "🟢" if holds else "🔴"
             decision = (
-                f"{status} {prop} (Confidence: {confidence:.1f}%); Tests run to infer: {tests_run})"
+                f"{status} {prop} (Confidence: {confidence:.1f}%); Tests ran to infer: {tests_run})"
                 # if holds
                 # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%); Tests run to infer: {tests_run})"
             )

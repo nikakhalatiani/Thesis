@@ -12,10 +12,19 @@ comparator_subtract = comparator_abs
 def converter_int(x):
     return int(x)
 
-converter_add = converter_int
-converter_multiply = converter_int
-converter_subtract = converter_int
-converter_divide = converter_int
+def converter_float(x):
+    return float(x)
+
+
+# converter_add = converter_int
+# converter_multiply = converter_int
+# converter_subtract = converter_int
+# converter_divide = converter_int
+
+converter_add = converter_float
+converter_multiply = converter_float
+converter_subtract = converter_float
+converter_divide = converter_float
 
 
 # --- Functions under test ---------------------------------------------

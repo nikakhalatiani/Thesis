@@ -3,12 +3,12 @@ from fandango import Fandango
 def all_terms_nonzero(example: str) -> bool:
     try:
         terms = example.split(",")
-        return all(int(term.strip()) != 0 for term in terms)
+        return all(int(term) != 0 for term in terms)
     except ValueError:
         return False
 
 def test_constraints(max_attempts=100):
-    with open("./grammars/digits_list.fan", "r") as f:
+    with open("./grammars/test.fan", "r") as f:
         fan = Fandango(f)
 
     for attempt in range(1, max_attempts + 1):
@@ -20,7 +20,7 @@ def test_constraints(max_attempts=100):
         )
 
         for i, example in enumerate(examples, 1):
-            example_str = str(example)
+            example_str = example.to_string()
             print(f"{i:3}: {example_str}")
             if not all_terms_nonzero(example_str):
                 print(f"\nDetected 0 inside example: {example_str}")
