@@ -2,7 +2,7 @@ from core.function_under_test import FunctionUnderTest
 from config.property_definition import PropertyDefinition
 from input.input_parser import InputParser
 from config.property_registry import PropertyRegistry
-
+from config.grammar_config  import GrammarConfig
 
 class PropertyInferenceConfig:
     """
@@ -12,9 +12,9 @@ class PropertyInferenceConfig:
         registry: The registry containing property definitions.
         functions_under_test: List of functions to test.
         properties_to_test: List of properties to test.
-        default_grammar: Default grammar file path for input generation.
+        default_grammar: Default grammar for input generation.
         default_parser: Default parser for input parsing.
-        function_to_grammar: Mapping of function names to grammar file paths.
+        function_to_grammar: Mapping of function names to grammar.
         function_to_parser: Mapping of function names to parsers.
         example_count Number of examples to generate for testing.
         early_stopping: Whether to stop testing a property after finding a counter-example.
@@ -24,9 +24,9 @@ class PropertyInferenceConfig:
         self.registry: PropertyRegistry = registry
         self.functions_under_test: list[FunctionUnderTest] = []
         self.properties_to_test: list[PropertyDefinition] = []
-        self.default_grammar: str | None = None
+        self.default_grammar: GrammarConfig | None = None
         self.default_parser: InputParser | None = None
-        self.function_to_grammar: dict[str, str] = {}
+        self.function_to_grammar: dict[str, GrammarConfig] = {}
         self.function_to_parser: dict[str, InputParser] = {}
         self.example_count: int = example_count
         self.early_stopping: bool = False
@@ -35,7 +35,7 @@ class PropertyInferenceConfig:
     def add_function(
             self,
             fut: FunctionUnderTest,
-            grammar: str | None = None,
+            grammar: GrammarConfig | None = None,
             parser: InputParser | None = None,
     ) -> 'PropertyInferenceConfig':
         """
@@ -76,17 +76,18 @@ class PropertyInferenceConfig:
             raise ValueError(f"Property '{property_name}' not found in registry. Please register it first.")
         return self
 
-    def set_default_grammar(self, spec_path: str) -> 'PropertyInferenceConfig':
+    def set_default_grammar(self, spec_path: str, extra_constraints: list[str] | None = None) -> 'PropertyInferenceConfig':
         """
         Set the default grammar file path.
 
         Args:
             spec_path: The path to the grammar file.
+            extra_constraints: Optional list of extra constraints to add to the grammar.
 
         Returns:
             The updated configuration instance.
         """
-        self.default_grammar = spec_path
+        self.default_grammar = GrammarConfig(spec_path, extra_constraints)
         return self
 
     def set_default_parser(self, parser: InputParser) -> 'PropertyInferenceConfig':

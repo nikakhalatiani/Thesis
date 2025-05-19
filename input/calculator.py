@@ -1,25 +1,41 @@
-from input.function_metadata import grammar
-
-import sys
 import math
+
+
 # --- Optional helpers and aliases ------------------------------------------
 
 def comparator_abs(x, y):
     return abs(x) == abs(y)
 
+
 def comparator_close(x, y):
     return math.isclose(x, y)
 
+
 comparator_subtract = comparator_abs
-comparator_divide = comparator_close
 comparator_multiply = comparator_close
 
 
 def converter_int(x):
     return int(x)
 
+
 def converter_float(x):
     return float(x)
+
+
+#
+# grammar_divide = ["int(<term>) != 0"]
+
+# grammar_divide = ["int(<term>) != 0", "int(<term>) != 1", "int(<term>) != 2", "int(<term>) != 3",
+#                  "int(<term>) != 4", "int(<term>) != 5", "int(<term>) != 6", "int(<term>) != 7",
+#                  "int(<term>) != 8", "int(<term>) != 9"]
+
+# grammar_divide = "grammars/test.fan"
+
+# grammar_divide = GrammarConfig("grammars/digits_list.fan",
+#                                ["int(<term>) != 0", "int(<term>) != 1", "int(<term>) != 2", "int(<term>) != 3",
+#                                 "int(<term>) != 4", "int(<term>) != 5", "int(<term>) != 6", "int(<term>) != 7",
+#                                 "int(<term>) != 8", "int(<term>) != 9"])
 
 
 # converter_add = converter_int
@@ -36,25 +52,23 @@ def converter_float(x):
 # --- Functions under test ---------------------------------------------
 
 class Calculator:
-    @staticmethod
-    def subtract(x, y):
-        return x - y
-
-    @staticmethod
-    def multiply(x, y):
-        return x * y
-
+    # @staticmethod
+    # def subtract(x, y):
+    #     return x - y
+    #
+    # @staticmethod
+    # def multiply(x, y):
+    #     return x * y
+    #
     @staticmethod
     def add(x, y):
         return x + y
 
     @staticmethod
-    @grammar("./grammars/test.fan")
     def divide(x, y):
         if y == 0:
-            return sys.maxsize
+            raise ZeroDivisionError("division by zero")
         return x / y
-
 
     # @staticmethod
     # def first(x, y):

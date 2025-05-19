@@ -139,7 +139,7 @@ class PropertyTester:
             property_defs = list(self._registry.get_all.values())
 
         properties: dict[str, bool] = {prop.name: True for prop in property_defs}
-        counter_examples: dict[str, list[dict[str, str] | str]] = {prop.name: [] for prop in property_defs}
+        counterexamples: dict[str, list[dict[str, str] | str]] = {prop.name: [] for prop in property_defs}
         confidence: dict[str, int] = {prop.name: 0 for prop in property_defs}
         total_tests: dict[str, int] = {prop.name: 0 for prop in property_defs}
 
@@ -163,14 +163,14 @@ class PropertyTester:
                         assert isinstance(example_data, str), (
                             f"Expected success example to be str, got {type(example_data)}"
                         )
-                        counter_examples[prop.name] = [example_data]
+                        counterexamples[prop.name] = [example_data]
                 else:
                     properties[prop.name] = False
                     found_counter_example = True
                     assert isinstance(example_data, dict), (
                         f"Expected failure example to be dict, got {type(example_data)}"
                     )
-                    lst = counter_examples[prop.name]
+                    lst = counterexamples[prop.name]
                     # if we already have a dict‐based list, append up to the max
                     if lst and isinstance(lst[0], dict):
                         if len(lst) < self._max_examples:
@@ -178,11 +178,11 @@ class PropertyTester:
                     else:
                         # either we had an empty list, or a success‐string,
                         # so overwrite with a new failure‐list
-                        counter_examples[prop.name] = [example_data]
+                        counterexamples[prop.name] = [example_data]
 
         # Calculate confidence levels
         for prop in property_defs:
             if total_tests[prop.name] > 0:
                 self.confidence_levels[prop.name] = confidence[prop.name] / total_tests[prop.name]
 
-        return properties, counter_examples, self.confidence_levels, total_tests
+        return properties, counterexamples, self.confidence_levels, total_tests
