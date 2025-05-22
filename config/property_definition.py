@@ -14,11 +14,13 @@ class PropertyDefinition:
             The function used to test the property. It takes a `FunctionUnderTest` instance
             and inputs, and returns a tuple containing a boolean indicating success and
             an optional dictionary of counterexamples.
-        arity: The number of arguments required by the property test.
+        input_arity: The number of inputs required for testing
+        function_arity: The number of arguments the function must accept to be applicable
     """
 
     def __init__(self, name: str, test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | str]],
-                 arity: int) -> None:
-        self.name: str = name
-        self.test_function: Callable[[FunctionUnderTest, Any], tuple[bool, dict[str, str] | str]] = test_function
-        self.arity: int = arity
+                 input_arity: int, function_arity: int) -> None:
+        self.name = name
+        self.test_function = test_function
+        self.input_arity = input_arity
+        self.function_arity = function_arity

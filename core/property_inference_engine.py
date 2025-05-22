@@ -3,6 +3,7 @@ from fandango.language.tree import DerivationTree
 
 from typing import TypedDict
 from collections.abc import Callable
+import inspect
 
 from config.property_inference_config import PropertyInferenceConfig
 from core.property_tester import PropertyTester
@@ -33,17 +34,59 @@ class PropertyInferenceEngine:
                 fuzz_kwargs["extra_constraints"] = extra_constraints
 
             fuzz_kwargs["desired_solutions"] = int(num_examples)
-            fuzz_kwargs["population_size"] = int(num_examples * 1.1)
+            fuzz_kwargs["population_size"] = int(num_examples * 1.5)
 
             examples: list[DerivationTree] = fan.fuzz(**fuzz_kwargs)
             for example in examples:
                 print(example.to_string())
         return fan, examples
 
+    def _get_applicable_properties(self, function_arity: int) -> list:
+        """Get only the properties that apply to the given function arity."""
+        if not self.config.properties_to_test:
+            # If no specific properties are configured, check all registry properties
+            all_properties = list(self.config.registry.get_all.values())
+        else:
+            all_properties = self.config.properties_to_test
+
+        return [prop for prop in all_properties if prop.function_arity == function_arity]
+
     def run(self) -> dict[str, InferenceResult]:
         results: dict[str, InferenceResult] = {}
+
+        def get_name(helper: Callable) -> str:
+            helper_name = helper.__name__
+            if helper_name.startswith('_'):
+                return 'default'
+            elif helper_name == '<lambda>':
+                return 'default'
+            else:
+                return helper_name
+
         for idx, fut in enumerate(self.config.functions_under_test):
             name: str = fut.func.__name__
+
+            # Get the function's arity (number of parameters)
+            function_arity = len(inspect.signature(fut.func).parameters)
+
+            # Check if there are any applicable properties before generating examples
+            applicable_properties = self._get_applicable_properties(function_arity)
+            if not applicable_properties:
+                print(f"⚠️  No applicable properties for function '{name}' with arity {function_arity}. Skipping example generation.")
+
+                func_name = fut.func.__name__
+                arg_converter_name = get_name(fut.arg_converter)
+                result_comparator_name = get_name(fut.result_comparator)
+                key: str = f"function {func_name} with {arg_converter_name} converter and {result_comparator_name} comparator"
+
+                results[key] = InferenceResult(
+                    properties={},
+                    counterexamples={},
+                    confidence={},
+                    total_tests={},
+                )
+                continue
+
             grammar: GrammarConfig = self.config.function_to_grammar.get(name, self.config.default_grammar)
             parser: InputParser = self.config.function_to_parser.get(name, self.config.default_parser)
 
@@ -59,21 +102,12 @@ class PropertyInferenceEngine:
             tester = PropertyTester(registry=self.config.registry, max_examples=self.config.max_counterexamples)
             properties, counterexamples, confidence, total_tests = tester.infer_properties(
                 fut,
-                self.config.properties_to_test,
+                applicable_properties,
                 input_sets,
                 early_stopping=self.config.early_stopping
             )
 
-            def get_name(helper: Callable) -> str:
-                helper_name = helper.__name__
-                if helper_name.startswith('_'):
-                    return 'default'
-                elif helper_name == '<lambda>':
-                    return 'default'
-                else:
-                    return helper_name
-
-            # Get the name of function and converters properly
+            # Get the name of the function and converters properly
             func_name = fut.func.__name__
             arg_converter_name = get_name(fut.arg_converter)
             result_comparator_name = get_name(fut.result_comparator)

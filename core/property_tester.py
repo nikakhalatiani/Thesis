@@ -4,6 +4,7 @@ from config.property_registry import PropertyRegistry
 
 from typing import Any
 
+
 class PropertyTester:
     """
     A class to test and infer properties of functions under test.
@@ -134,28 +135,27 @@ class PropertyTester:
                 - A dictionary of properties and their boolean results.
                 - A dictionary of counter-examples for properties that fail.
                 - A dictionary of confidence levels for each property.
+                - A dictionary of total tests run for each property.
         """
-        if not property_defs:
-            property_defs = list(self._registry.get_all.values())
 
         properties: dict[str, bool] = {prop.name: True for prop in property_defs}
         counterexamples: dict[str, list[dict[str, str] | str]] = {prop.name: [] for prop in property_defs}
         confidence: dict[str, int] = {prop.name: 0 for prop in property_defs}
         total_tests: dict[str, int] = {prop.name: 0 for prop in property_defs}
 
-        # Test each property with appropriate input sets
+        # Test each applicable property with appropriate input sets
         for prop in property_defs:
             found_counter_example: bool = False
             for inputs in input_sets:
                 # Skip testing if we already found a counter-example and early stopping is enabled
                 if early_stopping and found_counter_example:
                     break
-                if len(inputs) < prop.arity:  # Check if we have enough inputs for testing the property
+                if len(inputs) < prop.input_arity:
                     continue
                 total_tests[prop.name] += 1
 
                 # Get test result and counter-example data if it fails
-                success, example_data = self.test_property(prop, function, inputs[:prop.arity])
+                success, example_data = self.test_property(prop, function, inputs[:prop.input_arity])
 
                 if success:
                     confidence[prop.name] += 1
@@ -184,5 +184,7 @@ class PropertyTester:
         for prop in property_defs:
             if total_tests[prop.name] > 0:
                 self.confidence_levels[prop.name] = confidence[prop.name] / total_tests[prop.name]
+            else:
+                self.confidence_levels[prop.name] = 0.0
 
         return properties, counterexamples, self.confidence_levels, total_tests

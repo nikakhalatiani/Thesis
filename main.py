@@ -22,12 +22,12 @@ def load_user_module(path: str, module_name: str):
 def main(user_funcs_path: str = "input/calculator.py"):
     # 1) build property registry
     registry = PropertyRegistry() \
-        .register("Commutativity", PropertyTester.commutativity_test, 2)
-    registry.register("Associativity", PropertyTester.associativity_test, 3)
+        .register("Commutativity", PropertyTester.commutativity_test, input_arity=2, function_arity=2).register(
+        "Associativity", PropertyTester.associativity_test, input_arity=3, function_arity=2)
     # registry.register("Right Idempotence", PropertyTester.right_idempotence_test, 2)
     # registry.register("Left Idempotence", PropertyTester.left_idempotence_test, 2)
     # registry.register("Full Idempotence", PropertyTester.full_idempotence_test, 2)
-    # registry = PropertyRegistry().register("Idempotence", PropertyTester.idempotence_test, 1) \
+    registry = registry.register("Idempotence", PropertyTester.idempotence_test, 1, 1)
 
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
@@ -103,7 +103,8 @@ def main(user_funcs_path: str = "input/calculator.py"):
 
     # 4) pretty‑print
     for func_name, result in results.items():
-        print(f"\n📊 Inferred Properties for {func_name}:")
+        if result["properties"]:
+            print(f"\n📊 Inferred Properties for {func_name}:")
         prop: str
         holds: bool
         for prop, holds in result["properties"].items():

@@ -24,18 +24,16 @@ def converter_float(x):
 
 
 #
-# grammar_divide = ["int(<term>) != 0"]
+grammar_divide = ["int(<term>) != 0"]
 
-# grammar_divide = ["int(<term>) != 0", "int(<term>) != 1", "int(<term>) != 2", "int(<term>) != 3",
-#                  "int(<term>) != 4", "int(<term>) != 5", "int(<term>) != 6", "int(<term>) != 7",
-#                  "int(<term>) != 8", "int(<term>) != 9"]
+# grammar_divide = ["int(<int>) != 0"]
+
+
 
 # grammar_divide = "grammars/test.fan"
-
+#
 # grammar_divide = GrammarConfig("grammars/digits_list.fan",
-#                                ["int(<term>) != 0", "int(<term>) != 1", "int(<term>) != 2", "int(<term>) != 3",
-#                                 "int(<term>) != 4", "int(<term>) != 5", "int(<term>) != 6", "int(<term>) != 7",
-#                                 "int(<term>) != 8", "int(<term>) != 9"])
+#                                ["int(<term>) != 0"])
 
 
 # converter_add = converter_int
@@ -67,7 +65,7 @@ class Calculator:
     @staticmethod
     def divide(x, y):
         if y == 0:
-            raise ZeroDivisionError("division by zero")
+            raise ZeroDivisionError("Division by zero")
         return x / y
 
     # @staticmethod
@@ -85,7 +83,6 @@ class Calculator:
     #     """Returns the maximum of two arguments. Idempotent for all three: right, left, and full idempotency."""
     #     return x if x >= y else y
 
-    # # TODO modify framework to run on not just two args
-    # @staticmethod
-    # def project(x):
-    #     return x
+    @staticmethod
+    def project(x):
+        return x
