@@ -20,6 +20,9 @@ def create_standard_registry() -> PropertyRegistry:
     # Structural properties
     registry.register(TypePreservationTest())
 
+    # Composition properties
+    registry.register(InvolutionTest())
+
     return registry
 
 

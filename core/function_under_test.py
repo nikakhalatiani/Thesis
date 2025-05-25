@@ -84,7 +84,7 @@ class FunctionUnderTest:
             return result
         except Exception as e:
             error_message = f"Error calling {self.func.__name__} with args {args}: {str(e)}"
-            print(error_message)  # Log the error for debugging
+            print(error_message)
             return FunctionCallError(f"Error: {str(e)}")
 
     def compare_results(self, result1: Any, result2: Any) -> bool:
