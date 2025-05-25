@@ -1,7 +1,7 @@
 from core.function_under_test import FunctionUnderTest
-from config.property_definition import PropertyDefinition
+from core.properties import PropertyRegistry
+from core.properties.property_test import PropertyTest
 from input.input_parser import InputParser
-from config.property_registry import PropertyRegistry
 from config.grammar_config  import GrammarConfig
 
 class PropertyInferenceConfig:
@@ -23,7 +23,7 @@ class PropertyInferenceConfig:
     def __init__(self, registry: PropertyRegistry, example_count: int = 100) -> None:
         self.registry: PropertyRegistry = registry
         self.functions_under_test: list[FunctionUnderTest] = []
-        self.properties_to_test: list[PropertyDefinition] = []
+        self.properties_to_test: list[PropertyTest] = []
         self.default_grammar: GrammarConfig | None = None
         self.default_parser: InputParser | None = None
         self.function_to_grammar: dict[str, GrammarConfig] = {}
@@ -70,10 +70,19 @@ class PropertyInferenceConfig:
             ValueError: If the property is not found in the registry.
         """
         try:
-            property_def: PropertyDefinition = self.registry.get(property_name)
-            self.properties_to_test.append(property_def)
+            property_test = self.registry.get(property_name)
+            if property_test not in self.properties_to_test:
+                self.properties_to_test.append(property_test)
         except KeyError:
             raise ValueError(f"Property '{property_name}' not found in registry. Please register it first.")
+        return self
+
+    def add_property_by_category(self, category: str) -> 'PropertyInferenceConfig':
+        """Add all properties from a specific category."""
+        category_tests = self.registry.get_by_category(category)
+        for test in category_tests:
+            if test not in self.properties_to_test:
+                self.properties_to_test.append(test)
         return self
 
     def set_default_grammar(self, spec_path: str, extra_constraints: list[str] | None = None) -> 'PropertyInferenceConfig':

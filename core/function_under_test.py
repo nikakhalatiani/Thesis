@@ -63,7 +63,6 @@ class FunctionUnderTest:
                     return float(value)
                 except ValueError:
                     # If all conversions fail, return the original value
-                    # This allows the function to handle or fail naturally
                     return value
 
         return value

@@ -22,6 +22,11 @@ def converter_int(x):
 def converter_float(x):
     return float(x)
 
+def converter_str(x):
+    return str(x)
+
+
+# converter_project = converter_int
 
 #
 grammar_divide = ["int(<term>) != 0"]
@@ -78,11 +83,46 @@ class Calculator:
     #     """Returns the second argument. Idempotent for left idempotency: f(a, b) = f(b, f(a, b))."""
     #     return y
     #
-    # @staticmethod
-    # def max(x, y):
-    #     """Returns the maximum of two arguments. Idempotent for all three: right, left, and full idempotency."""
-    #     return x if x >= y else y
+    @staticmethod
+    def max(x, y):
+        """Returns the maximum of two arguments. Idempotent for all three: right, left, and full idempotency."""
+        return x if x > y else y
+
+    @staticmethod
+    def min(x, y):
+        """Returns the minimum of two arguments. Idempotent for all three: right, left, and full idempotency."""
+        return x if x <= y else y
+
+    @staticmethod
+    def broken_max(x, y):
+        """A broken version of max that does not return the maximum."""
+        return x+y if x > y else y
+
+    @staticmethod
+    def broken_min(x, y):
+        """A broken version of min that does not return the minimum."""
+        return x+y if x <= y else y
 
     @staticmethod
     def project(x):
         return x
+    #
+    # @staticmethod
+    # def inverse(x):
+    #     return -x
+    #
+    # @staticmethod
+    # def square(x):
+    #     return x * x
+    #
+    # @staticmethod
+    # def random(x):
+    #     import random
+    #     return random.random() * x
+    # @staticmethod
+    # def print(x):
+    #     return f"f{x}"
+    #
+    # @staticmethod
+    # def is_positive(x):
+    #     return x > 0

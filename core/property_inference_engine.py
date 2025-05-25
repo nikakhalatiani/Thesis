@@ -3,12 +3,13 @@ from fandango.language.tree import DerivationTree
 
 from typing import TypedDict
 from collections.abc import Callable
-import inspect
 
 from config.property_inference_config import PropertyInferenceConfig
+from core.function_under_test import FunctionUnderTest
 from core.property_tester import PropertyTester
 from input.input_parser import InputParser
 from config.grammar_config import GrammarConfig
+from core.properties.property_test import PropertyTest
 
 
 class InferenceResult(TypedDict):
@@ -28,7 +29,7 @@ class PropertyInferenceEngine:
         extra_constraints: list[str] = grammar.extra_constraints
         with open(path_to_grammar) as spec_file:
             fan: Fandango = Fandango(spec_file)
-            print("📦 Fuzzing examples:")
+            # print("📦 Fuzzing examples:")
             fuzz_kwargs = {}
             if extra_constraints is not None:
                 fuzz_kwargs["extra_constraints"] = extra_constraints
@@ -37,19 +38,18 @@ class PropertyInferenceEngine:
             fuzz_kwargs["population_size"] = int(num_examples * 1.5)
 
             examples: list[DerivationTree] = fan.fuzz(**fuzz_kwargs)
-            for example in examples:
-                print(example.to_string())
+            # for example in examples:
+            #     print(example.to_string())
         return fan, examples
 
-    def _get_applicable_properties(self, function_arity: int) -> list:
+    def _get_applicable_properties(self, function: FunctionUnderTest) -> list[PropertyTest]:
         """Get only the properties that apply to the given function arity."""
         if not self.config.properties_to_test:
             # If no specific properties are configured, check all registry properties
-            all_properties = list(self.config.registry.get_all.values())
+            return self.config.registry.get_applicable_tests(function)
         else:
-            all_properties = self.config.properties_to_test
-
-        return [prop for prop in all_properties if prop.function_arity == function_arity]
+            return [prop for prop in self.config.properties_to_test
+                    if prop.is_applicable(function)]
 
     def run(self) -> dict[str, InferenceResult]:
         results: dict[str, InferenceResult] = {}
@@ -66,25 +66,11 @@ class PropertyInferenceEngine:
         for idx, fut in enumerate(self.config.functions_under_test):
             name: str = fut.func.__name__
 
-            # Get the function's arity (number of parameters)
-            function_arity = len(inspect.signature(fut.func).parameters)
 
             # Check if there are any applicable properties before generating examples
-            applicable_properties = self._get_applicable_properties(function_arity)
+            applicable_properties = self._get_applicable_properties(fut)
             if not applicable_properties:
-                print(f"⚠️  No applicable properties for function '{name}' with arity {function_arity}. Skipping example generation.")
-
-                func_name = fut.func.__name__
-                arg_converter_name = get_name(fut.arg_converter)
-                result_comparator_name = get_name(fut.result_comparator)
-                key: str = f"function {func_name} with {arg_converter_name} converter and {result_comparator_name} comparator"
-
-                results[key] = InferenceResult(
-                    properties={},
-                    counterexamples={},
-                    confidence={},
-                    total_tests={},
-                )
+                print(f"⚠️  No applicable properties for function '{name}'. Skipping example generation.")
                 continue
 
             grammar: GrammarConfig = self.config.function_to_grammar.get(name, self.config.default_grammar)

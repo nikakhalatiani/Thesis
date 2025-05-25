@@ -1,7 +1,6 @@
-from core.property_tester import PropertyTester
+from core.properties import create_standard_registry, create_minimal_registry
 from input.input_parser import InputParser
 from config.property_inference_config import PropertyInferenceConfig
-from config.property_registry import PropertyRegistry
 from core.function_under_test import FunctionUnderTest
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
@@ -21,18 +20,13 @@ def load_user_module(path: str, module_name: str):
 
 def main(user_funcs_path: str = "input/calculator.py"):
     # 1) build property registry
-    registry = PropertyRegistry() \
-        .register("Commutativity", PropertyTester.commutativity_test, input_arity=2, function_arity=2).register(
-        "Associativity", PropertyTester.associativity_test, input_arity=3, function_arity=2)
-    # registry.register("Right Idempotence", PropertyTester.right_idempotence_test, 2)
-    # registry.register("Left Idempotence", PropertyTester.left_idempotence_test, 2)
-    # registry.register("Full Idempotence", PropertyTester.full_idempotence_test, 2)
-    registry = registry.register("Idempotence", PropertyTester.idempotence_test, 1, 1)
+    registry = create_minimal_registry()
+    # registry = create_standard_registry()
 
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
     # TODO ask if custom distributions for grammar is available
-    config = (PropertyInferenceConfig(registry, example_count=100)
+    config = (PropertyInferenceConfig(registry, example_count=500)
               .set_default_grammar("grammars/digits_list.fan")
               .set_default_parser(default_parser)
               .set_early_stopping(False)
@@ -103,8 +97,7 @@ def main(user_funcs_path: str = "input/calculator.py"):
 
     # 4) pretty‑print
     for func_name, result in results.items():
-        if result["properties"]:
-            print(f"\n📊 Inferred Properties for {func_name}:")
+        print(f"\n📊 Inferred Properties for {func_name}:")
         prop: str
         holds: bool
         for prop, holds in result["properties"].items():
@@ -112,9 +105,9 @@ def main(user_funcs_path: str = "input/calculator.py"):
             tests_run = result["total_tests"].get(prop, 0)
             status = "🟢" if holds else "🔴"
             decision = (
-                f"{status} {prop} (Confidence: {confidence:.1f}%); Tests ran to infer: {tests_run})"
+                f"{status} {prop} (Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
                 # if holds
-                # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%); Tests run to infer: {tests_run})"
+                # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%; Tests run to infer: {tests_run})"
             )
             print(decision)
             counterexamples = result["counterexamples"][prop]
