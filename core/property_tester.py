@@ -1,7 +1,7 @@
 from typing import Any
 
 from core.properties import PropertyRegistry
-from core.function_under_test import FunctionUnderTest
+from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest
 
 
@@ -22,55 +22,7 @@ class PropertyTester:
         self._registry = registry
         self._max_examples = max_examples
 
-
-    # ============================================================================
-    # INVARIANCE PROPERTIES - Function behavior under transformations
-    # ============================================================================
-
-    # TODO think about this to fix logic of getting inputs that are not monotonic
-    # @staticmethod
-    # def monotonically_increasing_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if function is monotonically increasing (preserves order relationships)"""
-    #     a, b = inputs
-    #     try:
-    #         if function.arg_converter(a) <= function.arg_converter(b):
-    #             r1, r2 = function.call(a), function.call(b)
-    #             if r1 <= r2:
-    #                 return True, f"a ≤ b ⟹ {function.func.__name__}(a) ≤ {function.func.__name__}(b)"
-    #             else:
-    #                 return False, {
-    #                     f"Input: {a} ≤ {b}": "True",
-    #                     f"{function.func.__name__}({a})": r1,
-    #                     f"{function.func.__name__}({b})": r2,
-    #                     f"Output: {r1} ≤ {r2}": "False"
-    #                 }
-    #         else:
-    #             return True, "Increasing monotonicity test skipped (inputs not monotonically increasing)"
-    #     except (TypeError, AttributeError):
-    #         return True, "Increasing monotonicity test skipped (inputs not comparable)"
-    #
-    # @staticmethod
-    # def monotonically_decreasing_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if function is monotonically decreasing (preserves order relationships)"""
-    #     a, b = inputs
-    #     try:
-    #         if function.arg_converter(a) >= function.arg_converter(b):
-    #             r1, r2 = function.call(a), function.call(b)
-    #             if r1 >= r2:
-    #                 return True, f"a ≥ b ⟹ {function.func.__name__}(a) ≥ {function.func.__name__}(b)"
-    #             else:
-    #                 return False, {
-    #                     f"Input: {a} ≥ {b}": "True",
-    #                     f"{function.func.__name__}({a})": r1,
-    #                     f"{function.func.__name__}({b})": r2,
-    #                     f"Output: {r1} ≥ {r2}": "False"
-    #                 }
-    #         else:
-    #             return True, "Decreasing monotonicity test skipped (inputs not monotonically decreasing)"
-    #     except (TypeError, AttributeError):
-    #         return True, "Decreasing monotonicity test skipped (inputs not comparable)"
-
-    # TODO think about this to make more abstract instead of *
+    # TODO think about this to make more abstract instead of * this can be done using CombinedFunctionUnderTest
     # @staticmethod
     # def scaling_invariance_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
     #     """Test if function is invariant under scaling"""
@@ -168,34 +120,6 @@ class PropertyTester:
     #         }
 
     # ============================================================================
-    # COMPOSITION PROPERTIES - How functions interact with themselves
-    # ============================================================================
-
-
-    # TODO think about this to make more abstract by changing + to a function
-    # TODO this requires support for multiple functions under test
-    # @staticmethod
-    # def distributivity_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if f(a, b+c) = f(a,b) + f(a,c) or similar distributive property"""
-    #     a, b, c = inputs
-    #     a, b, c = function.arg_converter(a), function.arg_converter(b), function.arg_converter(c)
-    #     try:
-    #         # Test left distributivity: f(a, b+c) ?= f(a,b) + f(a,c)
-    #         combined = b + c
-    #         r1 = function.call(a, combined)
-    #         r2 = function.call(a, b) + function.call(a, c)
-    #
-    #         if function.compare_results(r1, r2):
-    #             return True, f"{function.func.__name__}(a, b+c) = {function.func.__name__}(a,b) + {function.func.__name__}(a,c)"
-    #         else:
-    #             return False, {
-    #                 f"{function.func.__name__}({a}, {b}+{c})": r1,
-    #                 f"{function.func.__name__}({a},{b}) + {function.func.__name__}({a},{c})": r2
-    #             }
-    #     except (TypeError, AttributeError):
-    #         return True, "Distributivity test skipped (operations not supported)"
-
-    # ============================================================================
     # STRUCTURAL PROPERTIES - Shape and structure preservation
     # ============================================================================
 
@@ -239,17 +163,24 @@ class PropertyTester:
     #             "Closure": "False"
     #         }
 
-
-
-    def infer_properties(self, function: FunctionUnderTest, property_tests: list[PropertyTest],
-                         input_sets: list[Any], early_stopping: bool = False) -> tuple[
-        dict[str, bool], dict[str, list[dict[str, str] | str]], dict[str, float], dict[str, int]]:
+    def test_property(
+            self,
+            function: FunctionUnderTest | CombinedFunctionUnderTest,
+            property_test: PropertyTest,
+            input_sets: list[Any],
+            early_stopping: bool = False
+    ) -> tuple[
+        dict[str, bool],
+        dict[str, list[dict[str, str] | str]],
+        dict[str, float],
+        dict[str, int]
+    ]:
         """
-        Infer properties for a specific function.
+        Test a property for a specific function or function combination.
 
         Args:
-            function: The function being tested.
-            property_tests: A list of property test instances to execute.
+            function: The function or function combination being tested.
+            property_test: A property test instance to execute.
             input_sets: A list of input sets to test the properties with.
             early_stopping: Whether to stop testing a property after finding a counter-example.
 
@@ -261,53 +192,55 @@ class PropertyTester:
                 - A dictionary of total tests run for each property.
         """
 
-        properties: dict[str, bool] = {prop.name: True for prop in property_tests}
-        counterexamples: dict[str, list[dict[str, str] | str]] = {prop.name: [] for prop in property_tests}
-        confidence: dict[str, int] = {prop.name: 0 for prop in property_tests}
-        total_tests: dict[str, int] = {prop.name: 0 for prop in property_tests}
+        name = property_test.name
+        # Initialize maps with exactly one entry
+        properties: dict[str, bool] = {name: True}
+        counterexamples: dict[str, list[dict[str, str] | str]] = {name: []}
+        confidence: dict[str, int] = {name: 0}
+        total_tests: dict[str, int] = {name: 0}
 
-        # Test each applicable property with appropriate input sets
-        for prop in property_tests:
-            found_counter_example: bool = False
-            for inputs in input_sets:
-                # Skip testing if we already found a counter-example and early stopping is enabled
-                if early_stopping and found_counter_example:
-                    break
-                if len(inputs) < prop.input_arity:
-                    continue
-                total_tests[prop.name] += 1
+        found_counter_example: bool = False
 
-                # Get test result and counter-example data if it fails
-                success, example_data = prop.test(function, inputs[:prop.input_arity])
+        for inputs in input_sets:
+            # Skip testing if we already found a counter-example and early stopping is enabled
+            if early_stopping and found_counter_example:
+                break
 
-                if success:
-                    confidence[prop.name] += 1
-                    if not found_counter_example:
-                        assert isinstance(example_data, str), (
-                            f"Expected success example to be str, got {type(example_data)}"
-                        )
-                        counterexamples[prop.name] = [example_data]
-                else:
-                    properties[prop.name] = False
-                    found_counter_example = True
-                    assert isinstance(example_data, dict), (
-                        f"Expected failure example to be dict, got {type(example_data)}"
+            if len(inputs) < property_test.input_arity:
+                continue
+
+            total_tests[name] += 1
+            success, example_data = property_test.test(function, inputs[:property_test.input_arity])
+
+            if success:
+                confidence[name] += 1
+                # On the first success, record the “example_data” string if no counter yet
+                if not found_counter_example:
+                    assert isinstance(example_data, str), (
+                        f"Expected success example to be str, got {type(example_data)}"
                     )
-                    lst = counterexamples[prop.name]
-                    # if we already have a dict‐based list, append up to the max
-                    if lst and isinstance(lst[0], dict):
-                        if len(lst) < self._max_examples:
-                            lst.append(example_data)
-                    else:
-                        # either we had an empty list, or a success‐string,
-                        # so overwrite with a new failure‐list
-                        counterexamples[prop.name] = [example_data]
-
-        # Calculate confidence levels
-        for prop in property_tests:
-            if total_tests[prop.name] > 0:
-                self.confidence_levels[prop.name] = confidence[prop.name] / total_tests[prop.name]
+                    counterexamples[name] = [example_data]
             else:
-                self.confidence_levels[prop.name] = 0.0
+                # Found a failing case
+                properties[name] = False
+                found_counter_example = True
+
+                assert isinstance(example_data, dict), (
+                    f"Expected failure example to be dict, got {type(example_data)}"
+                )
+                lst = counterexamples[name]
+                if lst and isinstance(lst[0], dict):
+                    # Already storing a list of dicts; append until max
+                    if len(lst) < self._max_examples:
+                        lst.append(example_data)
+                else:
+                    # Replace any previous “success‐string” with a fresh list of dicts
+                    counterexamples[name] = [example_data]
+
+        # Compute final confidence fraction
+        if total_tests[name] > 0:
+            self.confidence_levels[name] = confidence[name] / total_tests[name]
+        else:
+            self.confidence_levels[name] = 0.0
 
         return properties, counterexamples, self.confidence_levels, total_tests

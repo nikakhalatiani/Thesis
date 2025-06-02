@@ -1,5 +1,5 @@
 from .algebraic import *
-from .composition import InvolutionTest
+from .composition import *
 from .information import DeterminismTest
 from .structural import TypePreservationTest
 from .property_test import PropertyRegistry
@@ -13,6 +13,7 @@ def create_standard_registry() -> PropertyRegistry:
     registry.register(CommutativityTest())
     registry.register(AssociativityTest())
     registry.register(IdempotenceTest())
+    registry.register(DistributivityTest())
 
     # Behavioral properties
     registry.register(DeterminismTest())
@@ -32,8 +33,13 @@ def create_minimal_registry() -> PropertyRegistry:
     registry.register(CommutativityTest())
     registry.register(AssociativityTest())
     registry.register(IdempotenceTest())
+    registry.register(DistributivityTest())
     # registry.register(RightIdempotenceTest())
     # registry.register(LeftIdempotenceTest())
     # registry.register(FullIdempotenceTest())
+
+    # registry.register(InvolutionTest())
+    # registry.register(MonotonicallyDecreasingTest())
+    # registry.register(MonotonicallyIncreasingTest())
 
     return registry

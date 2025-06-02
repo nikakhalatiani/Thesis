@@ -2,12 +2,11 @@ from fandango import Fandango
 from fandango.language.tree import DerivationTree
 
 from typing import TypedDict
-from collections.abc import Callable
+from itertools import product
 
 from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import FunctionUnderTest
+from core.function_under_test import CombinedFunctionUnderTest
 from core.property_tester import PropertyTester
-from input.input_parser import InputParser
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest
 
@@ -42,74 +41,108 @@ class PropertyInferenceEngine:
             #     print(example.to_string())
         return fan, examples
 
-    def _get_applicable_properties(self, function: FunctionUnderTest) -> list[PropertyTest]:
-        """Get only the properties that apply to the given function arity."""
-        if not self.config.properties_to_test:
-            # If no specific properties are configured, check all registry properties
-            return self.config.registry.get_applicable_tests(function)
-        else:
-            return [prop for prop in self.config.properties_to_test
-                    if prop.is_applicable(function)]
-
     def run(self) -> dict[str, InferenceResult]:
         results: dict[str, InferenceResult] = {}
 
-        def get_name(helper: Callable) -> str:
-            helper_name = helper.__name__
-            if helper_name.startswith('_'):
-                return 'default'
-            elif helper_name == '<lambda>':
-                return 'default'
-            else:
-                return helper_name
+        properties_to_test: list[PropertyTest] = (
+                    self.config.properties_to_test or self.config.registry.get_all().values())
 
-        for idx, fut in enumerate(self.config.functions_under_test):
-            name: str = fut.func.__name__
+        for prop in properties_to_test:
+            n: int = prop.num_functions
 
+            for funcs in product(self.config.functions_under_test, repeat=n):
+                combined = CombinedFunctionUnderTest(funcs)
 
-            # Check if there are any applicable properties before generating examples
-            applicable_properties = self._get_applicable_properties(fut)
-            if not applicable_properties:
-                print(f"⚠️  No applicable properties for function '{name}'. Skipping example generation.")
-                continue
+                if not prop.is_applicable(combined):
+                    print(f"⚠️ Property '{prop.name}' is not applicable to combination: {combined.names()}. Skipping.")
+                    continue
 
-            grammar: GrammarConfig = self.config.function_to_grammar.get(name, self.config.default_grammar)
-            parser: InputParser = self.config.function_to_parser.get(name, self.config.default_parser)
+                # collect the names for lookup
+                names = tuple(fut.func.__name__ for fut in funcs)
 
-            fan, examples = self._generate_examples(grammar, self.config.example_count)
+                # 1) combination-level explicit override
+                grammar = (
+                        self.config.combination_to_grammar.get(names)
+                        or None
+                )
+                parser = (
+                        self.config.combination_to_parser.get(names)
+                        or None
+                )
 
-            input_sets = [parser.parse(fan, tree) for tree in examples]
-            input_sets = [i for i in input_sets if i is not None]
+                # 2) if no explicit combo override, try to merge per-function ones
+                if grammar is None:
+                    # gather each function's override or default
+                    base = None
+                    combined_constraints: set[str] = set()
 
-            # from collections import Counter
-            # counts = Counter(len(s) for s in input_sets)
-            # print("🎲 input‐tuple length distribution:", counts)
+                    for fut in funcs:
+                        fg = self.config.function_to_grammar.get(fut.func.__name__, self.config.default_grammar)
+                        if base is None:
+                            base = fg
+                        elif fg.path != base.path:
+                            raise ValueError(
+                                f"Cannot combine grammars with different spec paths: "f"{base.path} vs {fg.path}")
+                        # 2) Merge constraints into a set (automatically dedupes)
+                        if fg.extra_constraints:
+                            combined_constraints.update(fg.extra_constraints)
 
-            tester = PropertyTester(registry=self.config.registry, max_examples=self.config.max_counterexamples)
-            properties, counterexamples, confidence, total_tests = tester.infer_properties(
-                fut,
-                applicable_properties,
-                input_sets,
-                early_stopping=self.config.early_stopping
-            )
+                    # 3) Build a new GrammarConfig using the base path + deduped constraints
+                    grammar = GrammarConfig(
+                        base.path,
+                        list(combined_constraints) if combined_constraints else None
+                    )
 
-            # Get the name of the function and converters properly
-            func_name = fut.func.__name__
-            arg_converter_name = get_name(fut.arg_converter)
-            result_comparator_name = get_name(fut.result_comparator)
+                if parser is None:
+                    per_fs = [
+                        self.config.function_to_parser.get(fut.func.__name__, self.config.default_parser)
+                        for fut in funcs
+                    ]
+                    # Collect unique parser objects
+                    unique = {p for p in per_fs}
+                    if len(unique) == 1:
+                        # All slots share the same parser instance
+                        parser = unique.pop()
+                    else:
+                        # Conflicting slot‐specific parsers → raise or fallback
+                        raise ValueError(
+                            f"Cannot combine different parsers for functions: "
+                            f"{', '.join(fut.func.__name__ for fut in funcs)}"
+                        )
 
-            # Create the key with proper string formatting - no nested f-strings
-            key: str = f"function {func_name} with {arg_converter_name} converter and {result_comparator_name} comparator"
+                # import time
+                # start_time = time.perf_counter()
+                fan, examples = self._generate_examples(grammar, self.config.example_count)
+                input_sets = [parser.parse(fan, tree) for tree in examples]
+                input_sets = [i for i in input_sets if i is not None]
+                # end_time = time.perf_counter()
+                # print(f"Execution time: {end_time - start_time:.4f} seconds")
 
-            # key: str = f"{name} ({idx + 1}/{len(self.config.functions_under_test)})"
+                # from collections import Counter
+                # counts = Counter(len(s) for s in input_sets)
+                # print("🎲 input‐tuple length distribution:", counts)
 
-            # key: str = f"{fut.func.__name__}"
+                tester = PropertyTester(self.config.registry, self.config.max_counterexamples)
+                properties, counterexamples, confidence, total_tests = tester.test_property(combined,
+                                                                                            prop,
+                                                                                            input_sets,
+                                                                                            self.config.early_stopping)
 
-            results[key] = InferenceResult(
-                properties=properties,
-                counterexamples=counterexamples,
-                confidence=confidence,
-                total_tests=total_tests,
-            )
+                key = f"combination ({combined.names()})"
+
+                # If we haven’t initialized an entry for this combination yet, do so
+                if key not in results:
+                    results[key] = InferenceResult(
+                        properties={},
+                        counterexamples={},
+                        confidence={},
+                        total_tests={},
+                    )
+
+                # Merge this property’s results into the existing InferenceResult
+                results[key]["properties"].update(properties)
+                results[key]["counterexamples"].update(counterexamples)
+                results[key]["confidence"].update(confidence)
+                results[key]["total_tests"].update(total_tests)
 
         return results

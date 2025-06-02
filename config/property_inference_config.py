@@ -1,8 +1,9 @@
-from core.function_under_test import FunctionUnderTest
+from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
 from core.properties import PropertyRegistry
 from core.properties.property_test import PropertyTest
 from input.input_parser import InputParser
-from config.grammar_config  import GrammarConfig
+from config.grammar_config import GrammarConfig
+
 
 class PropertyInferenceConfig:
     """
@@ -16,6 +17,8 @@ class PropertyInferenceConfig:
         default_parser: Default parser for input parsing.
         function_to_grammar: Mapping of function names to grammar.
         function_to_parser: Mapping of function names to parsers.
+        combination_to_grammar: Mapping of function combinations to grammar.
+        combination_to_parser: Mapping of function combinations to parsers.
         example_count Number of examples to generate for testing.
         early_stopping: Whether to stop testing a property after finding a counter-example.
     """
@@ -28,6 +31,8 @@ class PropertyInferenceConfig:
         self.default_parser: InputParser | None = None
         self.function_to_grammar: dict[str, GrammarConfig] = {}
         self.function_to_parser: dict[str, InputParser] = {}
+        self.combination_to_grammar: dict[tuple[str, ...], GrammarConfig] = {}
+        self.combination_to_parser: dict[tuple[str, ...], InputParser] = {}
         self.example_count: int = example_count
         self.early_stopping: bool = False
         self.max_counterexamples: int = 1
@@ -56,7 +61,23 @@ class PropertyInferenceConfig:
             self.function_to_parser[fut.func.__name__] = parser
         return self
 
-    def add_property(self, property_name: str) -> 'PropertyInferenceConfig':
+    def add_combination(
+            self,
+            com_fut: CombinedFunctionUnderTest,
+            grammar: GrammarConfig | None = None,
+            parser: InputParser | None = None,
+    ) -> 'PropertyInferenceConfig':
+        key = tuple(fut.func.__name__ for fut in com_fut.funcs)
+
+        if grammar:
+            self.combination_to_grammar[key] = grammar
+
+        if parser:
+            self.combination_to_parser[key] = parser
+
+        return self
+
+    def add_property_by_name(self, property_name: str) -> 'PropertyInferenceConfig':
         """
         Add a property to the list of properties to test.
 
@@ -70,7 +91,7 @@ class PropertyInferenceConfig:
             ValueError: If the property is not found in the registry.
         """
         try:
-            property_test = self.registry.get(property_name)
+            property_test = self.registry.get_by_name(property_name)
             if property_test not in self.properties_to_test:
                 self.properties_to_test.append(property_test)
         except KeyError:
@@ -85,7 +106,8 @@ class PropertyInferenceConfig:
                 self.properties_to_test.append(test)
         return self
 
-    def set_default_grammar(self, spec_path: str, extra_constraints: list[str] | None = None) -> 'PropertyInferenceConfig':
+    def set_default_grammar(self, spec_path: str,
+                            extra_constraints: list[str] | None = None) -> 'PropertyInferenceConfig':
         """
         Set the default grammar file path.
 

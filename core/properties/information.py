@@ -28,11 +28,13 @@ class DeterminismTest(PropertyTest):
                 first_different_result = r
                 break
 
+        f_name = function.func.__name__
+
         if not first_different_result:
-            return True, f"{function.func.__name__}(a) is deterministic for all tested inputs"
+            return True, f"{f_name}(a) is deterministic for all tested inputs"
         else:
-            # If results differ, return the first result that differs
+            # If results differ, return the first different result
             return False, {
-                f"{function.func.__name__}({a}) on run #{results.index(first_result)+1}": first_result,
-                f"{function.func.__name__}({a}) on run #{results.index(first_different_result)+1}": f"{first_different_result}\n"
+                f"{f_name}({a}) on run #{results.index(first_result)+1}: ": first_result,
+                f"{f_name}({a}) on run #{results.index(first_different_result)+1}: ": f"{first_different_result}\n"
             }

@@ -1,7 +1,7 @@
 from core.properties import create_standard_registry, create_minimal_registry
 from input.input_parser import InputParser
 from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import FunctionUnderTest
+from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
 
@@ -20,13 +20,13 @@ def load_user_module(path: str, module_name: str):
 
 def main(user_funcs_path: str = "input/calculator.py"):
     # 1) build property registry
-    # registry = create_minimal_registry()
-    registry = create_standard_registry()
+    registry = create_minimal_registry()
+    # registry = create_standard_registry()
 
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
     # TODO ask if custom distributions for grammar is available
-    config = (PropertyInferenceConfig(registry, example_count=200)
+    config = (PropertyInferenceConfig(registry, example_count=50)
               .set_default_grammar("grammars/digits_list.fan")
               .set_default_parser(default_parser)
               .set_early_stopping(False)
@@ -86,14 +86,22 @@ def main(user_funcs_path: str = "input/calculator.py"):
 
         fut = FunctionUnderTest(func, arg_converter=conv, result_comparator=comp)
         config.add_function(fut, grammar=gram, parser=pars)
+        # config.add_combination(CombinedFunctionUnderTest((fut, fut)), grammar=GrammarConfig("grammars/digits_list.fan", ["int(<term>) == 0"]), parser=pars)
 
     # specify the properties to test if none are provided all properties are tested
-    # config.add_property("Commutativity")
-    # config.add_property("Associativity")
+    # config.add_property_by_name("Commutativity")
+    # config.add_property_by_name("Associativity")
+    # config.add_property_by_name("Distributivity")
+    # config.add_property_by_name("Idempotence")
+
 
     # 3) run
+    # import time
+    # start_time = time.perf_counter()
     engine: PropertyInferenceEngine = PropertyInferenceEngine(config)
     results = engine.run()
+    # end_time = time.perf_counter()
+    # print(f"Execution time: {end_time - start_time:.4f} seconds")
 
     # 4) pretty‑print
     for func_name, result in results.items():
@@ -115,9 +123,9 @@ def main(user_funcs_path: str = "input/calculator.py"):
                 if isinstance(ex, dict):
                     for call_repr, outcome in ex.items():
                         if isinstance(outcome, str):
-                            print(f"\t {call_repr}: {outcome}")
+                            print(f"\t {call_repr}{outcome}")
                         else:
-                            print(f"\t {call_repr}: {repr(outcome)}")
+                            print(f"\t {call_repr}{repr(outcome)}")
                 else:
                     print(f"\t {ex}")
 
