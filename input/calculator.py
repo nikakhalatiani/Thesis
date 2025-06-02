@@ -71,10 +71,10 @@ class Calculator:
       - min, max
     """
 
-    @staticmethod
-    def add(x, y):
-        """Return x + y."""
-        return x + y
+    # @staticmethod
+    # def add(x, y):
+    #     """Return x + y."""
+    #     return x + y
 
     # @staticmethod
     # def subtract(x, y):
@@ -86,12 +86,12 @@ class Calculator:
     #     """Return x * y."""
     #     return x * y
 
-    @staticmethod
-    def divide(x, y):
-        """Return x / y, raising ZeroDivisionError for y == 0."""
-        if y == 0:
-            raise ZeroDivisionError("Division by zero")
-        return x / y
+    # @staticmethod
+    # def divide(x, y):
+    #     """Return x / y, raising ZeroDivisionError for y == 0."""
+    #     if y == 0:
+    #         raise ZeroDivisionError("Division by zero")
+    #     return x / y
 
     # @staticmethod
     # def power(x, y):
@@ -130,6 +130,26 @@ class Calculator:
     # @staticmethod
     # def negate(x):
     #     """Return the negation of x."""
+    #     return -x
+
+    # @staticmethod
+    # def constant(x):
+    #     # Constant function: both monotonically increasing and decreasing
+    #     return 42
+    #
+    # @staticmethod
+    # def zigzag(x):
+    #     # Neither increasing nor decreasing (example: alternates)
+    #     return (-1) ** x * x  # e.g., 0 → 0, 1 → -1, 2 → 2, 3 → -3, ...
+    #
+    # @staticmethod
+    # def linear_increasing(x):
+    #     # Strictly increasing
+    #     return x + 1
+    #
+    # @staticmethod
+    # def linear_decreasing(x):
+    #     # Strictly decreasing
     #     return -x
 
     # @staticmethod

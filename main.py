@@ -1,7 +1,7 @@
 from core.properties import create_standard_registry, create_minimal_registry
 from input.input_parser import InputParser
 from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
+from core.function_under_test import FunctionUnderTest
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
 
@@ -21,12 +21,12 @@ def load_user_module(path: str, module_name: str):
 def main(user_funcs_path: str = "input/calculator.py"):
     # 1) build property registry
     registry = create_minimal_registry()
-    # registry = create_standard_registry()
+    registry = create_standard_registry()
 
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
     # TODO ask if custom distributions for grammar is available
-    config = (PropertyInferenceConfig(registry, example_count=50)
+    config = (PropertyInferenceConfig(registry, example_count=200)
               .set_default_grammar("grammars/digits_list.fan")
               .set_default_parser(default_parser)
               .set_early_stopping(False)
@@ -120,14 +120,7 @@ def main(user_funcs_path: str = "input/calculator.py"):
             print(decision)
             counterexamples = result["counterexamples"][prop]
             for ex in counterexamples:
-                if isinstance(ex, dict):
-                    for call_repr, outcome in ex.items():
-                        if isinstance(outcome, str):
-                            print(f"\t {call_repr}{outcome}")
-                        else:
-                            print(f"\t {call_repr}{repr(outcome)}")
-                else:
-                    print(f"\t {ex}")
+                print(f"\t {ex}")
 
 
 if __name__ == "__main__":

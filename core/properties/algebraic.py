@@ -1,4 +1,4 @@
-from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
+from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest, TestResult
 
 
@@ -24,11 +24,10 @@ class CommutativityTest(PropertyTest):
         if function.compare_results(r1, r2):
             return True, f"{f_name}(a,b) == {f_name}(b,a)"
         else:
-            return False, {
-                f"{f_name}({a},{b}): ": r1,
-                f"{f_name}({b},{a}): ": f"{r2}\n"
-            }
-
+            return False, (
+                f"{f_name}({a},{b}): {r1}\n\t "
+                f"{f_name}({b},{a}): {r2}\n"
+            )
 
 class AssociativityTest(PropertyTest):
     """Test if f(a, f(b, c)) = f(f(a, b), c)"""
@@ -62,11 +61,11 @@ class AssociativityTest(PropertyTest):
                 f"== {f_name}({g_name}(a, b), c)"
             )
         else:
-            return False, {
-                # show the two “parenthesizations” that failed
-                f"{f_name}({a}, {g_name}({b}, {c})): ": r1,
-                f"{f_name}({g_name}({a}, {b}), {c}): ": f"{r2}\n",
-            }
+            return False, (
+                f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t "
+                f"{f_name}({g_name}({a}, {b}), {c}): {r2}\n"
+            )
+
 
 # TODO ask if f(g(x)) = f(x) is a valid property test or f(g(x)) = g(x) or f(g(x)) = g(f(x)) is a valid property test
 class IdempotenceTest(PropertyTest):
@@ -91,10 +90,10 @@ class IdempotenceTest(PropertyTest):
         if function.compare_results(r1, r2):
             return True, f"{f_name}({f_name}(a)) == {f_name}(a)"
         else:
-            return False, {
-                f"{f_name}({a}): ": r1,
-                f"{f_name}({f_name}({a})): ": f"{r2}\n",
-            }
+            return False, (
+                f"{f_name}({a}): {r1}\n\t "
+                f"{f_name}({f_name}({a})): {r2}\n"
+            )
 
 
 class LeftIdempotenceTest(PropertyTest):
@@ -109,83 +108,79 @@ class LeftIdempotenceTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: FunctionUnderTest, inputs: tuple) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
         a, b = inputs[:2]
         r1 = function.call(a, b)
         r2 = function.call(a, r1)
 
-        f_name = function.func.__name__
+        f_name = function.funcs[0].__name__
 
         if function.compare_results(r1, r2):
             return True, f"{f_name}(a,b) == {f_name}(a,{f_name}(a,b))"
         else:
-            return False, {
-                f"{f_name}({a},{b}): ": r1,
-                f"{f_name}({a},{f_name}({a},{b})): ": f"{r2}\n",
-            }
+            return False, (
+                f"{f_name}({a},{b}): {r1}\n\t "
+                f"{f_name}({a},{f_name}({a},{b})): {r2}\n"
+            )
 
 
-class RightIdempotenceTest(PropertyTest):
-    """Test if f(f(a,b), b) = f(a,b) - the right argument dominates when repeated"""
-
-    def __init__(self):
-        super().__init__(
-            name="Right Idempotence",
-            input_arity=2,
-            function_arity=2,
-            description="Tests if f(f(a,b), b) equals f(a,b) - right argument idempotence",
-            category="Algebraic"
-        )
-
-    def test(self, function: FunctionUnderTest, inputs: tuple) -> TestResult:
-        a, b = inputs[:2]
-        r1 = function.call(a, b)
-        r2 = function.call(r1, b)
-
-        f_name = function.func.__name__
-
-        if function.compare_results(r1, r2):
-            return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),b)"
-        else:
-            return False, {
-                f"{f_name}({a},{b}): ": r1,
-                f"{f_name}({f_name}({a},{b}),{b}): ": f"{r2}\n",
-            }
-
-
-class FullIdempotenceTest(PropertyTest):
-    """Test if f(f(a,b), f(a,b)) = f(a,b) - complete idempotence"""
-
-    def __init__(self):
-        super().__init__(
-            name="Full Idempotence",
-            input_arity=2,
-            function_arity=2,
-            description="Tests if f(f(a,b), f(a,b)) equals f(a,b) - complete idempotence",
-            category="Algebraic"
-        )
-
-    def test(self, function: FunctionUnderTest, inputs: tuple) -> TestResult:
-        a, b = inputs[:2]
-        r1 = function.call(a, b)
-        r2 = function.call(r1, r1)
-
-        f_name = function.func.__name__
-
-        if function.compare_results(r1, r2):
-            return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),{f_name}(a,b))"
-        else:
-            return False, {
-                f"{f_name}({a},{b}): ": r1,
-                f"{f_name}({f_name}({a},{b}),{f_name}({a},{b})): ": f"{r2}\n",
-            }
-
+# class RightIdempotenceTest(PropertyTest):
+#     """Test if f(f(a,b), b) = f(a,b) - the right argument dominates when repeated"""
+#
+#     def __init__(self):
+#         super().__init__(
+#             name="Right Idempotence",
+#             input_arity=2,
+#             function_arity=2,
+#             description="Tests if f(f(a,b), b) equals f(a,b) - right argument idempotence",
+#             category="Algebraic"
+#         )
+#
+#     def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
+#         a, b = inputs[:2]
+#         r1 = function.call(a, b)
+#         r2 = function.call(r1, b)
+#
+#         f_name = function.funcs[0].__name__
+#
+#         if function.compare_results(r1, r2):
+#             return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),b)"
+#         else:
+#             return False, (
+#                 f"{f_name}({a},{b}): {r1}\n\t "
+#                 f"{f_name}({f_name}({a},{b}),{b}): {r2}\n"
+#             )
+#
+#
+# class FullIdempotenceTest(PropertyTest):
+#     """Test if f(f(a,b), f(a,b)) = f(a,b) - complete idempotence"""
+#
+#     def __init__(self):
+#         super().__init__(
+#             name="Full Idempotence",
+#             input_arity=2,
+#             function_arity=2,
+#             description="Tests if f(f(a,b), f(a,b)) equals f(a,b) - complete idempotence",
+#             category="Algebraic"
+#         )
+#
+#     def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
+#         a, b = inputs[:2]
+#         r1 = function.call(a, b)
+#         r2 = function.call(r1, r1)
+#
+#         f_name = function.funcs[0].__name__
+#
+#         if function.compare_results(r1, r2):
+#             return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),{f_name}(a,b))"
+#         else:
+#             return False, (
+#                 f"{f_name}({a},{b}): {r1}\n\t "
+#                 f"{f_name}({f_name}({a},{b}),{f_name}({a},{b})): {r2}\n"
+#             )
 
 class DistributivityTest(PropertyTest):
-    """
-    Test that for two binary functions f,g:
-        f(a, g(b, c)) == g(f(a, b), f(a, c))
-    """
+    """Test if f(a, g(b, c)) == g(f(a, b), f(a, c))"""
 
     def __init__(self) -> None:
         super().__init__(
@@ -218,7 +213,7 @@ class DistributivityTest(PropertyTest):
         if combined.compare_results(r1, r2):
             return True, f"{f_name}(a,{g_name}(b,c)) == {g_name}({f_name}(a,b),{f_name}(a,c))"
         else:
-            return False, {
-                f"{f_name}({a},{g_name}({b},{c})): ": r1,
-                f"{g_name}({f_name}({a},{b}),{f_name}({a},{c})): ": f"{r2}\n"
-            }
+            return False, (
+                f"{f_name}({a},{g_name}({b},{c})): {r1}\n\t "
+                f"{g_name}({f_name}({a},{b}),{f_name}({a},{c})): {r2}\n"
+            )

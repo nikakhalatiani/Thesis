@@ -16,6 +16,7 @@ class PropertyTester:
     """
 
     def __init__(self, registry: PropertyRegistry, max_examples: int) -> None:
+        #TODO think if we need this attributes
         self.properties: dict[str, bool] = {}
         self.examples: dict[str, dict[str, str] | str] = {}
         self.confidence_levels: dict[str, float] = {}
@@ -216,26 +217,18 @@ class PropertyTester:
                 confidence[name] += 1
                 # On the first success, record the “example_data” string if no counter yet
                 if not found_counter_example:
-                    assert isinstance(example_data, str), (
-                        f"Expected success example to be str, got {type(example_data)}"
-                    )
                     counterexamples[name] = [example_data]
             else:
                 # Found a failing case
                 properties[name] = False
-                found_counter_example = True
 
-                assert isinstance(example_data, dict), (
-                    f"Expected failure example to be dict, got {type(example_data)}"
-                )
-                lst = counterexamples[name]
-                if lst and isinstance(lst[0], dict):
-                    # Already storing a list of dicts; append until max
-                    if len(lst) < self._max_examples:
-                        lst.append(example_data)
-                else:
-                    # Replace any previous “success‐string” with a fresh list of dicts
+                if counterexamples[name] and not found_counter_example:
                     counterexamples[name] = [example_data]
+                else:
+                    if len(counterexamples[name]) < self._max_examples:
+                        counterexamples[name].append(example_data)
+
+                found_counter_example = True
 
         # Compute final confidence fraction
         if total_tests[name] > 0:

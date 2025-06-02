@@ -115,6 +115,7 @@ class PropertyInferenceEngine:
                 fan, examples = self._generate_examples(grammar, self.config.example_count)
                 input_sets = [parser.parse(fan, tree) for tree in examples]
                 input_sets = [i for i in input_sets if i is not None]
+                input_sets = [(1,1,1)] + input_sets
                 # end_time = time.perf_counter()
                 # print(f"Execution time: {end_time - start_time:.4f} seconds")
 

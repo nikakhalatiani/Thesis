@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
 
-TestResult = tuple[bool, dict[str, str] | str]
+TestResult = tuple[bool, str]
 
 
 class PropertyTest(ABC):
