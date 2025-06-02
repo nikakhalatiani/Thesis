@@ -1,26 +1,21 @@
-from typing import Any
+from typing import Any, TypedDict
 
-from core.properties import PropertyRegistry
 from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest
 
 
+class PropertyOutcome(TypedDict):
+    """
+    Holds the result of testing a PropertyTest against a CombinedFunctionUnderTest.
+    """
+    holds: bool
+    counterexamples: list[str]
+    confidence: float
+    total_tests: int
+
+
 class PropertyTester:
-    """
-    A class to test and infer properties of functions under test.
-
-    Attributes:
-        properties: Stores the inferred properties and their boolean results.
-        examples: Stores counter-examples for properties that fail.
-        confidence_levels: Stores confidence levels for each property.
-    """
-
-    def __init__(self, registry: PropertyRegistry, max_examples: int) -> None:
-        #TODO think if we need this attributes
-        self.properties: dict[str, bool] = {}
-        self.examples: dict[str, dict[str, str] | str] = {}
-        self.confidence_levels: dict[str, float] = {}
-        self._registry = registry
+    def __init__(self, max_examples: int) -> None:
         self._max_examples = max_examples
 
     # TODO think about this to make more abstract instead of * this can be done using CombinedFunctionUnderTest
@@ -170,70 +165,43 @@ class PropertyTester:
             property_test: PropertyTest,
             input_sets: list[Any],
             early_stopping: bool = False
-    ) -> tuple[
-        dict[str, bool],
-        dict[str, list[dict[str, str] | str]],
-        dict[str, float],
-        dict[str, int]
-    ]:
-        """
-        Test a property for a specific function or function combination.
+    ) -> PropertyOutcome:
 
-        Args:
-            function: The function or function combination being tested.
-            property_test: A property test instance to execute.
-            input_sets: A list of input sets to test the properties with.
-            early_stopping: Whether to stop testing a property after finding a counter-example.
-
-        Returns:
-            A tuple containing:
-                - A dictionary of properties and their boolean results.
-                - A dictionary of counter-examples for properties that fail.
-                - A dictionary of confidence levels for each property.
-                - A dictionary of total tests run for each property.
-        """
-
-        name = property_test.name
-        # Initialize maps with exactly one entry
-        properties: dict[str, bool] = {name: True}
-        counterexamples: dict[str, list[dict[str, str] | str]] = {name: []}
-        confidence: dict[str, int] = {name: 0}
-        total_tests: dict[str, int] = {name: 0}
-
-        found_counter_example: bool = False
+        holds = True
+        counterexamples: list[str] = []
+        success_count = 0
+        total_count = 0
 
         for inputs in input_sets:
-            # Skip testing if we already found a counter-example and early stopping is enabled
-            if early_stopping and found_counter_example:
+            if early_stopping and not holds:
                 break
-
             if len(inputs) < property_test.input_arity:
                 continue
 
-            total_tests[name] += 1
+            total_count += 1
             success, example_data = property_test.test(function, inputs[:property_test.input_arity])
 
             if success:
-                confidence[name] += 1
-                # On the first success, record the “example_data” string if no counter yet
-                if not found_counter_example:
-                    counterexamples[name] = [example_data]
+                success_count += 1
+                if holds:
+                    counterexamples = [example_data]
             else:
-                # Found a failing case
-                properties[name] = False
-
-                if counterexamples[name] and not found_counter_example:
-                    counterexamples[name] = [example_data]
+                if holds:
+                    counterexamples = [example_data]
+                    # first time we see a failure
+                    holds = False
                 else:
-                    if len(counterexamples[name]) < self._max_examples:
-                        counterexamples[name].append(example_data)
+                    if len(counterexamples) < self._max_examples:
+                        # example_data is normally a str or a dict; convert to string
+                        counterexamples.append(str(example_data))
 
-                found_counter_example = True
 
-        # Compute final confidence fraction
-        if total_tests[name] > 0:
-            self.confidence_levels[name] = confidence[name] / total_tests[name]
-        else:
-            self.confidence_levels[name] = 0.0
+        # Compute confidence = success_count / total_count
+        confidence = (success_count / total_count) if total_count > 0 else 0.0
 
-        return properties, counterexamples, self.confidence_levels, total_tests
+        return PropertyOutcome(
+            holds=holds,
+            counterexamples=counterexamples,
+            confidence=confidence,
+            total_tests=total_count,
+        )

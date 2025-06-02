@@ -108,19 +108,18 @@ def main(user_funcs_path: str = "input/calculator.py"):
         print(f"\n📊 Inferred Properties for {func_name}:")
         prop: str
         holds: bool
-        for prop, holds in result["properties"].items():
-            confidence = result["confidence"].get(prop, 0) * 100
-            tests_run = result["total_tests"].get(prop, 0)
+        for prop, outcome in result["outcomes"].items():
+            holds = outcome["holds"]
+            confidence = outcome["confidence"] * 100
+            tests_run = outcome["total_tests"]
             status = "🟢" if holds else "🔴"
             decision = (
-                f"{status} {prop} (Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
-                # if holds
-                # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%; Tests run to infer: {tests_run})"
+                f"{status} {prop} "
+                f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
             )
             print(decision)
-            counterexamples = result["counterexamples"][prop]
-            for ex in counterexamples:
-                print(f"\t {ex}")
+            for ex in outcome["counterexamples"]:
+                print(f"\t{ex}")
 
 
 if __name__ == "__main__":

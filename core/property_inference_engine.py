@@ -6,16 +6,13 @@ from itertools import product
 
 from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
-from core.property_tester import PropertyTester
+from core.property_tester import PropertyTester, PropertyOutcome
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest
 
 
 class InferenceResult(TypedDict):
-    properties: dict[str, bool]
-    counterexamples: dict[str, list[dict[str, str] | str]]
-    confidence: dict[str, float]
-    total_tests: dict[str, int]
+    outcomes: dict[str, PropertyOutcome]
 
 
 class PropertyInferenceEngine:
@@ -123,27 +120,15 @@ class PropertyInferenceEngine:
                 # counts = Counter(len(s) for s in input_sets)
                 # print("🎲 input‐tuple length distribution:", counts)
 
-                tester = PropertyTester(self.config.registry, self.config.max_counterexamples)
-                properties, counterexamples, confidence, total_tests = tester.test_property(combined,
-                                                                                            prop,
-                                                                                            input_sets,
-                                                                                            self.config.early_stopping)
+                tester = PropertyTester(self.config.max_counterexamples)
+                outcome = tester.test_property(combined, prop, input_sets, self.config.early_stopping)
 
                 key = f"combination ({combined.names()})"
 
                 # If we haven’t initialized an entry for this combination yet, do so
                 if key not in results:
-                    results[key] = InferenceResult(
-                        properties={},
-                        counterexamples={},
-                        confidence={},
-                        total_tests={},
-                    )
+                    results[key] = InferenceResult(outcomes={})
 
-                # Merge this property’s results into the existing InferenceResult
-                results[key]["properties"].update(properties)
-                results[key]["counterexamples"].update(counterexamples)
-                results[key]["confidence"].update(confidence)
-                results[key]["total_tests"].update(total_tests)
+                results[key]["outcomes"][prop.name] = outcome
 
         return results
