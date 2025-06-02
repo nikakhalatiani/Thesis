@@ -70,8 +70,8 @@ class MonotonicallyIncreasingTest(PropertyTest):
                 return True, f"a ≤ b ⟹ {f_name}(a) ≤ {f_name}(b)"
             else:
                 return False, (
-                    f"{raw_small} ≤ {raw_large}\n\t "
-                    f"{f_name}({raw_small}) > {f_name}({raw_large})\n\t "
+                    f"{raw_small} ≤ {raw_large}\n\t"
+                    f"{f_name}({raw_small}) > {f_name}({raw_large})\n\t"
                     f"{r_small} > {r_large}\n"
                 )
         except (TypeError, ValueError, AttributeError):
@@ -117,8 +117,8 @@ class MonotonicallyDecreasingTest(PropertyTest):
 
             else:
                 return False, (
-                    f"{raw_small} ≤ {raw_large}\n\t "
-                    f"{f_name}({raw_small}) < {f_name}({raw_large})\n\t "
+                    f"{raw_small} ≤ {raw_large}\n\t"
+                    f"{f_name}({raw_small}) < {f_name}({raw_large})\n\t"
                     f"{r_small} < {r_large}\n"
                 )
         except (TypeError, ValueError, AttributeError):

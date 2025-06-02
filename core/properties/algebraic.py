@@ -25,7 +25,7 @@ class CommutativityTest(PropertyTest):
             return True, f"{f_name}(a,b) == {f_name}(b,a)"
         else:
             return False, (
-                f"{f_name}({a},{b}): {r1}\n\t "
+                f"{f_name}({a},{b}): {r1}\n\t"
                 f"{f_name}({b},{a}): {r2}\n"
             )
 
@@ -62,7 +62,7 @@ class AssociativityTest(PropertyTest):
             )
         else:
             return False, (
-                f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t "
+                f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
                 f"{f_name}({g_name}({a}, {b}), {c}): {r2}\n"
             )
 
@@ -91,39 +91,39 @@ class IdempotenceTest(PropertyTest):
             return True, f"{f_name}({f_name}(a)) == {f_name}(a)"
         else:
             return False, (
-                f"{f_name}({a}): {r1}\n\t "
+                f"{f_name}({a}): {r1}\n\t"
                 f"{f_name}({f_name}({a})): {r2}\n"
             )
 
 
-class LeftIdempotenceTest(PropertyTest):
-    """Test if f(a, f(a,b)) = f(a,b) - the left argument dominates when repeated"""
-
-    def __init__(self):
-        super().__init__(
-            name="Left Idempotence",
-            input_arity=2,
-            function_arity=2,
-            description="Tests if f(a, f(a,b)) equals f(a,b) - left argument idempotence",
-            category="Algebraic"
-        )
-
-    def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-        a, b = inputs[:2]
-        r1 = function.call(a, b)
-        r2 = function.call(a, r1)
-
-        f_name = function.funcs[0].__name__
-
-        if function.compare_results(r1, r2):
-            return True, f"{f_name}(a,b) == {f_name}(a,{f_name}(a,b))"
-        else:
-            return False, (
-                f"{f_name}({a},{b}): {r1}\n\t "
-                f"{f_name}({a},{f_name}({a},{b})): {r2}\n"
-            )
-
-
+# class LeftIdempotenceTest(PropertyTest):
+#     """Test if f(a, f(a,b)) = f(a,b) - the left argument dominates when repeated"""
+#
+#     def __init__(self):
+#         super().__init__(
+#             name="Left Idempotence",
+#             input_arity=2,
+#             function_arity=2,
+#             description="Tests if f(a, f(a,b)) equals f(a,b) - left argument idempotence",
+#             category="Algebraic"
+#         )
+#
+#     def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
+#         a, b = inputs[:2]
+#         r1 = function.call(a, b)
+#         r2 = function.call(a, r1)
+#
+#         f_name = function.funcs[0].__name__
+#
+#         if function.compare_results(r1, r2):
+#             return True, f"{f_name}(a,b) == {f_name}(a,{f_name}(a,b))"
+#         else:
+#             return False, (
+#                 f"{f_name}({a},{b}): {r1}\n\t"
+#                 f"{f_name}({a},{f_name}({a},{b})): {r2}\n"
+#             )
+#
+#
 # class RightIdempotenceTest(PropertyTest):
 #     """Test if f(f(a,b), b) = f(a,b) - the right argument dominates when repeated"""
 #
@@ -147,7 +147,7 @@ class LeftIdempotenceTest(PropertyTest):
 #             return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),b)"
 #         else:
 #             return False, (
-#                 f"{f_name}({a},{b}): {r1}\n\t "
+#                 f"{f_name}({a},{b}): {r1}\n\t"
 #                 f"{f_name}({f_name}({a},{b}),{b}): {r2}\n"
 #             )
 #
@@ -175,7 +175,7 @@ class LeftIdempotenceTest(PropertyTest):
 #             return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),{f_name}(a,b))"
 #         else:
 #             return False, (
-#                 f"{f_name}({a},{b}): {r1}\n\t "
+#                 f"{f_name}({a},{b}): {r1}\n\t"
 #                 f"{f_name}({f_name}({a},{b}),{f_name}({a},{b})): {r2}\n"
 #             )
 
@@ -214,6 +214,6 @@ class DistributivityTest(PropertyTest):
             return True, f"{f_name}(a,{g_name}(b,c)) == {g_name}({f_name}(a,b),{f_name}(a,c))"
         else:
             return False, (
-                f"{f_name}({a},{g_name}({b},{c})): {r1}\n\t "
+                f"{f_name}({a},{g_name}({b},{c})): {r1}\n\t"
                 f"{g_name}({f_name}({a},{b}),{f_name}({a},{c})): {r2}\n"
             )

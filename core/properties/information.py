@@ -37,6 +37,6 @@ class DeterminismTest(PropertyTest):
             # If results differ, return the first different result
             idx_diff, diff_val = first_different_result
             return False, (
-                f"{f_name}({a}) on run #1: {first_result}\n\t "
+                f"{f_name}({a}) on run #1: {first_result}\n\t"
                 f"{f_name}({a}) on run #{idx_diff+1}: {diff_val}\n"
             )

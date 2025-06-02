@@ -25,6 +25,6 @@ class TypePreservationTest(PropertyTest):
             return True, f"{f_name} preserves input type: {type(a).__name__}"
         else:
             return False, (
-                f"Input type: {type(a).__name__}\n\t "
+                f"Input type: {type(a).__name__}\n\t"
                 f"Output type: {type(result).__name__}\n"
             )
