@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
+from core.function_under_test import CombinedFunctionUnderTest
 
 TestResult = tuple[bool, str]
 
@@ -17,23 +17,18 @@ class PropertyTest(ABC):
         self.num_functions: int = 1  # default: single-function properties
 
     @abstractmethod
-    def test(self, candidate: FunctionUnderTest | CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
+    def test(self, candidate:  CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
         """Execute the property test."""
         pass
 
-    def is_applicable(self, candidate: FunctionUnderTest | CombinedFunctionUnderTest) -> bool:
+    def is_applicable(self, candidate: CombinedFunctionUnderTest) -> bool:
         """Check if this property test is applicable to the given function."""
         import inspect
-        if isinstance(candidate, CombinedFunctionUnderTest):
-            if self.num_functions != len(candidate.funcs):
-                return False
-            # Ensure each inner function has the right arity
-            return all(len(inspect.signature(fut.func).parameters) == self.function_arity for fut in candidate.funcs)
-        else:
-            if self.num_functions != 1:
-                return False
-            sig = inspect.signature(candidate.func)
-            return len(sig.parameters) == self.function_arity
+        if self.num_functions != len(candidate.funcs):
+            return False
+        # Ensure each inner function has the right arity
+        return all(len(inspect.signature(fut.func).parameters) == self.function_arity for fut in candidate.funcs)
+
 
     def __str__(self) -> str:
         return f"{self.name} (arity: {self.input_arity}/{self.function_arity})"
@@ -72,7 +67,7 @@ class PropertyRegistry:
         """Get all property tests in a category."""
         return self._categories.get(category, [])
 
-    def get_applicable_tests(self, candidate: FunctionUnderTest | CombinedFunctionUnderTest) -> list[PropertyTest]:
+    def get_applicable_tests(self, candidate: CombinedFunctionUnderTest) -> list[PropertyTest]:
         """Get all tests applicable to the given function."""
         return [test for test in self._tests.values() if test.is_applicable(candidate)]
 

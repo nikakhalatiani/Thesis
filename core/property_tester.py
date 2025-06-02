@@ -1,7 +1,7 @@
 from typing import Any
 
 from core.properties import PropertyRegistry
-from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
+from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest
 
 
@@ -166,7 +166,7 @@ class PropertyTester:
 
     def test_property(
             self,
-            function: FunctionUnderTest | CombinedFunctionUnderTest,
+            function: CombinedFunctionUnderTest,
             property_test: PropertyTest,
             input_sets: list[Any],
             early_stopping: bool = False

@@ -10,18 +10,18 @@ def create_standard_registry() -> PropertyRegistry:
     registry = PropertyRegistry()
 
     # Algebraic properties
-    # registry.register(CommutativityTest())
-    # registry.register(AssociativityTest())
-    # registry.register(IdempotenceTest())
-    # registry.register(DistributivityTest())
-    #
-    # # Behavioral properties
-    # registry.register(DeterminismTest())
-    #
-    # # Structural properties
-    # registry.register(TypePreservationTest())
-    #
-    # # Composition properties
+    registry.register(CommutativityTest())
+    registry.register(AssociativityTest())
+    registry.register(IdempotenceTest())
+    registry.register(DistributivityTest())
+
+    # Behavioral properties
+    registry.register(DeterminismTest())
+
+    # Structural properties
+    registry.register(TypePreservationTest())
+
+    # Composition properties
     registry.register(InvolutionTest())
     registry.register(MonotonicallyIncreasingTest())
     registry.register(MonotonicallyDecreasingTest())
