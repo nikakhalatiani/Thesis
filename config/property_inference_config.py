@@ -1,4 +1,4 @@
-from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest
+from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest, ComparisonStrategy
 from core.properties import PropertyRegistry
 from core.properties.property_test import PropertyTest
 from input.input_parser import InputParser
@@ -23,7 +23,7 @@ class PropertyInferenceConfig:
         early_stopping: Whether to stop testing a property after finding a counter-example.
     """
 
-    def __init__(self, registry: PropertyRegistry, example_count: int = 100) -> None:
+    def __init__(self, registry: PropertyRegistry, example_count: int = 100, comparison_strategy: ComparisonStrategy = ComparisonStrategy.CONSENSUS) -> None:
         self.registry: PropertyRegistry = registry
         self.functions_under_test: list[FunctionUnderTest] = []
         self.properties_to_test: list[PropertyTest] = []
@@ -36,6 +36,7 @@ class PropertyInferenceConfig:
         self.example_count: int = example_count
         self.early_stopping: bool = False
         self.max_counterexamples: int = 1
+        self.comparison_strategy = comparison_strategy
 
     def add_function(
             self,
@@ -150,4 +151,9 @@ class PropertyInferenceConfig:
     def set_max_counterexamples(self, n: int) -> "PropertyInferenceConfig":
         """How many failing examples to store for each property."""
         self.max_counterexamples = n
+        return self
+
+    def set_comparison_strategy(self, strategy: ComparisonStrategy) -> 'PropertyInferenceConfig':
+        """Set the comparison strategy for combined functions."""
+        self.comparison_strategy = strategy
         return self

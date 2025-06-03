@@ -1,7 +1,7 @@
 from core.properties import create_standard_registry, create_minimal_registry
 from input.input_parser import InputParser
 from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import FunctionUnderTest
+from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
 
@@ -25,12 +25,12 @@ def main(user_funcs_path: str = "input/calculator.py"):
 
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
-    # TODO ask if custom distributions for grammar is available
     config = (PropertyInferenceConfig(registry, example_count=200)
               .set_default_grammar("grammars/digits_list.fan")
               .set_default_parser(default_parser)
               .set_early_stopping(False)
               .set_max_counterexamples(3)
+              .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)  # Set your preferred strategy here
               )
 
     # 3) dynamically load the user’s calculator.py
@@ -116,6 +116,8 @@ def main(user_funcs_path: str = "input/calculator.py"):
             decision = (
                 f"{status} {prop} "
                 f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
+                # if holds
+                # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%; Tests run to infer: {tests_run})"
             )
             print(decision)
             for ex in outcome["counterexamples"]:

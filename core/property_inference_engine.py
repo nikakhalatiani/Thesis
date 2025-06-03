@@ -5,7 +5,7 @@ from typing import TypedDict
 from itertools import product
 
 from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import CombinedFunctionUnderTest
+from core.function_under_test import CombinedFunctionUnderTest, ComparisonStrategy
 from core.property_tester import PropertyTester, PropertyOutcome
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest
@@ -48,7 +48,7 @@ class PropertyInferenceEngine:
             n: int = prop.num_functions
 
             for funcs in product(self.config.functions_under_test, repeat=n):
-                combined = CombinedFunctionUnderTest(funcs)
+                combined = CombinedFunctionUnderTest(funcs, self.config.comparison_strategy)
 
                 if not prop.is_applicable(combined):
                     print(f"⚠️ Property '{prop.name}' is not applicable to combination: {combined.names()}. Skipping.")

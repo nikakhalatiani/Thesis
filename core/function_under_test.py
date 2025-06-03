@@ -109,14 +109,25 @@ class FunctionUnderTest:
         return f"FunctionUnderTest(func={self.func.__name__}, arg_converter={self.arg_converter.__name__}, result_comparator={self.result_comparator.__name__})"
 
 
+from enum import Enum
+
+class ComparisonStrategy(Enum):
+    """Strategy for comparing results across multiple functions."""
+    CONSENSUS = "consensus"
+    FIRST_COMPATIBLE = "first"
+    MOST_RESTRICTIVE = "restrictive"
+
+
 class CombinedFunctionUnderTest:
     """
-    Wrapper for  multiple FunctionUnderTest instances so that multi-function
+    Wrapper for multiple FunctionUnderTest instances so that multi-function
     PropertyTests (e.g. Distributivity) can invoke each function by index.
     """
 
-    def __init__(self, funcs: tuple[FunctionUnderTest, ...]) -> None:
+    def __init__(self, funcs: tuple[FunctionUnderTest, ...],
+                 comparison_strategy: ComparisonStrategy = ComparisonStrategy.CONSENSUS) -> None:
         self.funcs = funcs
+        self.comparison_strategy = comparison_strategy
 
     def names(self) -> str:
         def get_name(helper: Callable) -> str:
@@ -140,20 +151,84 @@ class CombinedFunctionUnderTest:
     def call(self, idx: int, *args: Any) -> Any:
         return self.funcs[idx].call(*args)
 
-    #TODO needs better implementation as applying one comparator not good enought
     def compare_results(self, result1: Any, result2: Any) -> bool:
-        # Default to using the first function's comparator
-        return self.funcs[0].compare_results(result1, result2)
+        """
+        Compare results using the configured strategy.
 
+        Args:
+            result1: First result to compare
+            result2: Second result to compare
+
+        Returns:
+            True if results are considered equal according to the strategy
+        """
+        if not self.funcs:
+            return result1 == result2
+
+        if self.comparison_strategy == ComparisonStrategy.CONSENSUS:
+            return self._consensus_compare(result1, result2)
+        elif self.comparison_strategy == ComparisonStrategy.FIRST_COMPATIBLE:
+            return self._first_compatible_compare(result1, result2)
+        elif self.comparison_strategy == ComparisonStrategy.MOST_RESTRICTIVE:
+            return self._restrictive_compare(result1, result2)
+        else:
+            return self._consensus_compare(result1, result2)
+
+
+    def _consensus_compare(self, result1: Any, result2: Any) -> bool:
+        """All compatible comparators must agree."""
+        compatible_results = []
+        for func in self.funcs:
+            try:
+                comparison_result = func.compare_results(result1, result2)
+                compatible_results.append(comparison_result)
+            except Exception:
+                # Log the error and skip this comparator
+                print(f"Error comparing results with {func.func.__name__}: {str(Exception)}")
+                continue
+
+        if not compatible_results:
+            # No compatible comparators found, fall back to basic equality
+            return result1 == result2
+
+        # All compatible comparators must agree
+        return all(compatible_results)
+
+    def _first_compatible_compare(self, result1: Any, result2: Any) -> bool:
+        """Use the first comparator that can handle the result types."""
+        for func in self.funcs:
+            try:
+                return func.compare_results(result1, result2)
+            except Exception:
+                # Log the error and try the next comparator
+                print(f"Error comparing results with {func.func.__name__}: {str(Exception)}")
+                continue
+
+        # No compatible comparator found
+        return result1 == result2
+
+    def _restrictive_compare(self, result1: Any, result2: Any) -> bool:
+        """Return True only if ALL comparators (that can handle the types) return True."""
+        has_any_compatible = False
+
+        for func in self.funcs:
+            try:
+                result = func.compare_results(result1, result2)
+                has_any_compatible = True
+                if not result:
+                    return False
+            except Exception:
+                # Log the error and skip this comparator
+                print(f"Error comparing results with {func.func.__name__}: {str(Exception)}")
+                continue
+
+        # If no compatible comparators, fall back to basic equality
+        return result1 == result2 if not has_any_compatible else True
+
+
+    def get_comparator_for_function(self, idx: int) -> Callable[[Any, Any], bool]:
+        """Get the result comparator for a specific function."""
+        return self.funcs[idx].result_comparator
 
     def __str__(self):
-        return f"CombinedFunctionUnderTest(funcs={self.names()})"
-
-    #
-    # def compare_results(self, idx1: int, res1, idx2: int, res2) -> bool:
-    #     """Compare results of two functions via their own comparators."""
-    #     f1 = self.funcs[idx1]
-    #     f2 = self.funcs[idx2]
-    #     # If idx1 == idx2, compare within same comparator;
-    #     # otherwise we can choose one or default to exact.
-    #     return f1.result_comparator(res1, res2) and f2.result_comparator(res1, res2) if idx1 != idx2 else f1.result_comparator(res1, res2)
+        return f"CombinedFunctionUnderTest(funcs={self.names()}, strategy={self.comparison_strategy.value})"
