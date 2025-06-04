@@ -17,8 +17,6 @@ class PropertyInferenceConfig:
         default_parser: Default parser for input parsing.
         function_to_grammar: Mapping of function names to grammar.
         function_to_parser: Mapping of function names to parsers.
-        combination_to_grammar: Mapping of function combinations to grammar.
-        combination_to_parser: Mapping of function combinations to parsers.
         example_count Number of examples to generate for testing.
         early_stopping: Whether to stop testing a property after finding a counter-example.
     """
@@ -31,8 +29,6 @@ class PropertyInferenceConfig:
         self.default_parser: InputParser | None = None
         self.function_to_grammar: dict[str, GrammarConfig] = {}
         self.function_to_parser: dict[str, InputParser] = {}
-        self.combination_to_grammar: dict[tuple[str, ...], GrammarConfig] = {}
-        self.combination_to_parser: dict[tuple[str, ...], InputParser] = {}
         self.example_count: int = example_count
         self.early_stopping: bool = False
         self.max_counterexamples: int = 1
@@ -60,22 +56,6 @@ class PropertyInferenceConfig:
             self.function_to_grammar[fut.func.__name__] = grammar
         if parser:
             self.function_to_parser[fut.func.__name__] = parser
-        return self
-
-    def add_combination(
-            self,
-            com_fut: CombinedFunctionUnderTest,
-            grammar: GrammarConfig | None = None,
-            parser: InputParser | None = None,
-    ) -> 'PropertyInferenceConfig':
-        key = tuple(fut.func.__name__ for fut in com_fut.funcs)
-
-        if grammar:
-            self.combination_to_grammar[key] = grammar
-
-        if parser:
-            self.combination_to_parser[key] = parser
-
         return self
 
     def add_property_by_name(self, property_name: str) -> 'PropertyInferenceConfig':

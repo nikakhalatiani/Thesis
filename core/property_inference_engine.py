@@ -42,7 +42,7 @@ class PropertyInferenceEngine:
         results: dict[str, InferenceResult] = {}
 
         properties_to_test: list[PropertyTest] = (
-                    self.config.properties_to_test or self.config.registry.get_all().values())
+                self.config.properties_to_test or self.config.registry.get_all().values())
 
         for prop in properties_to_test:
             n: int = prop.num_functions
@@ -54,65 +54,49 @@ class PropertyInferenceEngine:
                     print(f"⚠️ Property '{prop.name}' is not applicable to combination: {combined.names()}. Skipping.")
                     continue
 
-                # collect the names for lookup
-                names = tuple(fut.func.__name__ for fut in funcs)
+                # gather each function's override or default
+                base = None
+                combined_constraints: set[str] = set()
 
-                # 1) combination-level explicit override
-                grammar = (
-                        self.config.combination_to_grammar.get(names)
-                        or None
-                )
-                parser = (
-                        self.config.combination_to_parser.get(names)
-                        or None
-                )
-
-                # 2) if no explicit combo override, try to merge per-function ones
-                if grammar is None:
-                    # gather each function's override or default
-                    base = None
-                    combined_constraints: set[str] = set()
-
-                    for fut in funcs:
-                        fg = self.config.function_to_grammar.get(fut.func.__name__, self.config.default_grammar)
-                        if base is None:
-                            base = fg
-                        elif fg.path != base.path:
-                            raise ValueError(
-                                f"Cannot combine grammars with different spec paths: "f"{base.path} vs {fg.path}")
-                        # 2) Merge constraints into a set (automatically dedupes)
-                        if fg.extra_constraints:
-                            combined_constraints.update(fg.extra_constraints)
-
-                    # 3) Build a new GrammarConfig using the base path + deduped constraints
-                    grammar = GrammarConfig(
-                        base.path,
-                        list(combined_constraints) if combined_constraints else None
-                    )
-
-                if parser is None:
-                    per_fs = [
-                        self.config.function_to_parser.get(fut.func.__name__, self.config.default_parser)
-                        for fut in funcs
-                    ]
-                    # Collect unique parser objects
-                    unique = {p for p in per_fs}
-                    if len(unique) == 1:
-                        # All slots share the same parser instance
-                        parser = unique.pop()
-                    else:
-                        # Conflicting slot‐specific parsers → raise or fallback
+                for fut in funcs:
+                    fg = self.config.function_to_grammar.get(fut.func.__name__, self.config.default_grammar)
+                    if base is None:
+                        base = fg
+                    elif fg.path != base.path:
                         raise ValueError(
-                            f"Cannot combine different parsers for functions: "
-                            f"{', '.join(fut.func.__name__ for fut in funcs)}"
-                        )
+                            f"Cannot combine grammars with different spec paths: "f"{base.path} vs {fg.path}")
+                    # merge constraints into a set
+                    if fg.extra_constraints:
+                        combined_constraints.update(fg.extra_constraints)
+
+                # 3) Build a new GrammarConfig using the base path + deduped constraints
+                grammar = GrammarConfig(
+                    base.path,
+                    list(combined_constraints) if combined_constraints else None
+                )
+
+                per_fs = [
+                    self.config.function_to_parser.get(fut.func.__name__, self.config.default_parser)
+                    for fut in funcs
+                ]
+                # Collect unique parser objects
+                unique = {p for p in per_fs}
+                if len(unique) == 1:
+                    # All slots share the same parser instance
+                    parser = unique.pop()
+                else:
+                    # Conflicting slot‐specific parsers → raise or fallback
+                    raise ValueError(
+                        f"Cannot combine different parsers for functions: "
+                        f"{', '.join(fut.func.__name__ for fut in funcs)}"
+                    )
 
                 # import time
                 # start_time = time.perf_counter()
                 fan, examples = self._generate_examples(grammar, self.config.example_count)
                 input_sets = [parser.parse(fan, tree) for tree in examples]
                 input_sets = [i for i in input_sets if i is not None]
-                input_sets = [(1,1,1)] + input_sets
+                input_sets = [(1, 1, 1)] + input_sets
                 # end_time = time.perf_counter()
                 # print(f"Execution time: {end_time - start_time:.4f} seconds")
 
