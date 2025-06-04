@@ -28,7 +28,8 @@ class InputParser:
             The extracted inputs if parsing is successful, otherwise None.
 
         Raises:
-            FandangoParseError: If parsing fails, an error message is printed.
+            Parsing errors are handled internally and ``None`` is returned on
+            failure.
         """
         try:
             for tree in fan.parse(tree):

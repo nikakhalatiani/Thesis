@@ -203,9 +203,9 @@ class CombinedFunctionUnderTest:
             try:
                 comparison_result = func.compare_results(result1, result2)
                 compatible_results.append(comparison_result)
-            except Exception:
+            except Exception as e:
                 # Log the error and skip this comparator
-                print(f"Error comparing results with {func.func.__name__}: {str(Exception)}")
+                print(f"Error comparing results with {func.func.__name__}: {str(e)}")
                 continue
 
         if not compatible_results:
@@ -220,9 +220,9 @@ class CombinedFunctionUnderTest:
         for func in self.funcs:
             try:
                 return func.compare_results(result1, result2)
-            except Exception:
+            except Exception as e:
                 # Log the error and try the next comparator
-                print(f"Error comparing results with {func.func.__name__}: {str(Exception)}")
+                print(f"Error comparing results with {func.func.__name__}: {str(e)}")
                 continue
 
         # No compatible comparator found
@@ -238,9 +238,9 @@ class CombinedFunctionUnderTest:
                 has_any_compatible = True
                 if not result:
                     return False
-            except Exception:
+            except Exception as e:
                 # Log the error and skip this comparator
-                print(f"Error comparing results with {func.func.__name__}: {str(Exception)}")
+                print(f"Error comparing results with {func.func.__name__}: {str(e)}")
                 continue
 
         # If no compatible comparators, fall back to basic equality

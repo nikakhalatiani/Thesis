@@ -17,7 +17,7 @@ class PropertyInferenceConfig:
         default_parser: Default parser for input parsing.
         function_to_grammar: Mapping of function names to grammar.
         function_to_parser: Mapping of function names to parsers.
-        example_count Number of examples to generate for testing.
+        example_count: Number of examples to generate for testing.
         early_stopping: Whether to stop testing a property after finding a counter-example.
     """
 
