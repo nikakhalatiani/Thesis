@@ -123,3 +123,67 @@ class MonotonicallyDecreasingTest(PropertyTest):
                 )
         except (TypeError, ValueError, AttributeError):
             return False, f"Monotonicity test skipped (cannot compare outputs/inputs of {f_name})"
+
+
+class ScalarHomomorphismTest(PropertyTest):
+    """
+    Test if for two functions f (unary) and g (binary):
+        f(g(k, a)) == g(k, f(a))
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="ScalarHomomorphism",
+            input_arity=2,
+            function_arity=0,     # overridden in is_applicable
+            description="Checks f(g(k,a)) == g(k, f(a)) for two functions f,g",
+            category="Composition"
+        )
+        self.num_functions = 2
+
+    def is_applicable(self, candidate: CombinedFunctionUnderTest) -> bool:
+        """
+        Applicable exactly when candidate is CombinedFunctionUnderTest of length 2,
+        where:
+          - funcs[0] takes 1 argument (f: A -> B)
+          - funcs[1] takes 2 arguments (g: K x A -> B)
+        """
+        if self.num_functions != len(candidate.funcs):
+            return False
+
+        import inspect
+
+        f_ut, g_ut = candidate.funcs
+        sig_f = inspect.signature(f_ut.func)
+        sig_g = inspect.signature(g_ut.func)
+
+        return (len(sig_f.parameters) == 1) and (len(sig_g.parameters) == 2)
+
+    def test(
+        self,
+        combined: CombinedFunctionUnderTest,
+        inputs: tuple
+    ) -> TestResult:
+        # Unpack f and g
+        f_ut, g_ut = combined.funcs
+        f_name = f_ut.func.__name__
+        g_name = g_ut.func.__name__
+
+        a, k = inputs
+
+        # Compute f(g(k, a))
+        ga = combined.call(1, k, a)        # g(k, a)
+        r1 = combined.call(0, ga)          # f(g(k, a))
+
+        # Compute g(k, f(a))
+        fa = combined.call(0, a)           # f(a)
+        r2 = combined.call(1, k, fa)       # g(k, f(a))
+
+        if combined.compare_results(r1, r2):
+            return True, f"{f_name}({g_name}(k,a)) == {g_name}(k,{f_name}(a))"
+        else:
+            return False, (
+                f"{f_name}({g_name}({k},{a})): {r1}\n\t"
+                f"{g_name}({k},{f_name}({a})): {r2}\n"
+            )
+

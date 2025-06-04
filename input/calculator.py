@@ -129,10 +129,10 @@ class Calculator:
     #         raise ValueError("Input too large for safe factorial calculation")
     #     return math.factorial(n)
     #
-    # @staticmethod
-    # def negate(x):
-    #     """Return the negation of x."""
-    #     return -x
+    @staticmethod
+    def negate(x):
+        """Return the negation of x."""
+        return -x
 
     # @staticmethod
     # def constant(x):
