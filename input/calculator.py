@@ -1,5 +1,7 @@
 import math
 
+from config.grammar_config import GrammarConfig
+
 
 # --- Comparators for result comparison -------------------------------------
 # Use absolute comparison for integer-like operations,
@@ -48,7 +50,7 @@ def converter_str(x):
 
 # --- Grammar constraints ---------------------------------------------------
 # Prevent division by zero in generated expressions
-grammar_divide = ["int(<term>) != 0"]
+grammar_divide = GrammarConfig("grammars/test.fan")
 grammar_modulo = ["int(<term>) != 0"]
 
 # Prevent negative inputs for square root
@@ -86,12 +88,12 @@ class Calculator:
     #     """Return x * y."""
     #     return x * y
 
-    # @staticmethod
-    # def divide(x, y):
-    #     """Return x / y, raising ZeroDivisionError for y == 0."""
-    #     if y == 0:
-    #         raise ZeroDivisionError("Division by zero")
-    #     return x / y
+    @staticmethod
+    def divide(x, y):
+        """Return x / y, raising ZeroDivisionError for y == 0."""
+        if y == 0:
+            raise ZeroDivisionError("Division by zero")
+        return x / y
 
     # @staticmethod
     # def power(x, y):

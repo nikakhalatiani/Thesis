@@ -63,56 +63,59 @@ class PropertyInferenceEngine:
                     if base is None:
                         base = fg
                     elif fg.path != base.path:
-                        raise ValueError(
-                            f"Cannot combine grammars with different spec paths: "f"{base.path} vs {fg.path}")
+                        print(
+                            f"⚠️ Cannot combine grammars with different spec paths: {base.path} vs {fg.path}. "
+                            f"Skipping combination: {combined.names()}.")
+                        break
                     # merge constraints into a set
                     if fg.extra_constraints:
                         combined_constraints.update(fg.extra_constraints)
-
-                # 3) Build a new GrammarConfig using the base path + deduped constraints
-                grammar = GrammarConfig(
-                    base.path,
-                    list(combined_constraints) if combined_constraints else None
-                )
-
-                per_fs = [
-                    self.config.function_to_parser.get(fut.func.__name__, self.config.default_parser)
-                    for fut in funcs
-                ]
-                # Collect unique parser objects
-                unique = {p for p in per_fs}
-                if len(unique) == 1:
-                    # All slots share the same parser instance
-                    parser = unique.pop()
                 else:
-                    # Conflicting slot‐specific parsers → raise or fallback
-                    raise ValueError(
-                        f"Cannot combine different parsers for functions: "
-                        f"{', '.join(fut.func.__name__ for fut in funcs)}"
+                    # This else clause executes only if the for loop completed without breaking
+                    # 3) Build a new GrammarConfig using the base path + deduped constraints
+                    grammar = GrammarConfig(
+                        base.path,
+                        list(combined_constraints) if combined_constraints else None
                     )
 
-                # import time
-                # start_time = time.perf_counter()
-                fan, examples = self._generate_examples(grammar, self.config.example_count)
-                input_sets = [parser.parse(fan, tree) for tree in examples]
-                input_sets = [i for i in input_sets if i is not None]
-                input_sets = [(1, 1, 1)] + input_sets
-                # end_time = time.perf_counter()
-                # print(f"Execution time: {end_time - start_time:.4f} seconds")
+                    per_fs = [
+                        self.config.function_to_parser.get(fut.func.__name__, self.config.default_parser)
+                        for fut in funcs
+                    ]
+                    # Collect unique parser objects
+                    unique = {p for p in per_fs}
+                    if len(unique) == 1:
+                        # All slots share the same parser instance
+                        parser = unique.pop()
+                    else:
+                        # Conflicting slot‐specific parsers
+                        print(
+                            f"⚠️ Cannot combine different parsers for functions: {', '.join(fut.func.__name__ for fut in funcs)}. "
+                            f"Skipping combination: {combined.names()}.")
+                        continue
 
-                # from collections import Counter
-                # counts = Counter(len(s) for s in input_sets)
-                # print("🎲 input‐tuple length distribution:", counts)
+                    # import time
+                    # start_time = time.perf_counter()
+                    fan, examples = self._generate_examples(grammar, self.config.example_count)
+                    input_sets = [parser.parse(fan, tree) for tree in examples]
+                    input_sets = [i for i in input_sets if i is not None]
+                    input_sets = [(1, 1, 1)] + input_sets
+                    # end_time = time.perf_counter()
+                    # print(f"Execution time: {end_time - start_time:.4f} seconds")
 
-                tester = PropertyTester(self.config.max_counterexamples)
-                outcome = tester.test_property(combined, prop, input_sets, self.config.early_stopping)
+                    # from collections import Counter
+                    # counts = Counter(len(s) for s in input_sets)
+                    # print("🎲 input‐tuple length distribution:", counts)
 
-                key = f"combination ({combined.names()})"
+                    tester = PropertyTester(self.config.max_counterexamples)
+                    outcome = tester.test_property(combined, prop, input_sets, self.config.early_stopping)
 
-                # If we haven’t initialized an entry for this combination yet, do so
-                if key not in results:
-                    results[key] = InferenceResult(outcomes={})
+                    key = f"combination ({combined.names()})"
 
-                results[key]["outcomes"][prop.name] = outcome
+                    # If we haven't initialized an entry for this combination yet, do so
+                    if key not in results:
+                        results[key] = InferenceResult(outcomes={})
+
+                    results[key]["outcomes"][prop.name] = outcome
 
         return results
