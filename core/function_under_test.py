@@ -246,9 +246,6 @@ class CombinedFunctionUnderTest:
         # If no compatible comparators, fall back to basic equality
         return result1 == result2 if not has_any_compatible else True
 
-    def get_comparator_for_function(self, idx: int) -> Callable[[Any, Any], bool]:
-        """Get the result comparator for a specific function."""
-        return self.funcs[idx].result_comparator
 
     def __str__(self):
         return f"CombinedFunctionUnderTest(funcs={self.names()}, strategy={self.comparison_strategy.value})"

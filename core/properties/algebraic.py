@@ -15,7 +15,7 @@ class CommutativityTest(PropertyTest):
         )
 
     def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-        a, b = inputs[:2]
+        a, b = inputs
         r1 = function.call(0, a, b)  # Call the first function with a, b
         r2 = function.call(0, b, a)
 

@@ -18,28 +18,6 @@ class PropertyTester:
     def __init__(self, max_examples: int) -> None:
         self._max_examples = max_examples
 
-    # TODO think about changing this to more abstract thing instead of +
-    # @staticmethod
-    # def homomorphism_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if function preserves some operation structure"""
-    #     a, b = inputs
-    #     try:
-    #         # Test if f(a + b) has some relationship to f(a) and f(b)
-    #         combined_input = a + b
-    #         r1 = function.call(combined_input)
-    #         r2 = function.call(a)
-    #         r3 = function.call(b)
-    #         combined_output = r2 + r3
-    #
-    #         if function.compare_results(r1, combined_output):
-    #             return True, f"{function.func.__name__}(a+b) == {function.func.__name__}(a) + {function.func.__name__}(b)"
-    #         else:
-    #             return False, {
-    #                 f"{function.func.__name__}({a}+{b})": r1,
-    #                 f"{function.func.__name__}({a}) + {function.func.__name__}({b})": f"{combined_output}"
-    #             }
-    #     except (TypeError, AttributeError):
-    #         return True, "Homomorphism test skipped (operation not supported)"
 
     # ============================================================================
     # BOUNDARY PROPERTIES - Behavior at limits and boundaries

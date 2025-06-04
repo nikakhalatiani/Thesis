@@ -50,7 +50,8 @@ def converter_str(x):
 
 # --- Grammar constraints ---------------------------------------------------
 # Prevent division by zero in generated expressions
-grammar_divide = GrammarConfig("grammars/test.fan")
+# grammar_divide = GrammarConfig("grammars/test.fan")
+grammar_divide = ["int(<term>) != 0"]
 grammar_modulo = ["int(<term>) != 0"]
 
 # Prevent negative inputs for square root
