@@ -36,9 +36,6 @@ def create_minimal_registry() -> PropertyRegistry:
     registry.register(AssociativityTest())
     registry.register(IdempotenceTest())
     registry.register(DistributivityTest())
-    # registry.register(RightIdempotenceTest())
-    # registry.register(LeftIdempotenceTest())
-    # registry.register(FullIdempotenceTest())
 
     # registry.register(InvolutionTest())
     # registry.register(MonotonicallyDecreasingTest())

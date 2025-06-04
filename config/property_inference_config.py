@@ -21,7 +21,8 @@ class PropertyInferenceConfig:
         early_stopping: Whether to stop testing a property after finding a counter-example.
     """
 
-    def __init__(self, registry: PropertyRegistry, example_count: int = 100, comparison_strategy: ComparisonStrategy = ComparisonStrategy.CONSENSUS) -> None:
+    def __init__(self, registry: PropertyRegistry, example_count: int = 100,
+                 comparison_strategy: ComparisonStrategy = ComparisonStrategy.CONSENSUS) -> None:
         self.registry: PropertyRegistry = registry
         self.functions_under_test: list[FunctionUnderTest] = []
         self.properties_to_test: list[PropertyTest] = []

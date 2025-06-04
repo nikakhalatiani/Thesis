@@ -5,7 +5,7 @@ from typing import TypedDict
 from itertools import product
 
 from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import CombinedFunctionUnderTest, ComparisonStrategy
+from core.function_under_test import CombinedFunctionUnderTest
 from core.property_tester import PropertyTester, PropertyOutcome
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest
@@ -78,15 +78,14 @@ class PropertyInferenceEngine:
                         list(combined_constraints) if combined_constraints else None
                     )
 
-                    per_fs = [
+                    # Collect unique parser objects
+                    unique_parsers = {
                         self.config.function_to_parser.get(fut.func.__name__, self.config.default_parser)
                         for fut in funcs
-                    ]
-                    # Collect unique parser objects
-                    unique = {p for p in per_fs}
-                    if len(unique) == 1:
+                    }
+                    if len(unique_parsers) == 1:
                         # All slots share the same parser instance
-                        parser = unique.pop()
+                        parser = unique_parsers.pop()
                     else:
                         # Conflicting slot‐specific parsers
                         print(
@@ -99,7 +98,9 @@ class PropertyInferenceEngine:
                     fan, examples = self._generate_examples(grammar, self.config.example_count)
                     input_sets = [parser.parse(fan, tree) for tree in examples]
                     input_sets = [i for i in input_sets if i is not None]
-                    input_sets = [(1, 1, 1)] + input_sets
+                    # input_sets = [(1, 1, 1)] + input_sets
+                    input_sets = input_sets
+
                     # end_time = time.perf_counter()
                     # print(f"Execution time: {end_time - start_time:.4f} seconds")
 
