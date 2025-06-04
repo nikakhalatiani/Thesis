@@ -18,25 +18,6 @@ class PropertyTester:
     def __init__(self, max_examples: int) -> None:
         self._max_examples = max_examples
 
-    # TODO think about this to make more abstract instead of * this can be done using CombinedFunctionUnderTest
-    # @staticmethod
-    # def scaling_invariance_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if function is invariant under scaling"""
-    #     a, scale = inputs
-    #     try:
-    #         r1 = function.call(function.arg_converter(a) * function.arg_converter(scale))
-    #         r2 = function.call(a) * function.arg_converter(scale)
-    #
-    #         if function.compare_results(r1, r2):
-    #             return True, f"{function.func.__name__}(k*a) == k*{function.func.__name__}(a)"
-    #         else:
-    #             return False, {
-    #                 f"{function.func.__name__}({scale}*{a})": r1,
-    #                 f"{scale}*{function.func.__name__}({a})": f"{r2}"
-    #             }
-    #     except (TypeError, AttributeError):
-    #         return True, "Scaling invariance test skipped (scaling not supported)"
-
     # TODO think about changing this to more abstract thing instead of +
     # @staticmethod
     # def homomorphism_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
