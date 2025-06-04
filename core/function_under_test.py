@@ -111,6 +111,7 @@ class FunctionUnderTest:
 
 from enum import Enum
 
+
 class ComparisonStrategy(Enum):
     """Strategy for comparing results across multiple functions."""
     CONSENSUS = "consensus"
@@ -136,17 +137,38 @@ class CombinedFunctionUnderTest:
                 return 'default'
             return name
 
-        parts = []
+        shared_configs: dict[tuple[str, str], list[str]] = {}
+
         for fut in self.funcs:
             func_name = get_name(fut.func)
             arg_converter_name = get_name(fut.arg_converter)
             result_comparator_name = get_name(fut.result_comparator)
-            parts.append(
-                f"function {func_name} "
-                f"with {arg_converter_name} converter "
-                f"and {result_comparator_name} comparator"
-            )
-        return ", ".join(parts)
+
+            shared_key: tuple[str, str] = (arg_converter_name, result_comparator_name)
+            shared_configs.setdefault(shared_key, []).append(func_name)
+
+        descriptions: list[str] = []
+
+        for (arg_converter, result_comparator), func_names in shared_configs.items():
+            # Create description based on number of functions
+            if len(set(func_names)) == 1:
+                desc = f"function {func_names[0]}"
+            else:
+                desc = f"functions {', '.join(func_names)}"
+
+            # Add configuration details (only if not default)
+            config_parts: list[str] = []
+            if arg_converter != 'default':
+                config_parts.append(f"{arg_converter} converter")
+            if result_comparator != 'default':
+                config_parts.append(f"{result_comparator} comparator")
+
+            if config_parts:
+                desc += f" with {' and '.join(config_parts)}"
+
+            descriptions.append(desc)
+
+        return ", ".join(descriptions)
 
     def call(self, idx: int, *args: Any) -> Any:
         return self.funcs[idx].call(*args)
@@ -173,7 +195,6 @@ class CombinedFunctionUnderTest:
             return self._restrictive_compare(result1, result2)
         else:
             return self._consensus_compare(result1, result2)
-
 
     def _consensus_compare(self, result1: Any, result2: Any) -> bool:
         """All compatible comparators must agree."""
@@ -224,7 +245,6 @@ class CombinedFunctionUnderTest:
 
         # If no compatible comparators, fall back to basic equality
         return result1 == result2 if not has_any_compatible else True
-
 
     def get_comparator_for_function(self, idx: int) -> Callable[[Any, Any], bool]:
         """Get the result comparator for a specific function."""
