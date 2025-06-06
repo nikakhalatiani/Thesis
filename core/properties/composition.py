@@ -2,7 +2,7 @@ from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import TestResult, PropertyTest
 import inspect
 
-
+#TODO ask if f(g(x)) == x is a valid test, or if it should be f(f(x)) == x
 class InvolutionTest(PropertyTest):
     """Test if f(f(x)) = x (function is its own inverse)"""
 
@@ -15,22 +15,49 @@ class InvolutionTest(PropertyTest):
             category="Composition"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-        fut = function.funcs[0]
+    def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+        fut = combined.funcs[0]
         f_name = fut.func.__name__
 
-        # Convert input and apply twice
-        a = fut.arg_converter(inputs[0])
-        r1 = function.call(0, a)
-        r2 = function.call(0, r1)
+        # Filter valid inputs based on arity
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
 
-        if function.compare_results(r2, a):
-            return True, f"{f_name}({f_name}(a)) == a"
+        if not valid_inputs:
+            return False, [f"Involution test failed: No valid input sets provided for {f_name}\n"], {
+                'total_count': 0, 'success_count': 0
+            }
+
+        # Test involution for each valid input
+        total_tests = 0
+        counterexamples = []
+
+        for input_set in valid_inputs:
+            raw_input = input_set[0]  # Take first element
+            total_tests += 1
+
+            # Test f(f(x)) == x
+            a = fut.arg_converter(raw_input)
+            r1 = combined.call(0, a)
+            r2 = combined.call(0, r1)
+
+            if not combined.compare_results(r2, a):
+                counterexamples.append(
+                    f"{f_name}({f_name}({a})): {r2}\n"
+                )
+
+                if early_stopping:
+                    break
+
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
+        if not counterexamples:
+            return True, [f"{f_name}({f_name}(a)) == a\n"], test_stats
         else:
-            return False, (
-                f"{f_name}({f_name}({a})): {r2}\n"
-            )
-
+            return False, counterexamples, test_stats
 
 class ScalarHomomorphismTest(PropertyTest):
     """
