@@ -84,10 +84,10 @@ class Calculator:
         """Return x - y."""
         return x - y
 
-    # @staticmethod
-    # def multiply(x, y):
-    #     """Return x * y."""
-    #     return x * y
+    @staticmethod
+    def multiply(x, y):
+        """Return x * y."""
+        return x * y
 
     @staticmethod
     def divide(x, y):

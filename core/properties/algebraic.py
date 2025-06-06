@@ -165,89 +165,6 @@ class IdempotenceTest(PropertyTest):
             }
 
 
-# class LeftIdempotenceTest(PropertyTest):
-#     """Test if f(a, f(a,b)) = f(a,b) - the left argument dominates when repeated"""
-#
-#     def __init__(self):
-#         super().__init__(
-#             name="Left Idempotence",
-#             input_arity=2,
-#             function_arity=2,
-#             description="Tests if f(a, f(a,b)) equals f(a,b) - left argument idempotence",
-#             category="Algebraic"
-#         )
-#
-#     def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-#         a, b = inputs[:2]
-#         r1 = function.call(a, b)
-#         r2 = function.call(a, r1)
-#
-#         f_name = function.funcs[0].__name__
-#
-#         if function.compare_results(r1, r2):
-#             return True, f"{f_name}(a,b) == {f_name}(a,{f_name}(a,b))"
-#         else:
-#             return False, (
-#                 f"{f_name}({a},{b}): {r1}\n\t"
-#                 f"{f_name}({a},{f_name}({a},{b})): {r2}\n"
-#             )
-#
-#
-# class RightIdempotenceTest(PropertyTest):
-#     """Test if f(f(a,b), b) = f(a,b) - the right argument dominates when repeated"""
-#
-#     def __init__(self):
-#         super().__init__(
-#             name="Right Idempotence",
-#             input_arity=2,
-#             function_arity=2,
-#             description="Tests if f(f(a,b), b) equals f(a,b) - right argument idempotence",
-#             category="Algebraic"
-#         )
-#
-#     def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-#         a, b = inputs[:2]
-#         r1 = function.call(a, b)
-#         r2 = function.call(r1, b)
-#
-#         f_name = function.funcs[0].__name__
-#
-#         if function.compare_results(r1, r2):
-#             return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),b)"
-#         else:
-#             return False, (
-#                 f"{f_name}({a},{b}): {r1}\n\t"
-#                 f"{f_name}({f_name}({a},{b}),{b}): {r2}\n"
-#             )
-#
-#
-# class FullIdempotenceTest(PropertyTest):
-#     """Test if f(f(a,b), f(a,b)) = f(a,b) - complete idempotence"""
-#
-#     def __init__(self):
-#         super().__init__(
-#             name="Full Idempotence",
-#             input_arity=2,
-#             function_arity=2,
-#             description="Tests if f(f(a,b), f(a,b)) equals f(a,b) - complete idempotence",
-#             category="Algebraic"
-#         )
-#
-#     def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-#         a, b = inputs[:2]
-#         r1 = function.call(a, b)
-#         r2 = function.call(r1, r1)
-#
-#         f_name = function.funcs[0].__name__
-#
-#         if function.compare_results(r1, r2):
-#             return True, f"{f_name}(a,b) == {f_name}({f_name}(a,b),{f_name}(a,b))"
-#         else:
-#             return False, (
-#                 f"{f_name}({a},{b}): {r1}\n\t"
-#                 f"{f_name}({f_name}({a},{b}),{f_name}({a},{b})): {r2}\n"
-#             )
-
 class DistributivityTest(PropertyTest):
     """Test if f(a, g(b, c)) == g(f(a, b), f(a, c))"""
 
@@ -261,31 +178,55 @@ class DistributivityTest(PropertyTest):
         )
         self.num_functions = 2
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-        a, b, c = inputs
-        # f is funcs[0], g is funcs[1]
-
-        # compute f(a, g(b,c))
-        inner = combined.call(1, b, c)
-        r1 = combined.call(0, a, inner)
-
-        # compute g(f(a,b), f(a,c))
-        left_inner = combined.call(0, a, b)
-        right_inner = combined.call(0, a, c)
-        r2 = combined.call(1, left_inner, right_inner)
-
-        # extract the real function names
+    def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         f_name = combined.funcs[0].func.__name__
         g_name = combined.funcs[1].func.__name__
 
-        # compare with a default comparator of the first function
-        if combined.compare_results(r1, r2):
-            return True, f"{f_name}(a,{g_name}(b,c)) == {g_name}({f_name}(a,b),{f_name}(a,c))"
+        # Filter valid inputs based on arity
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
+
+        if not valid_inputs:
+            return False, [f"Distributivity test failed: No valid input sets provided for {f_name}\n"], {
+                'total_count': 0, 'success_count': 0
+            }
+
+        # Test distributivity for each valid input
+        total_tests = 0
+        counterexamples = []
+
+        for input_set in valid_inputs:
+            a, b, c = input_set[:3]  # Take first three elements
+            total_tests += 1
+
+            # Test f(a, g(b, c)) == g(f(a, b), f(a, c))
+            # compute f(a, g(b,c))
+            inner = combined.call(1, b, c)
+            r1 = combined.call(0, a, inner)
+
+            # compute g(f(a,b), f(a,c))
+            left_inner = combined.call(0, a, b)
+            right_inner = combined.call(0, a, c)
+            r2 = combined.call(1, left_inner, right_inner)
+
+            if not combined.compare_results(r1, r2):
+                counterexamples.append(
+                    f"{f_name}({a},{g_name}({b},{c})): {r1}\n\t"
+                    f"{g_name}({f_name}({a},{b}),{f_name}({a},{c})): {r2}\n"
+                )
+
+                if early_stopping:
+                    break
+
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
+        if not counterexamples:
+            return True, [f"{f_name}(a,{g_name}(b,c)) == {g_name}({f_name}(a,b),{f_name}(a,c))\n"], test_stats
         else:
-            return False, (
-                f"{f_name}({a},{g_name}({b},{c})): {r1}\n\t"
-                f"{g_name}({f_name}({a},{b}),{f_name}({a},{c})): {r2}\n"
-            )
+            return False, counterexamples, test_stats
 
 
 class IdentityElementTest(PropertyTest):
