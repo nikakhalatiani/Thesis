@@ -2,7 +2,8 @@ from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import TestResult, PropertyTest
 import inspect
 
-#TODO ask if f(g(x)) == x is a valid test, or if it should be f(f(x)) == x
+
+# TODO ask if f(g(x)) == x is a valid test, or if it should be f(f(x)) == x
 class InvolutionTest(PropertyTest):
     """Test if f(f(x)) = x (function is its own inverse)"""
 
@@ -59,6 +60,7 @@ class InvolutionTest(PropertyTest):
         else:
             return False, counterexamples, test_stats
 
+
 class ScalarHomomorphismTest(PropertyTest):
     """
     Test if for two functions f (unary) and g (binary):
@@ -91,29 +93,56 @@ class ScalarHomomorphismTest(PropertyTest):
 
         return (len(sig_f.parameters) == 1) and (len(sig_g.parameters) == 2)
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
+    def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         # Unpack f and g
         f_ut, g_ut = combined.funcs
         f_name = f_ut.func.__name__
         g_name = g_ut.func.__name__
 
-        a, k = inputs
+        # Filter valid inputs based on arity
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
 
-        # Compute f(g(k, a))
-        ga = combined.call(1, k, a)  # g(k, a)
-        r1 = combined.call(0, ga)  # f(g(k, a))
+        if not valid_inputs:
+            return False, [f"ScalarHomomorphism test failed: No valid input sets provided for {f_name}\n"], {
+                'total_count': 0, 'success_count': 0
+            }
 
-        # Compute g(k, f(a))
-        fa = combined.call(0, a)  # f(a)
-        r2 = combined.call(1, k, fa)  # g(k, f(a))
+        # Test scalar homomorphism for each valid input
+        total_tests = 0
+        counterexamples = []
 
-        if combined.compare_results(r1, r2):
-            return True, f"{f_name}({g_name}(k,a)) == {g_name}(k,{f_name}(a))"
+        for input_set in valid_inputs:
+            a, k = input_set[:2]
+            total_tests += 1
+
+            # Test f(g(k, a)) == g(k, f(a))
+            # Compute f(g(k, a))
+            ga = combined.call(1, k, a)  # g(k, a)
+            r1 = combined.call(0, ga)  # f(g(k, a))
+
+            # Compute g(k, f(a))
+            fa = combined.call(0, a)  # f(a)
+            r2 = combined.call(1, k, fa)  # g(k, f(a))
+
+            if not combined.compare_results(r1, r2):
+                counterexamples.append(
+                    f"{f_name}({g_name}({k},{a})): {r1}\n\t"
+                    f"{g_name}({k},{f_name}({a})): {r2}\n"
+                )
+
+                if early_stopping:
+                    break
+
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
+        if not counterexamples:
+            return True, [f"{f_name}({g_name}(k,a)) == {g_name}(k,{f_name}(a))\n"], test_stats
         else:
-            return False, (
-                f"{f_name}({g_name}({k},{a})): {r1}\n\t"
-                f"{g_name}({k},{f_name}({a})): {r2}\n"
-            )
+            return False, counterexamples, test_stats
 
 
 class HomomorphismTest(PropertyTest):
