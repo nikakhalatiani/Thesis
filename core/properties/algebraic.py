@@ -49,9 +49,10 @@ class CommutativityTest(PropertyTest):
         }
 
         if not counterexamples:
-            return True, [f"{f_name}(a,b) == {f_name}(b,a)"], test_stats
+            return True, [f"{f_name}(a,b) == {f_name}(b,a)\n"], test_stats
         else:
             return False, counterexamples, test_stats
+
 
 class AssociativityTest(PropertyTest):
     """Test if f(a, f(b, c)) = f(f(a, b), c)"""
@@ -66,27 +67,49 @@ class AssociativityTest(PropertyTest):
         )
         self.num_functions = 2
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-
-        a, b, c = inputs[:3]
-        # we’ll test associativity on the 0th function in the combined wrapper:
-        #   r1 = f(a, f(b,c));  r2 = f(f(a,b), c)
-        r1 = combined.call(0, a, combined.call(1, b, c))
-        r2 = combined.call(0, combined.call(1, a, b), c)
-
+    def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         f_name = combined.funcs[0].func.__name__
         g_name = combined.funcs[1].func.__name__
 
-        if combined.compare_results(r1, r2):
-            return True, (
-                f"{f_name}(a, {g_name}(b, c)) "
-                f"== {f_name}({g_name}(a, b), c)"
-            )
+        # Filter valid inputs based on arity
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
+
+        if not valid_inputs:
+            return False, [f"Associativity test failed: No valid input sets provided for {f_name}\n"], {
+                'total_count': 0, 'success_count': 0
+            }
+
+        # Test associativity for each valid input
+        total_tests = 0
+        counterexamples = []
+
+        for input_set in valid_inputs:
+            a, b, c = input_set[:3]
+            total_tests += 1
+
+            # Test f(a, g(b, c)) == f(g(a, b), c)
+            r1 = combined.call(0, a, combined.call(1, b, c))
+            r2 = combined.call(0, combined.call(1, a, b), c)
+
+            if not combined.compare_results(r1, r2):
+                counterexamples.append(
+                    f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
+                    f"{f_name}({g_name}({a}, {b}), {c}): {r2}\n"
+                )
+
+                if early_stopping:
+                    break
+
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
+        if not counterexamples:
+            return True, [f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c)\n"], test_stats
         else:
-            return False, (
-                f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
-                f"{f_name}({g_name}({a}, {b}), {c}): {r2}\n"
-            )
+            return False, counterexamples, test_stats
 
 
 # TODO ask if f(g(x)) = f(x) is a valid property test or f(g(x)) = g(x) or f(g(x)) = g(f(x)) is a valid property test
@@ -140,6 +163,7 @@ class IdempotenceTest(PropertyTest):
                 'total_count': total_tests,
                 'success_count': total_tests - len(counterexamples)
             }
+
 
 # class LeftIdempotenceTest(PropertyTest):
 #     """Test if f(a, f(a,b)) = f(a,b) - the left argument dominates when repeated"""
