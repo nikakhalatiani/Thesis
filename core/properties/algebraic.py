@@ -14,20 +14,45 @@ class CommutativityTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-        a, b = inputs
-        r1 = function.call(0, a, b)  # Call the first function with a, b
-        r2 = function.call(0, b, a)
-
+    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         f_name = function.funcs[0].func.__name__
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
 
-        if function.compare_results(r1, r2):
-            return True, f"{f_name}(a,b) == {f_name}(b,a)"
+        if not valid_inputs:
+            return False, [f"Commutativity test failed: No valid input sets provided for {f_name}"], {
+                'total_count': 0,
+                'success_count': 0
+            }
+
+        total_tests = 0
+        counterexamples = []
+
+        for input_set in valid_inputs:
+            a, b = input_set[:2]
+            r1 = function.call(0, a, b)
+            r2 = function.call(0, b, a)
+
+            total_tests += 1
+
+            if not function.compare_results(r1, r2):
+                counterexamples.append(
+                    f"{f_name}({a},{b}): {r1}\n\t"
+                    f"{f_name}({b},{a}): {r2}\n"
+                )
+                if early_stopping:
+                    break
+
+        if not counterexamples:
+            return True, [f"{f_name}(a,b) == {f_name}(b,a)\n"], {
+                'total_count': total_tests,
+                'success_count': total_tests
+            }
         else:
-            return False, (
-                f"{f_name}({a},{b}): {r1}\n\t"
-                f"{f_name}({b},{a}): {r2}\n"
-            )
+            return False, counterexamples, {
+                'total_count': total_tests,
+                'success_count': total_tests - len(counterexamples)
+            }
+
 
 class AssociativityTest(PropertyTest):
     """Test if f(a, f(b, c)) = f(f(a, b), c)"""
@@ -295,4 +320,3 @@ class IdentityElementTest(PropertyTest):
             return True, surviving_candidates, test_stats
         else:
             return False, counterexamples, test_stats
-
