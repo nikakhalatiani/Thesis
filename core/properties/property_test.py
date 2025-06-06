@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from core.function_under_test import CombinedFunctionUnderTest
 
-TestResult = tuple[bool, str]
+TestResult = tuple[bool, list[str], dict]
 
 
 class PropertyTest(ABC):
@@ -17,7 +17,7 @@ class PropertyTest(ABC):
         self.num_functions: int = 1  # default: single-function properties
 
     @abstractmethod
-    def test(self, candidate:  CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
+    def test(self, candidate: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping: bool) -> TestResult:
         """Execute the property test."""
         pass
 
@@ -28,7 +28,6 @@ class PropertyTest(ABC):
             return False
         # Ensure each inner function has the right arity
         return all(len(inspect.signature(fut.func).parameters) == self.function_arity for fut in candidate.funcs)
-
 
     def __str__(self) -> str:
         return f"{self.name} (arity: {self.input_arity}/{self.function_arity})"

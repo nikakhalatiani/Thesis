@@ -19,27 +19,6 @@ class PropertyTester:
         self._max_examples = max_examples
 
 
-    # ============================================================================
-    # BOUNDARY PROPERTIES - Behavior at limits and boundaries
-    # ============================================================================
-
-    # TODO think about this to inverse logic of finding identity element
-    # @staticmethod
-    # def identity_element_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if there exists an identity element"""
-    #     a, candidate_identity = inputs
-    #     r1 = function.call(a, candidate_identity)
-    #     r2 = function.call(candidate_identity, a)
-    #
-    #     if function.compare_results(r1, function.arg_converter(a)) and function.compare_results(r2, function.arg_converter(a)):
-    #         return True, f"{candidate_identity} is an identity element"
-    #     else:
-    #         return False, {
-    #             f"{function.func.__name__}({a}, {candidate_identity})": r1,
-    #             f"{function.func.__name__}({candidate_identity}, {a})": r2,
-    #             f"Expected both to equal": f"{a}"
-    #         }
-
     # TODO think about this to inverse logic as above
     # @staticmethod
     # def absorbing_element_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
@@ -123,44 +102,26 @@ class PropertyTester:
             function: CombinedFunctionUnderTest,
             property_test: PropertyTest,
             input_sets: list[Any],
-            early_stopping: bool = False
+            early_stopping=False
     ) -> PropertyOutcome:
 
-        holds = True
-        counterexamples: list[str] = []
-        success_count = 0
-        total_count = 0
+        success, result_data, test_stats = property_test.test(function, input_sets, early_stopping)
 
-        for inputs in input_sets:
-            if early_stopping and not holds:
-                break
-            if len(inputs) < property_test.input_arity:
-                continue
-
-            total_count += 1
-            success, example_data = property_test.test(function, inputs[:property_test.input_arity])
-
-            if success:
-                success_count += 1
-                if holds:
-                    counterexamples = [example_data]
-            else:
-                if holds:
-                    counterexamples = [example_data]
-                    # first time we see a failure
-                    holds = False
-                else:
-                    if len(counterexamples) < self._max_examples:
-                        # example_data is normally a str or a dict; convert to string
-                        counterexamples.append(str(example_data))
-
-
-        # Compute confidence = success_count / total_count
+        total_count = test_stats['total_count']
+        success_count = test_stats['success_count']
         confidence = (success_count / total_count) if total_count > 0 else 0.0
 
-        return PropertyOutcome(
-            holds=holds,
-            counterexamples=counterexamples,
-            confidence=confidence,
-            total_tests=total_count,
-        )
+        if success:
+            return PropertyOutcome(
+                holds=True,
+                counterexamples=result_data,
+                confidence=confidence,
+                total_tests=total_count,
+            )
+        else:
+            return PropertyOutcome(
+                holds=False,
+                counterexamples=result_data[:self._max_examples],
+                confidence=confidence,
+                total_tests=total_count,
+            )

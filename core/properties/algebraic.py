@@ -49,8 +49,8 @@ class AssociativityTest(PropertyTest):
         a, b, c = inputs[:3]
         # we’ll test associativity on the 0th function in the combined wrapper:
         #   r1 = f(a, f(b,c));  r2 = f(f(a,b), c)
-        r1 = combined.call(0, a,combined.call(1, b, c))
-        r2 = combined.call(0,combined.call(1, a, b),c)
+        r1 = combined.call(0, a, combined.call(1, b, c))
+        r2 = combined.call(0, combined.call(1, a, b), c)
 
         f_name = combined.funcs[0].func.__name__
         g_name = combined.funcs[1].func.__name__
@@ -217,3 +217,82 @@ class DistributivityTest(PropertyTest):
                 f"{f_name}({a},{g_name}({b},{c})): {r1}\n\t"
                 f"{g_name}({f_name}({a},{b}),{f_name}({a},{c})): {r2}\n"
             )
+
+
+class IdentityElementTest(PropertyTest):
+    """
+    Test if a binary function f has an identity element e such that:
+        f(a, e) == a  and  f(e, a) == a
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="IdentityElement",
+            input_arity=2,
+            function_arity=2,
+            description="Checks whether candidate acts as an identity element for f",
+            category="Algebraic"
+        )
+
+    def test(self, combined: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping) -> TestResult:
+        fut = combined.funcs[0]
+        f_name = fut.func.__name__
+
+        # Extract all unique elements from valid input tuples
+        all_elements = set()
+        for input_set in inputs:
+            if len(input_set) >= self.input_arity:
+                all_elements.update(input_set)
+
+        if not all_elements:
+            return False, [f"IdentityElement test failed: No valid input sets provided for {f_name}"], {
+                'total_count': 0, 'success_count': 0
+            }
+
+        # Setup conversion cache
+        conversion_cache = {}
+
+        def cached_convert(raw_val):
+            if raw_val not in conversion_cache:
+                conversion_cache[raw_val] = fut.arg_converter(raw_val)
+            return conversion_cache[raw_val]
+
+        # Test each element as potential identity
+        total_tests = 0
+        surviving_candidates = []
+        counterexamples = []
+
+        for candidate in all_elements:
+            is_identity = True
+
+            for element in all_elements:
+                total_tests += 1
+
+                # Test both f(element, candidate) and f(candidate, element)
+                r1 = combined.call(0, element, candidate)
+                r2 = combined.call(0, candidate, element)
+                expected = cached_convert(element)
+
+                if not (combined.compare_results(r1, expected) and combined.compare_results(r2, expected)):
+                    is_identity = False
+                    counterexamples.append(
+                        f"{f_name}({element}, {candidate}): {r1}\n\t"
+                        f"{f_name}({candidate}, {element}): {r2}\n\t"
+                        f"Expected both to equal: {element}\n"
+                    )
+                    break
+
+            if is_identity:
+                surviving_candidates.append(f"{candidate} is an identity element for {f_name}\n")
+
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests if surviving_candidates else 0
+        }
+
+        if surviving_candidates:
+            return True, surviving_candidates, test_stats
+        else:
+            return False, counterexamples, test_stats
+
