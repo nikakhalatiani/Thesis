@@ -41,7 +41,7 @@ def create_minimal_registry() -> PropertyRegistry:
 
     registry.register(InvolutionTest())
     registry.register(ScalarHomomorphismTest())
-    # registry.register(HomomorphismTest())
+    registry.register(HomomorphismTest())
     # registry.register(MonotonicallyDecreasingTest())
     # registry.register(MonotonicallyIncreasingTest())
 

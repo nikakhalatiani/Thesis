@@ -16,7 +16,9 @@ class CommutativityTest(PropertyTest):
 
     def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         f_name = function.funcs[0].func.__name__
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
+        input_arity = self.input_arity
+
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
             return False, [f"Commutativity test failed: No valid input sets provided for {f_name}\n"], {
@@ -70,9 +72,10 @@ class AssociativityTest(PropertyTest):
     def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         f_name = combined.funcs[0].func.__name__
         g_name = combined.funcs[1].func.__name__
+        input_arity = self.input_arity
 
         # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
             return False, [f"Associativity test failed: No valid input sets provided for {f_name}\n"], {
@@ -181,9 +184,10 @@ class DistributivityTest(PropertyTest):
     def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         f_name = combined.funcs[0].func.__name__
         g_name = combined.funcs[1].func.__name__
+        input_arity = self.input_arity
 
         # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
             return False, [f"Distributivity test failed: No valid input sets provided for {f_name}\n"], {
@@ -247,12 +251,11 @@ class IdentityElementTest(PropertyTest):
     def test(self, combined: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping) -> TestResult:
         fut = combined.funcs[0]
         f_name = fut.func.__name__
+        input_arity = self.input_arity
 
         # Extract all unique elements from valid input tuples
         all_elements = set()
-        for input_set in inputs:
-            if len(input_set) >= self.input_arity:
-                all_elements.update(input_set)
+        all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
 
         if not all_elements:
             return False, [f"IdentityElement test failed: No valid input sets provided for {f_name}\n"], {

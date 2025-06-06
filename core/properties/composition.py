@@ -19,9 +19,10 @@ class InvolutionTest(PropertyTest):
     def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         fut = combined.funcs[0]
         f_name = fut.func.__name__
+        input_arity = self.input_arity
 
         # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
             return False, [f"Involution test failed: No valid input sets provided for {f_name}\n"], {
@@ -98,9 +99,10 @@ class ScalarHomomorphismTest(PropertyTest):
         f_ut, g_ut = combined.funcs
         f_name = f_ut.func.__name__
         g_name = g_ut.func.__name__
+        input_arity = self.input_arity
 
         # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
             return False, [f"ScalarHomomorphism test failed: No valid input sets provided for {f_name}\n"], {
@@ -154,7 +156,7 @@ class HomomorphismTest(PropertyTest):
     def __init__(self) -> None:
         super().__init__(
             name="Homomorphism",
-            input_arity=2,  # inputs: a, b
+            input_arity=2,
             function_arity=0,  # overridden in is_applicable
             description="Checks f(g(a,b)) == g(f(a), f(b)) for two functions f, g",
             category="Behavioral"
@@ -170,34 +172,62 @@ class HomomorphismTest(PropertyTest):
         """
         if self.num_functions != len(candidate.funcs):
             return False
+
         f_ut, g_ut = candidate.funcs
         sig_f = inspect.signature(f_ut.func)
         sig_g = inspect.signature(g_ut.func)
+
         return (len(sig_f.parameters) == 1) and (len(sig_g.parameters) == 2)
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
+    def test(self, combined: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping=False) -> TestResult:
         # Unpack f and g
         f_ut, g_ut = combined.funcs
         f_name = f_ut.func.__name__
         g_name = g_ut.func.__name__
+        input_arity = self.input_arity
 
-        a_raw, b_raw = inputs
+        # Filter valid inputs based on arity
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
-        # Compute f(g(a, b))
-        gab = combined.call(1, a_raw, b_raw)  # g(a, b)
-        r1 = combined.call(0, gab)  # f(g(a, b))
+        if not valid_inputs:
+            return False, [f"Homomorphism test failed: No valid input sets provided for {f_name}\n"], {
+                'total_count': 0, 'success_count': 0
+            }
 
-        # Compute g(f(a), f(b))
-        fa = combined.call(0, a_raw)  # f(a)
-        fb = combined.call(0, b_raw)  # f(b)
-        r2 = combined.call(1, fa, fb)  # g(f(a), f(b))
+        # Test homomorphism for each valid input
+        total_tests = 0
+        counterexamples = []
 
-        if combined.compare_results(r1, r2):
-            return True, (
-                f"{f_name}({g_name}(a,b)) == {g_name}({f_name}(a),{f_name}(b))"
-            )
+        for input_set in valid_inputs:
+            a_raw, b_raw = input_set[:2]  # Take first two elements
+            total_tests += 1
+
+            # Test f(g(a, b)) == g(f(a), f(b))
+            # Compute f(g(a, b))
+            gab = combined.call(1, a_raw, b_raw)  # g(a, b)
+            r1 = combined.call(0, gab)  # f(g(a, b))
+
+            # Compute g(f(a), f(b))
+            fa = combined.call(0, a_raw)  # f(a)
+            fb = combined.call(0, b_raw)  # f(b)
+            r2 = combined.call(1, fa, fb)  # g(f(a), f(b))
+
+            if not combined.compare_results(r1, r2):
+                counterexamples.append(
+                    f"{f_name}({g_name}({a_raw},{b_raw})): {r1}\n\t"
+                    f"{g_name}({f_name}({a_raw}),{f_name}({b_raw})): {r2}\n"
+                )
+
+                if early_stopping:
+                    break
+
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
+        if not counterexamples:
+            return True, [f"{f_name}({g_name}(a,b)) == {g_name}({f_name}(a),{f_name}(b))\n"], test_stats
         else:
-            return False, (
-                f"{f_name}({g_name}({a_raw},{b_raw})): {r1}\n\t"
-                f"{g_name}({f_name}({a_raw}),{f_name}({b_raw})): {r2}\n"
-            )
+            return False, counterexamples, test_stats
