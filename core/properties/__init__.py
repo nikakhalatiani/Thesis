@@ -1,6 +1,6 @@
 from .algebraic import *
 from .composition import *
-from .information import DeterminismTest
+from .behavioral import DeterminismTest
 from .structural import *
 from .property_test import PropertyRegistry
 
@@ -39,9 +39,12 @@ def create_minimal_registry() -> PropertyRegistry:
     # registry.register(IdentityElementTest())
 
 
-    registry.register(InvolutionTest())
-    registry.register(ScalarHomomorphismTest())
-    registry.register(HomomorphismTest())
+    # registry.register(InvolutionTest())
+    # registry.register(ScalarHomomorphismTest())
+    # registry.register(HomomorphismTest())
+
+    registry.register(DeterminismTest())
+
     # registry.register(MonotonicallyDecreasingTest())
     # registry.register(MonotonicallyIncreasingTest())
 

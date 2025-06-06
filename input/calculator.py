@@ -140,6 +140,12 @@ class Calculator:
         # Constant function: both monotonically increasing and decreasing
         return 42
 
+    @staticmethod
+    def random(x):
+        """Return a random number (for testing purposes)."""
+        import random
+        return random.randint(0, 100)
+
     # @staticmethod
     # def zigzag(x):
     #     # Neither increasing nor decreasing (example: alternates)

@@ -248,8 +248,8 @@ class IdentityElementTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping) -> TestResult:
-        fut = combined.funcs[0]
+    def test(self, function: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping) -> TestResult:
+        fut = function.funcs[0]
         f_name = fut.func.__name__
         input_arity = self.input_arity
 
@@ -282,11 +282,11 @@ class IdentityElementTest(PropertyTest):
                 total_tests += 1
 
                 # Test both f(element, candidate) and f(candidate, element)
-                r1 = combined.call(0, element, candidate)
-                r2 = combined.call(0, candidate, element)
+                r1 = function.call(0, element, candidate)
+                r2 = function.call(0, candidate, element)
                 expected = cached_convert(element)
 
-                if not (combined.compare_results(r1, expected) and combined.compare_results(r2, expected)):
+                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
                     is_identity = False
                     counterexamples.append(
                         f"{f_name}({element}, {candidate}): {r1}\n\t"
