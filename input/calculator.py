@@ -135,11 +135,11 @@ class Calculator:
         """Return the negation of x."""
         return -x
 
-    # @staticmethod
-    # def constant(x):
-    #     # Constant function: both monotonically increasing and decreasing
-    #     return 42
-    #
+    @staticmethod
+    def constant(x):
+        # Constant function: both monotonically increasing and decreasing
+        return 42
+
     # @staticmethod
     # def zigzag(x):
     #     # Neither increasing nor decreasing (example: alternates)

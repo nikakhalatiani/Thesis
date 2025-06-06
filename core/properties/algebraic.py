@@ -19,7 +19,7 @@ class CommutativityTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= self.input_arity]
 
         if not valid_inputs:
-            return False, [f"Commutativity test failed: No valid input sets provided for {f_name}"], {
+            return False, [f"Commutativity test failed: No valid input sets provided for {f_name}\n"], {
                 'total_count': 0,
                 'success_count': 0
             }
@@ -42,17 +42,16 @@ class CommutativityTest(PropertyTest):
                 if early_stopping:
                     break
 
-        if not counterexamples:
-            return True, [f"{f_name}(a,b) == {f_name}(b,a)\n"], {
-                'total_count': total_tests,
-                'success_count': total_tests
-            }
-        else:
-            return False, counterexamples, {
-                'total_count': total_tests,
-                'success_count': total_tests - len(counterexamples)
-            }
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
 
+        if not counterexamples:
+            return True, [f"{f_name}(a,b) == {f_name}(b,a)"], test_stats
+        else:
+            return False, counterexamples, test_stats
 
 class AssociativityTest(PropertyTest):
     """Test if f(a, f(b, c)) = f(f(a, b), c)"""
@@ -67,9 +66,7 @@ class AssociativityTest(PropertyTest):
         )
         self.num_functions = 2
 
-    def test(self,
-             combined: CombinedFunctionUnderTest,
-             inputs: tuple) -> TestResult:
+    def test(self, combined: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
 
         a, b, c = inputs[:3]
         # we’ll test associativity on the 0th function in the combined wrapper:
@@ -105,21 +102,44 @@ class IdempotenceTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs: tuple) -> TestResult:
-        a = inputs[0]
-        r1 = function.call(0, a)
-        r2 = function.call(0, r1)
-
+    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         f_name = function.funcs[0].func.__name__
+        valid_inputs = [input_set for input_set in inputs if len(input_set) >= 1]
 
-        if function.compare_results(r1, r2):
-            return True, f"{f_name}({f_name}(a)) == {f_name}(a)"
+        if not valid_inputs:
+            return False, [f"Idempotence test failed: No valid input sets provided for {f_name}\n"], {
+                'total_count': 0,
+                'success_count': 0
+            }
+
+        total_tests = 0
+        counterexamples = []
+
+        for input_set in valid_inputs:
+            a = input_set[0]
+            r1 = function.call(0, a)
+            r2 = function.call(0, r1)
+
+            total_tests += 1
+
+            if not function.compare_results(r1, r2):
+                counterexamples.append(
+                    f"{f_name}({a}): {r1}\n\t"
+                    f"{f_name}({f_name}({a})): {r2}\n"
+                )
+                if early_stopping:
+                    break
+
+        if not counterexamples:
+            return True, [f"{f_name}({f_name}(a)) == {f_name}(a)"], {
+                'total_count': total_tests,
+                'success_count': total_tests
+            }
         else:
-            return False, (
-                f"{f_name}({a}): {r1}\n\t"
-                f"{f_name}({f_name}({a})): {r2}\n"
-            )
-
+            return False, counterexamples, {
+                'total_count': total_tests,
+                'success_count': total_tests - len(counterexamples)
+            }
 
 # class LeftIdempotenceTest(PropertyTest):
 #     """Test if f(a, f(a,b)) = f(a,b) - the left argument dominates when repeated"""
@@ -270,7 +290,7 @@ class IdentityElementTest(PropertyTest):
                 all_elements.update(input_set)
 
         if not all_elements:
-            return False, [f"IdentityElement test failed: No valid input sets provided for {f_name}"], {
+            return False, [f"IdentityElement test failed: No valid input sets provided for {f_name}\n"], {
                 'total_count': 0, 'success_count': 0
             }
 
