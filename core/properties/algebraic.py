@@ -1,5 +1,5 @@
 from core.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult
+from core.property_tester import TestResult, TestStats, PropertyTest
 
 
 class CommutativityTest(PropertyTest):
@@ -21,9 +21,10 @@ class CommutativityTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
-            return False, [f"Commutativity test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0,
-                'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"Commutativity test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
         total_tests = 0
@@ -45,15 +46,23 @@ class CommutativityTest(PropertyTest):
                     break
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests - len(counterexamples)
         }
 
         if not counterexamples:
-            return True, [f"{f_name}(a,b) == {f_name}(b,a)\n"], test_stats
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name}(a,b) == {f_name}(b,a)\n"],
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
 
 
 class AssociativityTest(PropertyTest):
@@ -78,8 +87,10 @@ class AssociativityTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
-            return False, [f"Associativity test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0, 'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"Associativity test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
         # Test associativity for each valid input
@@ -104,15 +115,23 @@ class AssociativityTest(PropertyTest):
                     break
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests - len(counterexamples)
         }
 
         if not counterexamples:
-            return True, [f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c)\n"], test_stats
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c)\n"],
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
 
 
 # TODO ask if f(g(x)) = f(x) is a valid property test or f(g(x)) = g(x) or f(g(x)) = g(f(x)) is a valid property test
@@ -133,9 +152,10 @@ class IdempotenceTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= 1]
 
         if not valid_inputs:
-            return False, [f"Idempotence test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0,
-                'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"Idempotence test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
         total_tests = 0
@@ -156,15 +176,23 @@ class IdempotenceTest(PropertyTest):
                 if early_stopping:
                     break
 
+        # Build result
+        test_stats: TestStats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
         if not counterexamples:
-            return True, [f"{f_name}({f_name}(a)) == {f_name}(a)"], {
-                'total_count': total_tests,
-                'success_count': total_tests
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name}({f_name}(a)) == {f_name}(a)"],
+                "stats": test_stats,
             }
         else:
-            return False, counterexamples, {
-                'total_count': total_tests,
-                'success_count': total_tests - len(counterexamples)
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
             }
 
 
@@ -190,8 +218,10 @@ class DistributivityTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
-            return False, [f"Distributivity test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0, 'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"Distributivity test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
         # Test distributivity for each valid input
@@ -222,15 +252,23 @@ class DistributivityTest(PropertyTest):
                     break
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests - len(counterexamples)
         }
 
         if not counterexamples:
-            return True, [f"{f_name}(a,{g_name}(b,c)) == {g_name}({f_name}(a,b),{f_name}(a,c))\n"], test_stats
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name}(a,{g_name}(b,c)) == {g_name}({f_name}(a,b),{f_name}(a,c))\n"],
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
 
 
 class IdentityElementTest(PropertyTest):
@@ -248,7 +286,7 @@ class IdentityElementTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
         input_arity = self.input_arity
@@ -258,8 +296,10 @@ class IdentityElementTest(PropertyTest):
         all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
 
         if not all_elements:
-            return False, [f"IdentityElement test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0, 'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"IdentityElement test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
         # Setup conversion cache
@@ -299,15 +339,23 @@ class IdentityElementTest(PropertyTest):
                 surviving_candidates.append(f"{candidate} is an identity element for {f_name}\n")
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests if surviving_candidates else 0
         }
 
         if surviving_candidates:
-            return True, surviving_candidates, test_stats
+            return {
+                "holds": True,
+                "counterexamples": surviving_candidates,
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
 
 
 class AbsorbingElementTest(PropertyTest):
@@ -325,7 +373,7 @@ class AbsorbingElementTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
         input_arity = self.input_arity
@@ -335,10 +383,11 @@ class AbsorbingElementTest(PropertyTest):
         all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
 
         if not all_elements:
-            return False, [f"AbsorbingElement test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0, 'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"AbsorbingElement test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
-
         # Setup conversion cache
         conversion_cache = {}
 
@@ -376,12 +425,96 @@ class AbsorbingElementTest(PropertyTest):
                 surviving_candidates.append(f"{candidate} is an absorbing element for {f_name}\n")
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests if surviving_candidates else 0
         }
 
         if surviving_candidates:
-            return True, surviving_candidates, test_stats
+            return {
+                "holds": True,
+                "counterexamples": surviving_candidates,
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
+
+
+class FixedPointTest(PropertyTest):
+    """
+    Test if a unary function f has fixed points where:
+        f(x) == x
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="FixedPoint",
+            input_arity=1,
+            function_arity=1,
+            description="Checks whether inputs act as fixed points for f",
+            category="Algebraic"
+        )
+
+    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+        fut = function.funcs[0]
+        f_name = fut.func.__name__
+        input_arity = self.input_arity
+
+        # Extract all unique elements from valid input tuples
+        all_elements = set()
+        all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
+
+        if not all_elements:
+            return {
+                "holds": False,
+                "counterexamples": [f"FixedPoint test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
+            }
+
+        # Setup conversion cache
+        conversion_cache = {}
+
+        def cached_convert(raw_val):
+            if raw_val not in conversion_cache:
+                conversion_cache[raw_val] = fut.arg_converter(raw_val)
+            return conversion_cache[raw_val]
+
+        # Test each element as potential fixed point
+        total_tests = 0
+        fixed_points = []
+        counterexamples = []
+
+        for candidate in all_elements:
+            total_tests += 1
+            result = function.call(0, candidate)
+            result2 = function.call(0, candidate) # Call twice to ensure consistency
+            expected = cached_convert(candidate)
+
+            if function.compare_results(result, expected) and function.compare_results(result2, expected):
+                fixed_points.append(f"{f_name}({candidate}) = {candidate}\n")
+            else:
+                counterexamples.append(f"{f_name}({candidate}): {result} ≠ {candidate}\n")
+
+        # Build result
+        test_stats: TestStats = {
+            'total_count': total_tests,
+            # 'success_count': total_tests if fixed_points else 0
+            'success_count': len(fixed_points)
+        }
+
+        if fixed_points:
+            return {
+                "holds": True,
+                "counterexamples": fixed_points,
+                "stats": test_stats,
+            }
+        else:
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }

@@ -110,8 +110,8 @@ def main(user_funcs_path: str = "input/calculator.py"):
         holds: bool
         for prop, outcome in result["outcomes"].items():
             holds = outcome["holds"]
-            confidence = outcome["confidence"] * 100
-            tests_run = outcome["total_tests"]
+            tests_run = outcome["stats"]["total_count"]
+            confidence = (outcome["stats"]["success_count"] / tests_run * 100) if tests_run > 0 else 0.0
             status = "🟢" if holds else "🔴"
             decision = (
                 f"{status} {prop} "

@@ -1,8 +1,8 @@
-from core.function_under_test import FunctionUnderTest, CombinedFunctionUnderTest, ComparisonStrategy
+from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.properties import PropertyRegistry
-from core.properties.property_test import PropertyTest
 from input.input_parser import InputParser
 from config.grammar_config import GrammarConfig
+from core.property_tester import PropertyTest
 
 
 class PropertyInferenceConfig:

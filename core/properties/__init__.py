@@ -2,7 +2,7 @@ from .algebraic import *
 from .composition import *
 from .behavioral import DeterminismTest
 from .structural import *
-from .property_test import PropertyRegistry
+from core.property_registry import PropertyRegistry
 
 
 def create_standard_registry() -> PropertyRegistry:
@@ -35,9 +35,10 @@ def create_minimal_registry() -> PropertyRegistry:
     # registry.register(CommutativityTest())
     # registry.register(AssociativityTest())
     # registry.register(IdempotenceTest())
-    # registry.register(DistributivityTest())
-    registry.register(IdentityElementTest())
-    registry.register(AbsorbingElementTest())
+    registry.register(DistributivityTest())
+    # registry.register(IdentityElementTest())
+    # registry.register(AbsorbingElementTest())
+    # registry.register(FixedPointTest())
     #
     # registry.register(InvolutionTest())
     # registry.register(ScalarHomomorphismTest())

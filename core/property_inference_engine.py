@@ -6,13 +6,14 @@ from itertools import product
 
 from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
-from core.property_tester import PropertyTester, PropertyOutcome
+from core.property_tester import PropertyTester
 from config.grammar_config import GrammarConfig
-from core.properties.property_test import PropertyTest
+from core.property_tester import PropertyTest, TestResult
 
 
 class InferenceResult(TypedDict):
-    outcomes: dict[str, PropertyOutcome]
+    """Mapping of property names to their test outcomes."""
+    outcomes: dict[str, TestResult]
 
 
 class PropertyInferenceEngine:
@@ -25,7 +26,7 @@ class PropertyInferenceEngine:
         extra_constraints: list[str] = grammar.extra_constraints
         with open(path_to_grammar) as spec_file:
             fan: Fandango = Fandango(spec_file)
-            # print("📦 Fuzzing examples:")
+            print("📦 Fuzzing examples:")
             fuzz_kwargs = {}
             if extra_constraints is not None:
                 fuzz_kwargs["extra_constraints"] = extra_constraints
@@ -34,8 +35,8 @@ class PropertyInferenceEngine:
             fuzz_kwargs["population_size"] = int(num_examples * 1.5)
 
             examples: list[DerivationTree] = fan.fuzz(**fuzz_kwargs)
-            # for example in examples:
-            #     print(example.to_string())
+            for example in examples:
+                print(example.to_string())
         return fan, examples
 
     def run(self) -> dict[str, InferenceResult]:

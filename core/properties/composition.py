@@ -1,5 +1,6 @@
 from core.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import TestResult, PropertyTest
+from core.property_tester import PropertyTest, TestResult, TestStats
+
 import inspect
 
 
@@ -16,8 +17,8 @@ class InvolutionTest(PropertyTest):
             category="Composition"
         )
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
-        fut = combined.funcs[0]
+    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+        fut = function.funcs[0]
         f_name = fut.func.__name__
         input_arity = self.input_arity
 
@@ -25,8 +26,10 @@ class InvolutionTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
-            return False, [f"Involution test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0, 'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"Involution test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
         # Test involution for each valid input
@@ -39,10 +42,10 @@ class InvolutionTest(PropertyTest):
 
             # Test f(f(x)) == x
             a = fut.arg_converter(raw_input)
-            r1 = combined.call(0, a)
-            r2 = combined.call(0, r1)
+            r1 = function.call(0, a)
+            r2 = function.call(0, r1)
 
-            if not combined.compare_results(r2, a):
+            if not function.compare_results(r2, a):
                 counterexamples.append(
                     f"{f_name}({f_name}({a})): {r2}\n"
                 )
@@ -51,15 +54,23 @@ class InvolutionTest(PropertyTest):
                     break
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests - len(counterexamples)
         }
 
         if not counterexamples:
-            return True, [f"{f_name}({f_name}(a)) == a\n"], test_stats
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name}({f_name}(a)) == a\n"],
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
 
 
 class ScalarHomomorphismTest(PropertyTest):
@@ -105,8 +116,10 @@ class ScalarHomomorphismTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
-            return False, [f"ScalarHomomorphism test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0, 'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"ScalarHomomorphism test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
         # Test scalar homomorphism for each valid input
@@ -136,15 +149,23 @@ class ScalarHomomorphismTest(PropertyTest):
                     break
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests - len(counterexamples)
         }
 
         if not counterexamples:
-            return True, [f"{f_name}({g_name}(k,a)) == {g_name}(k,{f_name}(a))\n"], test_stats
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name}({g_name}(k,a)) == {g_name}(k,{f_name}(a))\n"],
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
 
 
 class HomomorphismTest(PropertyTest):
@@ -190,10 +211,11 @@ class HomomorphismTest(PropertyTest):
         valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
 
         if not valid_inputs:
-            return False, [f"Homomorphism test failed: No valid input sets provided for {f_name}\n"], {
-                'total_count': 0, 'success_count': 0
+            return {
+                "holds": False,
+                "counterexamples": [f"Homomorphism test failed: No valid input sets provided for {f_name}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
-
         # Test homomorphism for each valid input
         total_tests = 0
         counterexamples = []
@@ -222,12 +244,20 @@ class HomomorphismTest(PropertyTest):
                     break
 
         # Build result
-        test_stats = {
+        test_stats: TestStats = {
             'total_count': total_tests,
             'success_count': total_tests - len(counterexamples)
         }
 
         if not counterexamples:
-            return True, [f"{f_name}({g_name}(a,b)) == {g_name}({f_name}(a),{f_name}(b))\n"], test_stats
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name}({g_name}(a,b)) == {g_name}({f_name}(a),{f_name}(b))\n"],
+                "stats": test_stats,
+            }
         else:
-            return False, counterexamples, test_stats
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
