@@ -308,3 +308,80 @@ class IdentityElementTest(PropertyTest):
             return True, surviving_candidates, test_stats
         else:
             return False, counterexamples, test_stats
+
+
+class AbsorbingElementTest(PropertyTest):
+    """
+    Test if a binary function f has an absorbing element z such that:
+        f(a, z) == z  and  f(z, a) == z
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="AbsorbingElement",
+            input_arity=2,
+            function_arity=2,
+            description="Checks whether candidate acts as an absorbing element for f",
+            category="Algebraic"
+        )
+
+    def test(self, function: CombinedFunctionUnderTest, inputs: list[tuple], early_stopping) -> TestResult:
+        fut = function.funcs[0]
+        f_name = fut.func.__name__
+        input_arity = self.input_arity
+
+        # Extract all unique elements from valid input tuples
+        all_elements = set()
+        all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
+
+        if not all_elements:
+            return False, [f"AbsorbingElement test failed: No valid input sets provided for {f_name}\n"], {
+                'total_count': 0, 'success_count': 0
+            }
+
+        # Setup conversion cache
+        conversion_cache = {}
+
+        def cached_convert(raw_val):
+            if raw_val not in conversion_cache:
+                conversion_cache[raw_val] = fut.arg_converter(raw_val)
+            return conversion_cache[raw_val]
+
+        # Test each element as potential absorbing element
+        total_tests = 0
+        surviving_candidates = []
+        counterexamples = []
+
+        for candidate in all_elements:
+            is_absorbing = True
+
+            for element in all_elements:
+                total_tests += 1
+
+                # Test both f(element, candidate) and f(candidate, element)
+                r1 = function.call(0, element, candidate)
+                r2 = function.call(0, candidate, element)
+                expected = cached_convert(candidate)
+
+                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
+                    is_absorbing = False
+                    counterexamples.append(
+                        f"{f_name}({element}, {candidate}): {r1}\n\t"
+                        f"{f_name}({candidate}, {element}): {r2}\n\t"
+                        f"Expected both to equal: {candidate}\n"
+                    )
+                    break
+
+            if is_absorbing:
+                surviving_candidates.append(f"{candidate} is an absorbing element for {f_name}\n")
+
+        # Build result
+        test_stats = {
+            'total_count': total_tests,
+            'success_count': total_tests if surviving_candidates else 0
+        }
+
+        if surviving_candidates:
+            return True, surviving_candidates, test_stats
+        else:
+            return False, counterexamples, test_stats

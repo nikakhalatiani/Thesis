@@ -74,72 +74,72 @@ class Calculator:
       - min, max
     """
 
-    # @staticmethod
-    # def add(x, y):
-    #     """Return x + y."""
-    #     return x + y
-    #
-    # @staticmethod
-    # def subtract(x, y):
-    #     """Return x - y."""
-    #     return x - y
-    #
-    # @staticmethod
-    # def multiply(x, y):
-    #     """Return x * y."""
-    #     return x * y
-    #
-    # @staticmethod
-    # def divide(x, y):
-    #     """Return x / y, raising ZeroDivisionError for y == 0."""
-    #     if y == 0:
-    #         raise ZeroDivisionError("Division by zero")
-    #     return x / y
+    @staticmethod
+    def add(x, y):
+        """Return x + y."""
+        return x + y
 
-    # @staticmethod
-    # def power(x, y):
-    #     """Return x ** y."""
-    #     try:
-    #         return x ** y
-    #     except OverflowError:
-    #         # Cap extremely large results
-    #         print("Warning: result overflowed")
-    #         return math.inf
-    #
-    # @staticmethod
-    # def sqrt(x):
-    #     """Return the square root of x, raising ValueError if x < 0."""
-    #     if x < 0:
-    #         raise ValueError("Square root of negative number")
-    #     return math.sqrt(x)
-    #
-    # @staticmethod
-    # def modulo(x, y):
-    #     """Return x % y, raising ZeroDivisionError for y == 0."""
-    #     if y == 0:
-    #         raise ZeroDivisionError("Modulo by zero")
-    #     return x % y
+    @staticmethod
+    def subtract(x, y):
+        """Return x - y."""
+        return x - y
 
-    # @staticmethod
-    # def factorial(n):
-    #     """Return n! for integer n >= 0. Raises ValueError otherwise."""
-    #     if not isinstance(n, int) or n < 0:
-    #         raise ValueError("Factorial undefined for negative or non-integers")
-    #     # Limit to 10! to avoid huge outputs
-    #     if n > 10:
-    #         raise ValueError("Input too large for safe factorial calculation")
-    #     return math.factorial(n)
-    #
-    # @staticmethod
-    # def negate(x):
-    #     """Return the negation of x."""
-    #     return -x
-    #
-    # @staticmethod
-    # def random(x):
-    #     """Return a random number (for testing purposes)."""
-    #     import random
-    #     return random.randint(0, 100)
+    @staticmethod
+    def multiply(x, y):
+        """Return x * y."""
+        return x * y
+
+    @staticmethod
+    def divide(x, y):
+        """Return x / y, raising ZeroDivisionError for y == 0."""
+        if y == 0:
+            raise ZeroDivisionError("Division by zero")
+        return x / y
+
+    @staticmethod
+    def power(x, y):
+        """Return x ** y."""
+        try:
+            return x ** y
+        except OverflowError:
+            # Cap extremely large results
+            print("Warning: result overflowed")
+            return math.inf
+
+    @staticmethod
+    def sqrt(x):
+        """Return the square root of x, raising ValueError if x < 0."""
+        if x < 0:
+            raise ValueError("Square root of negative number")
+        return math.sqrt(x)
+
+    @staticmethod
+    def modulo(x, y):
+        """Return x % y, raising ZeroDivisionError for y == 0."""
+        if y == 0:
+            raise ZeroDivisionError("Modulo by zero")
+        return x % y
+
+    @staticmethod
+    def factorial(n):
+        """Return n! for integer n >= 0. Raises ValueError otherwise."""
+        if not isinstance(n, int) or n < 0:
+            raise ValueError("Factorial undefined for negative or non-integers")
+        # Limit to 10! to avoid huge outputs
+        if n > 10:
+            raise ValueError("Input too large for safe factorial calculation")
+        return math.factorial(n)
+
+    @staticmethod
+    def negate(x):
+        """Return the negation of x."""
+        return -x
+
+    @staticmethod
+    def random(x):
+        """Return a random number (for testing purposes)."""
+        import random
+        return random.randint(0, 100)
 
     @staticmethod
     def constant(x):
@@ -161,12 +161,12 @@ class Calculator:
         # Strictly decreasing
         return -x
 
-    # @staticmethod
-    # def minimum(x, y):
-    #     """Return the smaller of x and y."""
-    #     return x if x <= y else y
-    #
-    # @staticmethod
-    # def maximum(x, y):
-    #     """Return the larger of x and y."""
-    #     return x if x >= y else y
+    @staticmethod
+    def minimum(x, y):
+        """Return the smaller of x and y."""
+        return x if x <= y else y
+
+    @staticmethod
+    def maximum(x, y):
+        """Return the larger of x and y."""
+        return x if x >= y else y
