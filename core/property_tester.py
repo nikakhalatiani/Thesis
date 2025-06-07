@@ -48,21 +48,6 @@ class PropertyTester:
     def __init__(self, max_examples: int) -> None:
         self._max_examples = max_examples
 
-    # TODO think about this to reverse logic of finding fixed point
-    # @staticmethod
-    # def fixpoint_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if input is a fixed point: f(x) = x"""
-    #     a = inputs[0]
-    #     result = function.call(a)
-    #
-    #     if function.compare_results(result, function.arg_converter(a)):
-    #         return True, f"{a} is a fixed point: {function.func.__name__}({a}) = {a}"
-    #     else:
-    #         return False, {
-    #             f"{function.func.__name__}({a})": result,
-    #             f"Expected": a,
-    #             "Fixed point": "False"
-    #         }
 
     # ============================================================================
     # STRUCTURAL PROPERTIES - Shape and structure preservation
