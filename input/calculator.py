@@ -96,15 +96,15 @@ class Calculator:
     #         raise ZeroDivisionError("Division by zero")
     #     return x / y
 
-    @staticmethod
-    def power(x, y):
-        """Return x ** y."""
-        try:
-            return x ** y
-        except OverflowError:
-            # Cap extremely large results
-            print("Warning: result overflowed")
-            return math.inf
+    # @staticmethod
+    # def power(x, y):
+    #     """Return x ** y."""
+    #     try:
+    #         return x ** y
+    #     except OverflowError:
+    #         # Cap extremely large results
+    #         print("Warning: result overflowed")
+    #         return math.inf
 
     # @staticmethod
     # def sqrt(x):
@@ -166,7 +166,7 @@ class Calculator:
         """Return the smaller of x and y."""
         return x if x <= y else y
 
-    @staticmethod
-    def maximum(x, y):
-        """Return the larger of x and y."""
-        return x if x >= y else y
+    # @staticmethod
+    # def maximum(x, y):
+    #     """Return the larger of x and y."""
+    #     return x if x >= y else y
