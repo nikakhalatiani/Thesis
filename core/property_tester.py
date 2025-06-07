@@ -19,23 +19,6 @@ class PropertyTester:
         self._max_examples = max_examples
 
 
-    # TODO think about this to inverse logic as above
-    # @staticmethod
-    # def absorbing_element_test(function: FunctionUnderTest, inputs: tuple) -> tuple[bool, dict[str, str] | str]:
-    #     """Test if there exists an absorbing/zero element"""
-    #     a, candidate_absorber = inputs
-    #     r1 = function.call(a, candidate_absorber)
-    #     r2 = function.call(candidate_absorber, a)
-    #
-    #     if function.compare_results(r1, function.arg_converter(candidate_absorber)) and function.compare_results(r2, function.arg_converter(candidate_absorber)):
-    #         return False, {
-    #             f"{function.func.__name__}({a}, {candidate_absorber})": r1,
-    #             f"{function.func.__name__}({candidate_absorber}, {a})": r2,
-    #             f"Expected both to equal": f"{candidate_absorber}"
-    #         }
-    #
-    #     else:
-    #         return True, f"No absorbing element found"
 
     # TODO think about this to reverse logic of finding fixed point
     # @staticmethod
