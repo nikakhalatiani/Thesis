@@ -1,5 +1,7 @@
 from core.function_under_test import CombinedFunctionUnderTest
-from core.property_tester import PropertyTest, TestResult, TestStats
+from core.properties.property_test import PropertyTest, TestResult, TestStats
+
+from itertools import chain, combinations
 
 
 class DeterminismTest(PropertyTest):
@@ -14,17 +16,15 @@ class DeterminismTest(PropertyTest):
             category="Behavioral"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         f_name = function.funcs[0].func.__name__
-        input_arity = self.input_arity
 
-        # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not valid_inputs:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"Determinism test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -32,12 +32,11 @@ class DeterminismTest(PropertyTest):
         total_tests = 0
         counterexamples = []
 
-        for input_set in valid_inputs:
-            a = input_set[0]  # Take first element
+        for a in all_elements:
             total_tests += 1
 
             # Call function multiple times with the same input
-            results = [function.call(0, a) for _ in range(100)]
+            results = [function.call(0, a) for _ in range(max_counterexamples)]
 
             # Check if all results are the same
             first_result = results[0]
@@ -55,7 +54,7 @@ class DeterminismTest(PropertyTest):
                     f"{f_name}({a}) on run #{idx_diff + 1}: {diff_val}\n"
                 )
 
-                if early_stopping:
+                if len(counterexamples) >= max_counterexamples:
                     break
 
         # Build result
@@ -91,18 +90,16 @@ class MonotonicallyIncreasingTest(PropertyTest):
             category="Behavioral"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
-        input_arity = self.input_arity
 
-        # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not valid_inputs:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"Monotonicity test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -110,8 +107,7 @@ class MonotonicallyIncreasingTest(PropertyTest):
         total_tests = 0
         counterexamples = []
 
-        for input_set in valid_inputs:
-            a_raw, b_raw = input_set[:2]  # Take first two elements
+        for a_raw, b_raw in combinations(all_elements, 2):
             total_tests += 1
 
             # Check monotonicity
@@ -133,21 +129,17 @@ class MonotonicallyIncreasingTest(PropertyTest):
                 r_large = function.call(0, large)
 
                 if r_small > r_large:
-                    # TODO maybe add max_counterexamples to limit output size here instead of post processing
                     counterexamples.append(
                         f"{raw_small} ≤ {raw_large}\n\t"
                         f"{f_name}({raw_small}) > {f_name}({raw_large})\n\t"
                         f"{r_small} > {r_large}\n"
                     )
 
-                    if early_stopping:
+                    if len(counterexamples) >= max_counterexamples:
                         break
 
             except (TypeError, ValueError, AttributeError):
-                counterexamples.append(f"Monotonicity test skipped (cannot compare outputs/inputs of {f_name}\n)")
-
-                if early_stopping:
-                    break
+                counterexamples.append("Test skipped (cannot compare outputs/inputs)\n")
 
         # Build result
         test_stats: TestStats = {
@@ -177,22 +169,20 @@ class MonotonicallyDecreasingTest(PropertyTest):
             name="MonotonicallyDecreasing",
             input_arity=2,
             function_arity=1,
-            description="Tests if a ≤  b implies f(a) ≥ f(b)",
+            description="Tests if a ≤ b implies f(a) ≥ f(b)",
             category="Behavioral"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
-        input_arity = self.input_arity
 
-        # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not valid_inputs:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"Monotonicity test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -200,8 +190,7 @@ class MonotonicallyDecreasingTest(PropertyTest):
         total_tests = 0
         counterexamples = []
 
-        for input_set in valid_inputs:
-            a_raw, b_raw = input_set[:2]  # Take first two elements
+        for a_raw, b_raw in combinations(all_elements, 2):
             total_tests += 1
 
             try:
@@ -228,14 +217,12 @@ class MonotonicallyDecreasingTest(PropertyTest):
                         f"{r_small} < {r_large}\n"
                     )
 
-                    if early_stopping:
+                    if len(counterexamples) >= max_counterexamples:
                         break
 
             except (TypeError, ValueError, AttributeError):
-                counterexamples.append(f"Monotonicity test skipped (cannot compare outputs/inputs of {f_name}\n)")
+                counterexamples.append("Test skipped (cannot compare outputs/inputs)\n")
 
-                if early_stopping:
-                    break
 
         # Build result
         test_stats: TestStats = {

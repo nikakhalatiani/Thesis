@@ -79,22 +79,22 @@ class Calculator:
         """Return x + y."""
         return x + y
 
-    # @staticmethod
-    # def subtract(x, y):
-    #     """Return x - y."""
-    #     return x - y
-    #
-    # @staticmethod
-    # def multiply(x, y):
-    #     """Return x * y."""
-    #     return x * y
-    #
-    # @staticmethod
-    # def divide(x, y):
-    #     """Return x / y, raising ZeroDivisionError for y == 0."""
-    #     if y == 0:
-    #         raise ZeroDivisionError("Division by zero")
-    #     return x / y
+    @staticmethod
+    def subtract(x, y):
+        """Return x - y."""
+        return x - y
+
+    @staticmethod
+    def multiply(x, y):
+        """Return x * y."""
+        return x * y
+
+    @staticmethod
+    def divide(x, y):
+        """Return x / y, raising ZeroDivisionError for y == 0."""
+        if y == 0:
+            raise ZeroDivisionError("Division by zero")
+        return x / y
 
     # @staticmethod
     # def power(x, y):
@@ -136,6 +136,12 @@ class Calculator:
     #     return -x
     #
     # @staticmethod
+    # def is_positive(x):
+    #     """Check if x is positive."""
+    #
+    #     return x > 0
+    #
+    # @staticmethod
     # def random(x):
     #     """Return a random number (for testing purposes)."""
     #     import random
@@ -146,27 +152,22 @@ class Calculator:
     #     # Constant function: both monotonically increasing and decreasing
     #     return 42
     #
-    # @staticmethod
-    # def zigzag(x):
-    #     # Neither increasing nor decreasing (example: alternates)
-    #     return (-1) ** x * x  # e.g., 0 → 0, 1 → -1, 2 → 2, 3 → -3, ...
-    #
-    # @staticmethod
-    # def linear_increasing(x):
-    #     # Strictly increasing
-    #     return x + 1
-    #
-    # @staticmethod
-    # def linear_decreasing(x):
-    #     # Strictly decreasing
-    #     return -x
+    @staticmethod
+    def zigzag(x):
+        # Neither increasing nor decreasing (example: alternates)
+        return (-1) ** x * x  # e.g., 0 → 0, 1 → -1, 2 → 2, 3 → -3, ...
+
+    @staticmethod
+    def linear_increasing(x):
+        # Strictly increasing
+        return x + 1
 
     @staticmethod
     def minimum(x, y):
         """Return the smaller of x and y."""
         return x if x <= y else y
 
-    # @staticmethod
-    # def maximum(x, y):
-    #     """Return the larger of x and y."""
-    #     return x if x >= y else y
+    @staticmethod
+    def maximum(x, y):
+        """Return the larger of x and y."""
+        return x if x >= y else y

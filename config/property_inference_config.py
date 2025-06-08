@@ -2,7 +2,7 @@ from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.properties import PropertyRegistry
 from input.input_parser import InputParser
 from config.grammar_config import GrammarConfig
-from core.property_tester import PropertyTest
+from core.properties.property_test import PropertyTest
 
 
 class PropertyInferenceConfig:
@@ -18,7 +18,6 @@ class PropertyInferenceConfig:
         function_to_grammar: Mapping of function names to grammar.
         function_to_parser: Mapping of function names to parsers.
         example_count: Number of examples to generate for testing.
-        early_stopping: Whether to stop testing a property after finding a counter-example.
     """
 
     def __init__(self, registry: PropertyRegistry, example_count: int = 100,
@@ -31,7 +30,6 @@ class PropertyInferenceConfig:
         self.function_to_grammar: dict[str, GrammarConfig] = {}
         self.function_to_parser: dict[str, InputParser] = {}
         self.example_count: int = example_count
-        self.early_stopping: bool = False
         self.max_counterexamples: int = 1
         self.comparison_strategy = comparison_strategy
 
@@ -114,19 +112,6 @@ class PropertyInferenceConfig:
             The updated configuration instance.
         """
         self.default_parser = parser
-        return self
-
-    def set_early_stopping(self, early_stopping: bool = True) -> 'PropertyInferenceConfig':
-        """
-        Enable or disable early stopping.
-
-        Args:
-            early_stopping: Whether to enable early stopping.
-
-        Returns:
-            The updated configuration instance.
-        """
-        self.early_stopping = early_stopping
         return self
 
     def set_max_counterexamples(self, n: int) -> "PropertyInferenceConfig":

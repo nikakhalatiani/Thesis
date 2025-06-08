@@ -87,6 +87,25 @@ class FunctionUnderTest:
             print(error_message)
             return FunctionCallError(f"Error: {str(e)}")
 
+    def call_no_convert(self, *args: Any) -> Any:
+        """
+        Calls the function under test with the provided arguments directly, without applying the argument converter.
+
+        Args:
+            *args: The arguments to pass to the function under test.
+
+        Returns:
+            The result of calling the function under test with the original arguments.
+            If the function call fails, returns a FunctionCallError.
+        """
+        try:
+            result = self.func(*args)
+            return result
+        except Exception as e:
+            error_message = f"Error calling {self.func.__name__} with args {args}: {str(e)}"
+            print(error_message)
+            return FunctionCallError(f"Error: {str(e)}")
+
     def compare_results(self, result1: Any, result2: Any) -> bool:
         """
           Compares two results using the result comparator.

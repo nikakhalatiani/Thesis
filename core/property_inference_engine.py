@@ -6,9 +6,8 @@ from itertools import product
 
 from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
-from core.property_tester import PropertyTester
 from config.grammar_config import GrammarConfig
-from core.property_tester import PropertyTest, TestResult
+from core.properties.property_test import PropertyTest, TestResult
 
 
 class InferenceResult(TypedDict):
@@ -26,18 +25,29 @@ class PropertyInferenceEngine:
         extra_constraints: list[str] = grammar.extra_constraints
         with open(path_to_grammar) as spec_file:
             fan: Fandango = Fandango(spec_file)
-            print("📦 Fuzzing examples:")
+            # print("📦 Fuzzing examples:")
             fuzz_kwargs = {}
             if extra_constraints is not None:
                 fuzz_kwargs["extra_constraints"] = extra_constraints
 
             fuzz_kwargs["desired_solutions"] = int(num_examples)
-            fuzz_kwargs["population_size"] = int(num_examples * 1.5)
+            fuzz_kwargs["population_size"] = int(num_examples * 2)
 
             examples: list[DerivationTree] = fan.fuzz(**fuzz_kwargs)
-            for example in examples:
-                print(example.to_string())
+            # for example in examples:
+            #     print(example.to_string())
         return fan, examples
+
+    @staticmethod
+    def _test_property(property_test: PropertyTest, function: CombinedFunctionUnderTest, input_sets: list,
+                       max_counterexamples: int) -> TestResult:
+        result = property_test.test(function, input_sets, max_counterexamples)
+
+        return TestResult(
+            holds=result['holds'],
+            counterexamples=result['counterexamples'][:max_counterexamples],
+            stats=result['stats'],
+        )
 
     def run(self) -> dict[str, InferenceResult]:
         results: dict[str, InferenceResult] = {}
@@ -99,8 +109,6 @@ class PropertyInferenceEngine:
                     fan, examples = self._generate_examples(grammar, self.config.example_count)
                     input_sets = [parser.parse(fan, tree) for tree in examples]
                     input_sets = [i for i in input_sets if i is not None]
-                    # input_sets = [(1, 1, 1)] + input_sets
-                    input_sets = input_sets
 
                     # end_time = time.perf_counter()
                     # print(f"Execution time: {end_time - start_time:.4f} seconds")
@@ -109,8 +117,7 @@ class PropertyInferenceEngine:
                     # counts = Counter(len(s) for s in input_sets)
                     # print("🎲 input‐tuple length distribution:", counts)
 
-                    tester = PropertyTester(self.config.max_counterexamples)
-                    outcome = tester.test_property(combined, prop, input_sets, self.config.early_stopping)
+                    outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
 
                     key = f"combination ({combined.names()})"
 

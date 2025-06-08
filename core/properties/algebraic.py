@@ -1,5 +1,7 @@
 from core.function_under_test import CombinedFunctionUnderTest
-from core.property_tester import TestResult, TestStats, PropertyTest
+from core.properties.property_test import TestResult, TestStats, PropertyTest
+
+from itertools import chain, combinations, product
 
 
 class CommutativityTest(PropertyTest):
@@ -14,41 +16,42 @@ class CommutativityTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         f_name = function.funcs[0].func.__name__
-        input_arity = self.input_arity
 
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
+        # Gather all unique elements from valid input sets
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not valid_inputs:
+        # all_elements = list(all_elements)
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"Commutativity test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
         total_tests = 0
         counterexamples = []
 
-        for input_set in valid_inputs:
-            a, b = input_set[:2]
+        for a, b in combinations(all_elements, 2):
+        # for i in range(0, len(all_elements) - 1):
+        #     a = all_elements[i]
+        #     b = all_elements[i + 1]
             r1 = function.call(0, a, b)
             r2 = function.call(0, b, a)
-
             total_tests += 1
 
             if not function.compare_results(r1, r2):
                 counterexamples.append(
-                    f"{f_name}({a},{b}): {r1}\n\t"
-                    f"{f_name}({b},{a}): {r2}\n"
+                    f"{f_name}({a}, {b}): {r1}\n\t"
+                    f"{f_name}({b}, {a}): {r2}\n"
                 )
-                if early_stopping:
+                if len(counterexamples) >= max_counterexamples:
                     break
 
-        # Build result
         test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': total_tests - len(counterexamples)
+            "total_count": total_tests,
+            "success_count": total_tests - len(counterexamples)
         }
 
         if not counterexamples:
@@ -78,18 +81,17 @@ class AssociativityTest(PropertyTest):
         )
         self.num_functions = 2
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, combined: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         f_name = combined.funcs[0].func.__name__
         g_name = combined.funcs[1].func.__name__
-        input_arity = self.input_arity
 
         # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not valid_inputs:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"Associativity test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -97,8 +99,7 @@ class AssociativityTest(PropertyTest):
         total_tests = 0
         counterexamples = []
 
-        for input_set in valid_inputs:
-            a, b, c = input_set[:3]
+        for a, b, c in combinations(all_elements, 3):
             total_tests += 1
 
             # Test f(a, g(b, c)) == f(g(a, b), c)
@@ -111,7 +112,7 @@ class AssociativityTest(PropertyTest):
                     f"{f_name}({g_name}({a}, {b}), {c}): {r2}\n"
                 )
 
-                if early_stopping:
+                if len(counterexamples) >= max_counterexamples:
                     break
 
         # Build result
@@ -147,22 +148,22 @@ class IdempotenceTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         f_name = function.funcs[0].func.__name__
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= 1]
 
-        if not valid_inputs:
+        all_elements = frozenset(chain.from_iterable(inputs))
+
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"Idempotence test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
         total_tests = 0
         counterexamples = []
 
-        for input_set in valid_inputs:
-            a = input_set[0]
+        for a in all_elements:
             r1 = function.call(0, a)
             r2 = function.call(0, r1)
 
@@ -173,7 +174,7 @@ class IdempotenceTest(PropertyTest):
                     f"{f_name}({a}): {r1}\n\t"
                     f"{f_name}({f_name}({a})): {r2}\n"
                 )
-                if early_stopping:
+                if len(counterexamples) >= max_counterexamples:
                     break
 
         # Build result
@@ -209,18 +210,17 @@ class DistributivityTest(PropertyTest):
         )
         self.num_functions = 2
 
-    def test(self, combined: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, combined: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         f_name = combined.funcs[0].func.__name__
         g_name = combined.funcs[1].func.__name__
-        input_arity = self.input_arity
 
         # Filter valid inputs based on arity
-        valid_inputs = [input_set for input_set in inputs if len(input_set) >= input_arity]
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not valid_inputs:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"Distributivity test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -228,8 +228,7 @@ class DistributivityTest(PropertyTest):
         total_tests = 0
         counterexamples = []
 
-        for input_set in valid_inputs:
-            a, b, c = input_set[:3]  # Take first three elements
+        for a, b, c in combinations(all_elements, 3):
             total_tests += 1
 
             # Test f(a, g(b, c)) == g(f(a, b), f(a, c))
@@ -244,11 +243,11 @@ class DistributivityTest(PropertyTest):
 
             if not combined.compare_results(r1, r2):
                 counterexamples.append(
-                    f"{f_name}({a},{g_name}({b},{c})): {r1}\n\t"
-                    f"{g_name}({f_name}({a},{b}),{f_name}({a},{c})): {r2}\n"
+                    f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
+                    f"{g_name}({f_name}({a}, {b}) ,{f_name}({a}, {c})): {r2}\n"
                 )
 
-                if early_stopping:
+                if len(counterexamples) >= max_counterexamples:
                     break
 
         # Build result
@@ -260,7 +259,7 @@ class DistributivityTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}(a,{g_name}(b,c)) == {g_name}({f_name}(a,b),{f_name}(a,c))\n"],
+                "counterexamples": [f"{f_name}(a, {g_name}(b, c)) == {g_name}({f_name}(a, b), {f_name}(a, c))\n"],
                 "stats": test_stats,
             }
         else:
@@ -286,19 +285,17 @@ class IdentityElementTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counter_examples) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
-        input_arity = self.input_arity
 
         # Extract all unique elements from valid input tuples
-        all_elements = set()
-        all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not all_elements:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"IdentityElement test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -310,33 +307,34 @@ class IdentityElementTest(PropertyTest):
                 conversion_cache[raw_val] = fut.arg_converter(raw_val)
             return conversion_cache[raw_val]
 
-        # Test each element as potential identity
-        total_tests = 0
-        surviving_candidates = []
+        identity_candidates = set(all_elements)
         counterexamples = []
+        total_tests = 0
 
-        for candidate in all_elements:
-            is_identity = True
+        for element, candidate in product(all_elements, all_elements):
+            if candidate not in identity_candidates:
+                continue  # Skip already eliminated candidates
 
-            for element in all_elements:
-                total_tests += 1
 
-                # Test both f(element, candidate) and f(candidate, element)
-                r1 = function.call(0, element, candidate)
-                r2 = function.call(0, candidate, element)
-                expected = cached_convert(element)
+            total_tests += 1
 
-                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
-                    is_identity = False
-                    counterexamples.append(
-                        f"{f_name}({element}, {candidate}): {r1}\n\t"
-                        f"{f_name}({candidate}, {element}): {r2}\n\t"
-                        f"Expected both to equal: {element}\n"
-                    )
-                    break
+            # Test both f(element, candidate) and f(candidate, element)
+            r1 = function.call(0, element, candidate)
+            r2 = function.call(0, candidate, element)
+            expected = cached_convert(element)
 
-            if is_identity:
-                surviving_candidates.append(f"{candidate} is an identity element for {f_name}\n")
+            if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
+                identity_candidates.discard(candidate)
+                counterexamples.append(
+                    f"{f_name}({element}, {candidate}): {r1}\n\t"
+                    f"{f_name}({candidate}, {element}): {r2}\n\t"
+                    f"Expected both to equal: {element}\n"
+                )
+
+
+        # Convert surviving candidates to result format
+        surviving_candidates = [f"{candidate} is an identity element\n"
+                                for candidate in identity_candidates]
 
         # Build result
         test_stats: TestStats = {
@@ -357,7 +355,6 @@ class IdentityElementTest(PropertyTest):
                 "stats": test_stats,
             }
 
-
 class AbsorbingElementTest(PropertyTest):
     """
     Test if a binary function f has an absorbing element z such that:
@@ -373,21 +370,20 @@ class AbsorbingElementTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
-        input_arity = self.input_arity
 
         # Extract all unique elements from valid input tuples
-        all_elements = set()
-        all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not all_elements:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"AbsorbingElement test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
+
         # Setup conversion cache
         conversion_cache = {}
 
@@ -396,33 +392,33 @@ class AbsorbingElementTest(PropertyTest):
                 conversion_cache[raw_val] = fut.arg_converter(raw_val)
             return conversion_cache[raw_val]
 
-        # Test each element as potential absorbing element
-        total_tests = 0
-        surviving_candidates = []
+        absorbing_candidates = set(all_elements)
         counterexamples = []
+        total_tests = 0
 
-        for candidate in all_elements:
-            is_absorbing = True
+        for element, candidate in product(all_elements, all_elements):
+            if candidate not in absorbing_candidates:
+                continue  # Candidate already disqualified
 
-            for element in all_elements:
-                total_tests += 1
+            total_tests += 1
 
-                # Test both f(element, candidate) and f(candidate, element)
-                r1 = function.call(0, element, candidate)
-                r2 = function.call(0, candidate, element)
-                expected = cached_convert(candidate)
+            # Absorbing: f(a, z) == z and f(z, a) == z
+            expected = cached_convert(candidate)
+            r1 = function.call(0, element, candidate)
+            r2 = function.call(0, candidate, element)
 
-                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
-                    is_absorbing = False
-                    counterexamples.append(
-                        f"{f_name}({element}, {candidate}): {r1}\n\t"
-                        f"{f_name}({candidate}, {element}): {r2}\n\t"
-                        f"Expected both to equal: {candidate}\n"
-                    )
-                    break
+            if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
+                absorbing_candidates.discard(candidate)
+                counterexamples.append(
+                    f"{f_name}({element}, {candidate}): {r1}\n\t"
+                    f"{f_name}({candidate}, {element}): {r2}\n\t"
+                    f"Expected both to equal: {candidate}\n"
+                )
 
-            if is_absorbing:
-                surviving_candidates.append(f"{candidate} is an absorbing element for {f_name}\n")
+
+        # Convert surviving candidates to result format
+        surviving_candidates = [f"{candidate} is an absorbing element\n"
+                                for candidate in absorbing_candidates]
 
         # Build result
         test_stats: TestStats = {
@@ -459,19 +455,17 @@ class FixedPointTest(PropertyTest):
             category="Algebraic"
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, early_stopping) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counter_examples) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
-        input_arity = self.input_arity
 
         # Extract all unique elements from valid input tuples
-        all_elements = set()
-        all_elements.update(element for input_set in inputs if len(input_set) >= input_arity for element in input_set)
+        all_elements = frozenset(chain.from_iterable(inputs))
 
-        if not all_elements:
+        if len(all_elements) < self.input_arity:
             return {
                 "holds": False,
-                "counterexamples": [f"FixedPoint test failed: No valid input sets provided for {f_name}\n"],
+                "counterexamples": ["Not enough elements provided\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -483,21 +477,22 @@ class FixedPointTest(PropertyTest):
                 conversion_cache[raw_val] = fut.arg_converter(raw_val)
             return conversion_cache[raw_val]
 
-        # Test each element as potential fixed point
         total_tests = 0
         fixed_points = []
         counterexamples = []
 
         for candidate in all_elements:
             total_tests += 1
-            result = function.call(0, candidate)
-            result2 = function.call(0, candidate) # Call twice to ensure consistency
-            expected = cached_convert(candidate)
 
-            if function.compare_results(result, expected) and function.compare_results(result2, expected):
+            expected = cached_convert(candidate)
+            result1 = function.call(0, candidate)
+            result2 = function.call(0, candidate)
+
+            if function.compare_results(result1, expected) and function.compare_results(result2, expected):
                 fixed_points.append(f"{f_name}({candidate}) = {candidate}\n")
             else:
-                counterexamples.append(f"{f_name}({candidate}): {result} ≠ {candidate}\n")
+                counterexamples.append(f"{f_name}({candidate}): {result1} ≠ {candidate}\n")
+
 
         # Build result
         test_stats: TestStats = {
@@ -518,3 +513,158 @@ class FixedPointTest(PropertyTest):
                 "counterexamples": counterexamples,
                 "stats": test_stats,
             }
+
+# TODO interesting usage of try catch needs attention (CONVERTER)
+# class ClosureTest(PropertyTest):
+#     """
+#     Test if a unary function f exhibits closure property where:
+#         f(f(x)) is well-defined (output can be used as input)
+#     """
+#
+#     def __init__(self) -> None:
+#         super().__init__(
+#             name="Closure",
+#             input_arity=1,
+#             function_arity=1,
+#             description="Checks whether function output can be used as input (closure property)",
+#             category="Algebraic"
+#         )
+#
+#     def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
+#         fut = function.funcs[0]
+#         f_name = fut.func.__name__
+#
+#         # Extract all unique elements from valid input tuples
+#         all_elements = frozenset(chain.from_iterable(inputs))
+#
+#         if len(all_elements) < self.input_arity:
+#             return {
+#                 "holds": False,
+#                 "counterexamples": ["Not enough elements provided\n"],
+#                 "stats": {"total_count": 0, "success_count": 0},
+#             }
+#
+#         # Test each element for closure property
+#         total_tests = 0
+#         closure_satisfied = []
+#         counterexamples = []
+#
+#         for candidate in all_elements:
+#             total_tests += 1
+#
+#             try:
+#                 # First call: f(x)
+#                 first_result = function.call(0, candidate)
+#
+#                 # Second call: f(f(x)) - this tests closure
+#                 _ = function.call(0, first_result)
+#
+#                 closure_satisfied.append(
+#                     f"{f_name}({candidate}) → {f_name}({f_name}({candidate})): closure satisfied\n"
+#                 )
+#
+#             except Exception as e:
+#                 counterexamples.append(
+#                     f"{f_name}({candidate}): First call succeeded, "
+#                     f"but {f_name}(result) failed: {str(e)}\n"
+#                 )
+#                 if len(counterexamples) >= max_counterexamples:
+#                     break
+#
+#         # Build result
+#         test_stats: TestStats = {
+#             'total_count': total_tests,
+#             'success_count': len(closure_satisfied)
+#         }
+#
+#         if closure_satisfied and not counterexamples:
+#             return {
+#                 "holds": True,
+#                 "counterexamples": closure_satisfied,
+#                 "stats": test_stats,
+#             }
+#         else:
+#             return {
+#                 "holds": False,
+#                 "counterexamples": counterexamples if counterexamples else [
+#                     f"No valid inputs for closure test on {f_name}\n"],
+#                 "stats": test_stats,
+#             }
+#
+#
+# class CompositionTest(PropertyTest):
+#     """
+#     Test if two unary functions f and g can be composed where:
+#         f(g(x)) is well-defined (output of g can be used as input to f)
+#     """
+#
+#     def __init__(self) -> None:
+#         super().__init__(
+#             name="Composition",
+#             input_arity=1,
+#             function_arity=1,
+#             description="Checks whether g's output can be used as input to f (f∘g composability)",
+#             category="Algebraic"
+#         )
+#         self.num_functions = 2
+#
+#     def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
+#         f_name = function.funcs[0].func.__name__  # First function
+#         g_name = function.funcs[1].func.__name__  # Second function
+#
+#         # Extract all unique elements from valid input tuples
+#         all_elements = frozenset(chain.from_iterable(inputs))
+#
+#         if len(all_elements) < self.input_arity:
+#             return {
+#                 "holds": False,
+#                 "counterexamples": ["Not enough elements provided\n"],
+#                 "stats": {"total_count": 0, "success_count": 0},
+#             }
+#
+#         # Test each element for composition property
+#         total_tests = 0
+#         composition_satisfied = []
+#         counterexamples = []
+#
+#         for candidate in all_elements:
+#             total_tests += 1
+#
+#             try:
+#                 # First call: g(x)
+#                 candidate_converted = function.funcs[1].arg_converter(candidate)
+#                 g_result = function.call(1, candidate_converted)
+#
+#                 # Second call: f(g(x)) - this tests if f can accept g's output
+#                 _ = function.call(0, g_result)
+#
+#                 composition_satisfied.append(
+#                     f"{f_name}({g_name}({candidate})): composition successful\n"
+#                 )
+#
+#             except Exception as e:
+#                 counterexamples.append(
+#                     f"{g_name}({candidate}) succeeded, "
+#                     f"but {f_name}({g_name}({candidate})) failed: {str(e)}\n"
+#                 )
+#                 if len(counterexamples) >= max_counterexamples:
+#                     break
+#
+#         test_stats: TestStats = {
+#             'total_count': total_tests,
+#             'success_count': len(composition_satisfied)
+#         }
+#
+#         if composition_satisfied and not counterexamples:
+#             return {
+#                 "holds": True,
+#                 "counterexamples": composition_satisfied,
+#                 "stats": test_stats,
+#             }
+#         else:
+#             return {
+#                 "holds": False,
+#                 "counterexamples": counterexamples if counterexamples else [
+#                     f"No valid inputs for composition test on {f_name}∘{g_name}\n"],
+#                 "stats": test_stats,
+#             }
