@@ -34,9 +34,9 @@ class CommutativityTest(PropertyTest):
         counterexamples = []
 
         for a, b in combinations(all_elements, 2):
-        # for i in range(0, len(all_elements) - 1):
-        #     a = all_elements[i]
-        #     b = all_elements[i + 1]
+            # for i in range(0, len(all_elements) - 1):
+            #     a = all_elements[i]
+            #     b = all_elements[i + 1]
             r1 = function.call(0, a, b)
             r2 = function.call(0, b, a)
             total_tests += 1
@@ -57,7 +57,7 @@ class CommutativityTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}(a,b) == {f_name}(b,a)\n"],
+                "counterexamples": [f"{f_name}(a,b) == {f_name}(b,a) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -124,7 +124,8 @@ class AssociativityTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c)\n"],
+                "counterexamples": [
+                    f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -186,7 +187,7 @@ class IdempotenceTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}({f_name}(a)) == {f_name}(a)"],
+                "counterexamples": [f"{f_name}({f_name}(a)) == {f_name}(a) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -259,7 +260,8 @@ class DistributivityTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}(a, {g_name}(b, c)) == {g_name}({f_name}(a, b), {f_name}(a, c))\n"],
+                "counterexamples": [
+                    f"{f_name}(a, {g_name}(b, c)) == {g_name}({f_name}(a, b), {f_name}(a, c)) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -315,7 +317,6 @@ class IdentityElementTest(PropertyTest):
             if candidate not in identity_candidates:
                 continue  # Skip already eliminated candidates
 
-
             total_tests += 1
 
             # Test both f(element, candidate) and f(candidate, element)
@@ -330,7 +331,6 @@ class IdentityElementTest(PropertyTest):
                     f"{f_name}({candidate}, {element}): {r2}\n\t"
                     f"Expected both to equal: {element}\n"
                 )
-
 
         # Convert surviving candidates to result format
         surviving_candidates = [f"{candidate} is an identity element\n"
@@ -354,6 +354,7 @@ class IdentityElementTest(PropertyTest):
                 "counterexamples": counterexamples,
                 "stats": test_stats,
             }
+
 
 class AbsorbingElementTest(PropertyTest):
     """
@@ -414,7 +415,6 @@ class AbsorbingElementTest(PropertyTest):
                     f"{f_name}({candidate}, {element}): {r2}\n\t"
                     f"Expected both to equal: {candidate}\n"
                 )
-
 
         # Convert surviving candidates to result format
         surviving_candidates = [f"{candidate} is an absorbing element\n"
@@ -486,13 +486,12 @@ class FixedPointTest(PropertyTest):
 
             expected = cached_convert(candidate)
             result1 = function.call(0, candidate)
-            result2 = function.call(0, candidate)
+            result2 = function.call(0, candidate)  # Call twice to ensure consistency
 
             if function.compare_results(result1, expected) and function.compare_results(result2, expected):
-                fixed_points.append(f"{f_name}({candidate}) = {candidate}\n")
+                fixed_points.append(f"{candidate} is a fixed point\n")
             else:
                 counterexamples.append(f"{f_name}({candidate}): {result1} ≠ {candidate}\n")
-
 
         # Build result
         test_stats: TestStats = {
@@ -513,6 +512,7 @@ class FixedPointTest(PropertyTest):
                 "counterexamples": counterexamples,
                 "stats": test_stats,
             }
+
 
 # TODO interesting usage of try catch needs attention (CONVERTER)
 # class ClosureTest(PropertyTest):
@@ -668,3 +668,80 @@ class FixedPointTest(PropertyTest):
 #                     f"No valid inputs for composition test on {f_name}∘{g_name}\n"],
 #                 "stats": test_stats,
 #             }
+
+
+class InjectivityTest(PropertyTest):
+    """
+    Test if a unary function is injective (one-to-one) on the provided inputs:
+        ∀ a ≠ b: f(a) ≠ f(b)
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            name="Injectivity",
+            input_arity=1,
+            function_arity=1,
+            description="Checks whether f produces distinct outputs for distinct inputs (injective)",
+            category="Algebraic"
+        )
+
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
+        fut = function.funcs[0]
+        f_name = fut.func.__name__
+
+        # Extract all unique elements from valid input tuples
+        all_elements = frozenset(chain.from_iterable(inputs))
+        if len(all_elements) < self.input_arity:
+            return {
+                "holds": False,
+                "counterexamples": ["Not enough elements provided\n"],
+                "stats": {"total_count": 0, "success_count": 0},
+            }
+
+        # Test all pairs of distinct elements for injectivity
+        counterexamples = []
+        total_tests = 0
+        success_count = 0
+        result_map = {}  # Maps function results to the input that produced them
+
+        for element in all_elements:
+            total_tests += 1
+
+            # Get function result for this element
+            result = function.call(0, element)
+
+            # Check if we've seen this result before
+            if result in result_map:
+                # Found a collision - injectivity violated
+                previous_element = result_map[result]
+                counterexamples.append(
+                    f"{f_name}({element}) = {result}\n\t"
+                    f"{f_name}({previous_element}) = {result}\n"
+                )
+
+                # Early exit if we've hit max counterexamples
+                if len(counterexamples) >= max_counterexamples:
+                    break
+            else:
+                # New result - store it in the map
+                result_map[result] = element
+                success_count += 1
+
+        # Build result
+        test_stats: TestStats = {
+            'total_count': total_tests,
+            'success_count': success_count
+        }
+
+        if counterexamples:
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
+        else:
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name} is injective on the tested inputs\n"],
+                "stats": test_stats,
+            }

@@ -60,7 +60,7 @@ class InvolutionTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}({f_name}(a)) == a\n"],
+                "counterexamples": [f"{f_name}({f_name}(a)) == a for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -152,7 +152,7 @@ class ScalarHomomorphismTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}({g_name}(k, a)) == {g_name}(k, {f_name}(a))\n"],
+                "counterexamples": [f"{f_name}({g_name}(k, a)) == {g_name}(k, {f_name}(a)) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -244,7 +244,8 @@ class HomomorphismTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}({g_name}(a, b)) == {g_name}({f_name}(a), {f_name}(b))\n"],
+                "counterexamples": [
+                    f"{f_name}({g_name}(a, b)) == {g_name}({f_name}(a), {f_name}(b)) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:

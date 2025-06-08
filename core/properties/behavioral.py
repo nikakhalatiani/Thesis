@@ -66,7 +66,7 @@ class DeterminismTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}(a) is deterministic for all tested runs\n"],
+                "counterexamples": [f"{f_name}(a) is deterministic for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -150,7 +150,7 @@ class MonotonicallyIncreasingTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"a ≤ b ⟹ {f_name}(a) ≤ {f_name}(b)\n"],
+                "counterexamples": [f"a ≤ b ⟹ {f_name}(a) ≤ {f_name}(b) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -233,7 +233,7 @@ class MonotonicallyDecreasingTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"a ≤ b ⟹ {f_name}(a) ≥ {f_name}(b)\n"],
+                "counterexamples": [f"a ≤ b ⟹ {f_name}(a) ≥ {f_name}(b) for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:

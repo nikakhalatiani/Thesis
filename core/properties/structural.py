@@ -55,7 +55,7 @@ class TypePreservationTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name} preserves input type\n"],
+                "counterexamples": [f"{f_name} preserves input type for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
