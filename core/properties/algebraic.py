@@ -1,8 +1,7 @@
 from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import TestResult, TestStats, PropertyTest
 
-from itertools import chain, combinations, product
-
+from itertools import chain, combinations
 
 class CommutativityTest(PropertyTest):
     """Test if f(a,b) = f(b,a)"""
@@ -313,24 +312,31 @@ class IdentityElementTest(PropertyTest):
         counterexamples = []
         total_tests = 0
 
-        for element, candidate in product(all_elements, all_elements):
-            if candidate not in identity_candidates:
-                continue  # Skip already eliminated candidates
+        # Test each element against all remaining candidates
+        for element in all_elements:
+            candidates_to_remove = set()
 
-            total_tests += 1
+            for candidate in identity_candidates:
+                total_tests += 1
+                # Test both f(element, candidate) and f(candidate, element)
+                r1 = function.call(0, element, candidate)
+                r2 = function.call(0, candidate, element)
+                expected = cached_convert(element)
 
-            # Test both f(element, candidate) and f(candidate, element)
-            r1 = function.call(0, element, candidate)
-            r2 = function.call(0, candidate, element)
-            expected = cached_convert(element)
+                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
+                    candidates_to_remove.add(candidate)
+                    counterexamples.append(
+                        f"{f_name}({element}, {candidate}): {r1}\n\t"
+                        f"{f_name}({candidate}, {element}): {r2}\n\t"
+                        f"Expected both to equal: {element}\n"
+                    )
 
-            if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
-                identity_candidates.discard(candidate)
-                counterexamples.append(
-                    f"{f_name}({element}, {candidate}): {r1}\n\t"
-                    f"{f_name}({candidate}, {element}): {r2}\n\t"
-                    f"Expected both to equal: {element}\n"
-                )
+            # Remove eliminated candidates
+            identity_candidates -= candidates_to_remove
+
+            # Early exit if no candidates left
+            if not identity_candidates:
+                break
 
         # Convert surviving candidates to result format
         surviving_candidates = [f"{candidate} is an identity element\n"
@@ -397,24 +403,31 @@ class AbsorbingElementTest(PropertyTest):
         counterexamples = []
         total_tests = 0
 
-        for element, candidate in product(all_elements, all_elements):
-            if candidate not in absorbing_candidates:
-                continue  # Candidate already disqualified
+        for element in all_elements:
+            candidates_to_remove = set()
 
-            total_tests += 1
+            for candidate in absorbing_candidates:
+                total_tests += 1
 
-            # Absorbing: f(a, z) == z and f(z, a) == z
-            expected = cached_convert(candidate)
-            r1 = function.call(0, element, candidate)
-            r2 = function.call(0, candidate, element)
+                # Test both f(element, candidate) and f(candidate, element)
+                r1 = function.call(0, element, candidate)
+                r2 = function.call(0, candidate, element)
+                expected = cached_convert(candidate)
 
-            if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
-                absorbing_candidates.discard(candidate)
-                counterexamples.append(
-                    f"{f_name}({element}, {candidate}): {r1}\n\t"
-                    f"{f_name}({candidate}, {element}): {r2}\n\t"
-                    f"Expected both to equal: {candidate}\n"
-                )
+                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
+                    candidates_to_remove.add(candidate)
+                    counterexamples.append(
+                        f"{f_name}({element}, {candidate}): {r1}\n\t"
+                        f"{f_name}({candidate}, {element}): {r2}\n\t"
+                        f"Expected both to equal: {candidate}\n"
+                    )
+
+            # Remove eliminated candidates
+            absorbing_candidates -= candidates_to_remove
+
+            # Early exit if no candidates left
+            if not absorbing_candidates:
+                break
 
         # Convert surviving candidates to result format
         surviving_candidates = [f"{candidate} is an absorbing element\n"
@@ -472,6 +485,7 @@ class FixedPointTest(PropertyTest):
         # Setup conversion cache
         conversion_cache = {}
 
+        #TODO think maybe move out of test method
         def cached_convert(raw_val):
             if raw_val not in conversion_cache:
                 conversion_cache[raw_val] = fut.arg_converter(raw_val)

@@ -1,7 +1,7 @@
 from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest, TestResult, TestStats
 
-from itertools import chain, combinations
+from itertools import chain
 
 
 class DeterminismTest(PropertyTest):
@@ -77,7 +77,6 @@ class DeterminismTest(PropertyTest):
             }
 
 
-
 class MonotonicallyIncreasingTest(PropertyTest):
     """Test if f is monotonically increasing (preserves order relationships)."""
 
@@ -103,48 +102,51 @@ class MonotonicallyIncreasingTest(PropertyTest):
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
-        # Test monotonicity for each valid input
+        conversion_cache = {}
+
+        def cached_convert(raw_val):
+            if raw_val not in conversion_cache:
+                conversion_cache[raw_val] = fut.arg_converter(raw_val)
+            return conversion_cache[raw_val]
+
+        try:
+            # Convert and sort raw inputs
+            converted_elements = [(cached_convert(raw), raw) for raw in all_elements]
+            converted_elements.sort(key=lambda x: x[0])
+        except (TypeError, ValueError) as e:
+            return {
+                "holds": False,
+                "counterexamples": [f"Cannot sort elements for monotonicity test: {str(e)}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
+            }
+
         total_tests = 0
         counterexamples = []
 
-        for a_raw, b_raw in combinations(all_elements, 2):
+        for i in range(len(converted_elements) - 1):
             total_tests += 1
+            small_val, small_raw = converted_elements[i]
+            large_val, large_raw = converted_elements[i + 1]
+            small_result = function.call(0, small_val)
+            large_result = function.call(0, large_val)
 
-            # Check monotonicity
             try:
-                # Convert inputs
-                a = fut.arg_converter(a_raw)
-                b = fut.arg_converter(b_raw)
-
-                # Determine order
-                if a <= b:
-                    small, large = a, b
-                    raw_small, raw_large = a_raw, b_raw
-                else:
-                    small, large = b, a
-                    raw_small, raw_large = b_raw, a_raw
-
-                # Call function on ordered inputs
-                r_small = function.call(0, small)
-                r_large = function.call(0, large)
-
-                if r_small > r_large:
+                if small_result > large_result:
                     counterexamples.append(
-                        f"{raw_small} ≤ {raw_large}\n\t"
-                        f"{f_name}({raw_small}) > {f_name}({raw_large})\n\t"
-                        f"{r_small} > {r_large}\n"
+                        f"{small_raw} ≤ {small_raw}\n\t"
+                        f"{f_name}({small_raw}) = {small_result} > {f_name}({small_raw}) = {large_result}\n"
                     )
 
-                    if len(counterexamples) >= max_counterexamples:
-                        break
 
             except (TypeError, ValueError, AttributeError):
-                counterexamples.append("Test skipped (cannot compare outputs/inputs)\n")
+                counterexamples.append("Test skipped (cannot compare outputs)\n")
 
-        # Build result
+            if len(counterexamples) >= max_counterexamples:
+                break
+
         test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': total_tests - len(counterexamples)
+            "total_count": total_tests,
+            "success_count": total_tests - len(counterexamples),
         }
 
         if not counterexamples:
@@ -186,43 +188,48 @@ class MonotonicallyDecreasingTest(PropertyTest):
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
-        # Test monotonicity for each valid input
+        conversion_cache = {}
+
+        def cached_convert(raw_val):
+            if raw_val not in conversion_cache:
+                conversion_cache[raw_val] = fut.arg_converter(raw_val)
+            return conversion_cache[raw_val]
+
+        try:
+            converted_elements = [(cached_convert(raw), raw) for raw in all_elements]
+            converted_elements.sort(key=lambda x: x[0])
+        except (TypeError, ValueError) as e:
+            return {
+                "holds": False,
+                "counterexamples": [f"Cannot sort elements for monotonicity test: {str(e)}\n"],
+                "stats": {"total_count": 0, "success_count": 0},
+            }
+
+        # Single traversal through sorted pairs
         total_tests = 0
         counterexamples = []
 
-        for a_raw, b_raw in combinations(all_elements, 2):
+        for i in range(len(converted_elements) - 1):
             total_tests += 1
-
+            small_val, small_raw = converted_elements[i]
+            large_val, large_raw = converted_elements[i + 1]
+            # Call function on ordered inputs
+            r_small = function.call(0, small_val)
+            r_large = function.call(0, large_val)
             try:
-                # Convert inputs
-                a = fut.arg_converter(a_raw)
-                b = fut.arg_converter(b_raw)
-
-                # Determine order
-                if a >= b:
-                    large, small = a, b
-                    raw_large, raw_small = a_raw, b_raw
-                else:
-                    large, small = b, a
-                    raw_large, raw_small = b_raw, a_raw
-
-                # Call function on ordered inputs
-                r_small = function.call(0, small)
-                r_large = function.call(0, large)
-
+                # For monotonic decreasing: if small ≤ large, then f(small) ≥ f(large)
                 if r_small < r_large:
                     counterexamples.append(
-                        f"{raw_small} ≤ {raw_large}\n\t"
-                        f"{f_name}({raw_small}) < {f_name}({raw_large})\n\t"
-                        f"{r_small} < {r_large}\n"
+                        f"{small_raw} ≤ {large_raw}\n\t"
+                        f"{f_name}({small_raw}) = {r_small} < {f_name}({large_raw}) = {r_large}\n"
                     )
 
-                    if len(counterexamples) >= max_counterexamples:
-                        break
-
             except (TypeError, ValueError, AttributeError):
-                counterexamples.append("Test skipped (cannot compare outputs/inputs)\n")
+                counterexamples.append("Test skipped (cannot compare outputs)\n")
 
+            # Break outer loop if max counterexamples reached
+            if len(counterexamples) >= max_counterexamples:
+                break
 
         # Build result
         test_stats: TestStats = {

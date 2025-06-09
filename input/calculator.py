@@ -112,29 +112,29 @@ class Calculator:
     #     if x < 0:
     #         raise ValueError("Square root of negative number")
     #     return math.sqrt(x)
-
+    #
     # @staticmethod
     # def modulo(x, y):
     #     """Return x % y, raising ZeroDivisionError for y == 0."""
     #     if y == 0:
     #         raise ZeroDivisionError("Modulo by zero")
     #     return x % y
+    #
+    @staticmethod
+    def factorial(n):
+        """Return n! for integer n >= 0. Raises ValueError otherwise."""
+        if not isinstance(n, int) or n < 0:
+            raise ValueError("Factorial undefined for negative or non-integers")
+        # Limit to 10! to avoid huge outputs
+        if n > 10:
+            raise ValueError("Input too large for safe factorial calculation")
+        return math.factorial(n)
+    #
+    @staticmethod
+    def negate(x):
+        """Return the negation of x."""
+        return -x
 
-    # @staticmethod
-    # def factorial(n):
-    #     """Return n! for integer n >= 0. Raises ValueError otherwise."""
-    #     if not isinstance(n, int) or n < 0:
-    #         raise ValueError("Factorial undefined for negative or non-integers")
-    #     # Limit to 10! to avoid huge outputs
-    #     if n > 10:
-    #         raise ValueError("Input too large for safe factorial calculation")
-    #     return math.factorial(n)
-    #
-    # @staticmethod
-    # def negate(x):
-    #     """Return the negation of x."""
-    #     return -x
-    #
     # @staticmethod
     # def is_positive(x):
     #     """Check if x is positive."""
@@ -147,21 +147,21 @@ class Calculator:
     #     import random
     #     return random.randint(0, 100)
     #
-    # @staticmethod
-    # def constant(x):
-    #     # Constant function: both monotonically increasing and decreasing
-    #     return 42
-    #
-    # @staticmethod
-    # def zigzag(x):
-    #     # Neither increasing nor decreasing (example: alternates)
-    #     return (-1) ** x * x  # e.g., 0 → 0, 1 → -1, 2 → 2, 3 → -3, ...
-    #
-    # @staticmethod
-    # def linear_increasing(x):
-    #     # Strictly increasing
-    #     return x + 1
-    #
+    @staticmethod
+    def constant(x):
+        # Constant function: both monotonically increasing and decreasing
+        return 42
+
+    @staticmethod
+    def zigzag(x):
+        # Neither increasing nor decreasing (example: alternates)
+        return (-1) ** x * x  # e.g., 0 → 0, 1 → -1, 2 → 2, 3 → -3, ...
+
+    @staticmethod
+    def linear_increasing(x):
+        # Strictly increasing
+        return x + 1
+
     # @staticmethod
     # def minimum(x, y):
     #     """Return the smaller of x and y."""
@@ -171,23 +171,23 @@ class Calculator:
     # def maximum(x, y):
     #     """Return the larger of x and y."""
     #     return x if x >= y else y
-
-    @staticmethod
-    def simple_checksum_working(data):
-        """Working injective checksum using hash of the string representation"""
-        if isinstance(data, int):
-            data = str(data)
-
-        # Python's hash is designed to be collision-resistant
-        # For testing purposes, this should be injective on small domains
-        result = hash(data)
-        return result
-
-    @staticmethod
-    def simple_checksum_broken(data):
-        """Broken non-injective checksum - different inputs can produce same output"""
-        if isinstance(data, int):
-            data = str(data)
-
-        result = hash(data) % 1000  # Force collisions by reducing range
-        return result
+    #
+    # @staticmethod
+    # def simple_checksum_working(data):
+    #     """Working injective checksum using hash of the string representation"""
+    #     if isinstance(data, int):
+    #         data = str(data)
+    #
+    #     # Python's hash is designed to be collision-resistant
+    #     # For testing purposes, this should be injective on small domains
+    #     result = hash(data)
+    #     return result
+    #
+    # @staticmethod
+    # def simple_checksum_broken(data):
+    #     """Broken non-injective checksum - different inputs can produce same output"""
+    #     if isinstance(data, int):
+    #         data = str(data)
+    #
+    #     result = hash(data) % 1000  # Force collisions by reducing range
+    #     return result

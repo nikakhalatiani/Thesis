@@ -25,7 +25,7 @@ def main(user_funcs_path: str = "input/calculator.py"):
 
     # 2) build base config
     default_parser = InputParser(InputParser.basic_recursion_with_built_in_detector)
-    config = (PropertyInferenceConfig(registry, example_count = 200)
+    config = (PropertyInferenceConfig(registry, example_count = 100)
               .set_default_grammar("grammars/test.fan")
               .set_default_parser(default_parser)
               .set_max_counterexamples(3)
