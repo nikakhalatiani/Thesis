@@ -1,3 +1,5 @@
+import random
+
 <start> ::= <set> ", " <set>
 <set> ::= "{" <elements>? "}"
 <elements> ::= <number> | <number> ", " <elements>
