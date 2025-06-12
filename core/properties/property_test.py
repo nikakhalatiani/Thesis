@@ -1,5 +1,5 @@
 from typing import TypedDict
-from abc import ABC, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 
 from core.function_under_test import CombinedFunctionUnderTest
 
@@ -15,8 +15,45 @@ class TestResult(TypedDict):
     stats: TestStats
 
 
-class PropertyTest(ABC):
-    """Abstract base class for all property tests."""
+class MultitonMeta(ABCMeta):
+    """
+    Metaclass that implements the Multiton pattern.
+    Creates one instance per unique combination of class and constructor arguments.
+    Inherits from ABCMeta to work with abstract base classes.
+    """
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        # Create a key from class and all constructor arguments
+        # Convert mutable types to immutable for hashing
+        def make_hashable(item):
+            if isinstance(item, dict):
+                return tuple(sorted(item.items()))
+            elif isinstance(item, list):
+                return tuple(item)
+            elif isinstance(item, set):
+                return frozenset(item)
+            return item
+
+        hashable_args = tuple(make_hashable(arg) for arg in args)
+        hashable_kwargs = tuple(sorted((k, make_hashable(v)) for k, v in kwargs.items()))
+
+        key = (cls, hashable_args, hashable_kwargs)
+
+        if key not in cls._instances:
+            instance = super().__call__(*args, **kwargs)
+            cls._instances[key] = instance
+
+        return cls._instances[key]
+
+    @classmethod
+    def clear_instances(cls):
+        """Clear all cached instances - useful for testing"""
+        cls._instances.clear()
+
+
+class PropertyTest(ABC, metaclass=MultitonMeta):
+    """Abstract base class for all property tests with Multiton pattern."""
 
     def __init__(self, name: str, input_arity: int, function_arity: int,
                  description: str = "", category: str = ""):
