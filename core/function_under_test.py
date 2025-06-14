@@ -26,16 +26,18 @@ class FunctionUnderTest:
 
     Attributes:
         func: The function to be tested.
-        arg_converter: A function to convert arguments before passing them to `func`.
-                       Defaults to a smart converter if not provided.
-        result_comparator: A function to compare results of `func`.
-                        Defaults to equality comparison if not provided.
+        arg_converter: Either a single converter applied to all arguments or a
+            list of converters applied positionally. Defaults to a smart
+            converter if not provided.
+        result_comparator: A function to compare results of ``func``.
+            Defaults to equality comparison if not provided.
     """
 
-    def __init__(self, func: Callable, arg_converter: Callable | None = None,
+    def __init__(self, func: Callable,
+                 arg_converter: Callable | list[Callable] | None = None,
                  result_comparator: Callable | None = None) -> None:
         self.func: Callable = func
-        self.arg_converter: Callable = arg_converter or self._smart_converter
+        self.arg_converter: Callable | list[Callable] = arg_converter or self._smart_converter
         self.result_comparator: Callable[[Any, Any], bool] = result_comparator or (lambda x, y: x == y)
 
     @staticmethod
@@ -79,7 +81,23 @@ class FunctionUnderTest:
             If conversion or function call fails, returns a FunctionCallError.
         """
         try:
-            converted_args = [self.arg_converter(arg) for arg in args]
+            if isinstance(self.arg_converter, list):
+                converters = list(self.arg_converter)
+                if converters:
+                    # If there are converters, use the last one as the default
+                    default = converters[-1]
+                else:
+                    default = self._smart_converter
+
+                converted_args = []
+                for i, arg in enumerate(args):
+                    # Use the i-th converter if available, otherwise use the default
+                    if i < len(converters):
+                        converted_args.append(converters[i](arg))
+                    else:
+                        converted_args.append(default(arg))
+            else:
+                converted_args = [self.arg_converter(arg) for arg in args]
             result = self.func(*converted_args)
             return result
         except Exception as e:
@@ -125,7 +143,16 @@ class FunctionUnderTest:
         return self.result_comparator(result1, result2)
 
     def __str__(self):
-        return f"FunctionUnderTest(func={self.func.__name__}, arg_converter={self.arg_converter.__name__}, result_comparator={self.result_comparator.__name__})"
+        def conv_name(conv: Callable | list[Callable]) -> str:
+            if isinstance(conv, list):
+                return '[' + ', '.join(c.__name__ for c in conv) + ']'
+            return conv.__name__
+
+        return (
+            f"FunctionUnderTest(func={self.func.__name__}, "
+            f"arg_converter={conv_name(self.arg_converter)}, "
+            f"result_comparator={self.result_comparator.__name__})"
+        )
 
 
 from enum import Enum
@@ -150,7 +177,10 @@ class CombinedFunctionUnderTest:
         self.comparison_strategy = comparison_strategy
 
     def names(self) -> str:
-        def get_name(helper: Callable) -> str:
+        def get_name(helper: Callable | list[Callable]) -> str:
+            if isinstance(helper, list):
+                names = ', '.join(h.__name__ for h in helper)
+                return f'[{names}]'
             name = helper.__name__
             if name.startswith('_') or name == '<lambda>':
                 return 'default'
@@ -264,7 +294,6 @@ class CombinedFunctionUnderTest:
 
         # If no compatible comparators, fall back to basic equality
         return result1 == result2 if not has_any_compatible else True
-
 
     def __str__(self):
         return f"CombinedFunctionUnderTest(funcs={self.names()}, strategy={self.comparison_strategy.value})"

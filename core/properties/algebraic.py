@@ -3,6 +3,7 @@ from core.properties.property_test import TestResult, TestStats, PropertyTest
 
 from itertools import chain, combinations
 
+
 class CommutativityTest(PropertyTest):
     """Test if f(a,b) = f(b,a)"""
 
@@ -137,42 +138,67 @@ class AssociativityTest(PropertyTest):
 
 # TODO ask if f(g(x)) = f(x) is a valid property test or f(g(x)) = g(x) or f(g(x)) = g(f(x)) is a valid property test
 class IdempotenceTest(PropertyTest):
-    """Test if f(f(x)) = f(x)"""
+    """Test if repeatedly applying ``f`` yields the same result."""
 
-    def __init__(self) -> None:
+    def __init__(self, function_arity: int = 1, result_index: int = 0) -> None:
+        """Create a new idempotence property test.
+
+        Parameters
+        function_arity:
+            The number of arguments ``f`` accepts.  Defaults to ``1``.
+        result_index:
+            Which argument should receive the result of the first call when
+            ``f`` is invoked again.  For example, if ``f`` represents a stateful
+            update ``f(state, value)`` then ``result_index`` would typically be
+            ``0`` to check ``f(f(state, value), value)``.
+        """
         super().__init__(
             name="Idempotence",
-            input_arity=1,
-            function_arity=1,
-            description="Tests if f(f(x)) equals f(x)",
+            input_arity=function_arity,
+            function_arity=function_arity,
+            description="Tests if applying f twice yields the same result",
             category="Algebraic"
         )
+        self.result_index = result_index
 
     def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         f_name = function.funcs[0].func.__name__
 
-        all_elements = frozenset(chain.from_iterable(inputs))
+        valid_inputs = [input_set[:self.input_arity] for input_set in inputs if len(input_set) >= self.input_arity]
 
-        if len(all_elements) < self.input_arity:
+        # print(f"Testing idempotence for {f_name}")
+        # print(f"Input elements: {inputs}")
+
+        if not valid_inputs:
             return {
                 "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
+                "counterexamples": ["No valid inputs found\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
         total_tests = 0
         counterexamples = []
 
-        for a in all_elements:
-            r1 = function.call(0, a)
-            r2 = function.call(0, r1)
+        for args in valid_inputs:
+            # print(f"Testing with args: {args}")
+            r1 = function.call(0, *args)
 
+            new_args = list(args)
+            if len(new_args) > self.result_index:
+                new_args[self.result_index] = r1
+            else:
+                # If result_index is out of range, just append
+                new_args.append(r1)
+
+            r2 = function.call(0, *new_args)
             total_tests += 1
+
+            # print(f"Result 1: {r1}, Result 2: {r2}")
 
             if not function.compare_results(r1, r2):
                 counterexamples.append(
-                    f"{f_name}({a}): {r1}\n\t"
-                    f"{f_name}({f_name}({a})): {r2}\n"
+                    f"{f_name}{tuple(args)}: {r1}\n\t"
+                    f"{f_name}{tuple(new_args)}: {r2}\n"
                 )
                 if len(counterexamples) >= max_counterexamples:
                     break
@@ -186,7 +212,7 @@ class IdempotenceTest(PropertyTest):
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}({f_name}(a)) == {f_name}(a) for all tested inputs\n"],
+                "counterexamples": [f"Repeated application of {f_name} yields the same result for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -485,7 +511,7 @@ class FixedPointTest(PropertyTest):
         # Setup conversion cache
         conversion_cache = {}
 
-        #TODO think maybe move out of test method
+        # TODO think maybe move out of test method
         def cached_convert(raw_val):
             if raw_val not in conversion_cache:
                 conversion_cache[raw_val] = fut.arg_converter(raw_val)

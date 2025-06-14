@@ -11,7 +11,7 @@ from core.properties.property_test import PropertyTest, TestResult
 
 
 class InferenceResult(TypedDict):
-    """Mapping of property names to their test outcomes."""
+    """Mapping of property labels to their test outcomes."""
     outcomes: dict[str, TestResult]
 
 
@@ -52,8 +52,10 @@ class PropertyInferenceEngine:
     def run(self) -> dict[str, InferenceResult]:
         results: dict[str, InferenceResult] = {}
 
+        # Gather properties to test. A single property name may correspond to
+        # several variants, so we work with a flat list.
         properties_to_test: list[PropertyTest] = (
-                self.config.properties_to_test or self.config.registry.get_all().values())
+                self.config.properties_to_test or self.config.registry.get_all())
 
         for prop in properties_to_test:
             n: int = prop.num_functions
@@ -62,7 +64,7 @@ class PropertyInferenceEngine:
                 combined = CombinedFunctionUnderTest(funcs, self.config.comparison_strategy)
 
                 if not prop.is_applicable(combined):
-                    print(f"⚠️ Property '{prop.name}' is not applicable to combination: {combined.names()}. Skipping.")
+                    # print(f"⚠️ Property '{str(prop)}' is not applicable to combination: {combined.names()}. Skipping.")
                     continue
 
                 # gather each function's override or default
@@ -108,6 +110,7 @@ class PropertyInferenceEngine:
                     # start_time = time.perf_counter()
                     fan, examples = self._generate_examples(grammar, self.config.example_count)
                     input_sets = [parser.parse(fan, tree) for tree in examples]
+                    # print(input_sets)
                     input_sets = [i for i in input_sets if i is not None]
 
                     # end_time = time.perf_counter()
@@ -125,6 +128,5 @@ class PropertyInferenceEngine:
                     if key not in results:
                         results[key] = InferenceResult(outcomes={})
 
-                    results[key]["outcomes"][prop.name] = outcome
-
+                    results[key]["outcomes"][str(prop)] = outcome
         return results

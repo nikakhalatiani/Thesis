@@ -34,6 +34,6 @@ def create_standard_registry() -> PropertyRegistry:
 def create_minimal_registry() -> PropertyRegistry:
     """Create a registry with basic properties."""
     registry = PropertyRegistry()
-    registry.register(MonotonicallyIncreasingTest())
-    registry.register(MonotonicallyDecreasingTest())
+    # registry.register(IdempotenceTest()) # new instance
+    registry.register(IdempotenceTest(function_arity=2, result_index=0)) # new instance
     return registry

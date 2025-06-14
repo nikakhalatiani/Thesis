@@ -60,6 +60,8 @@ class PropertyInferenceConfig:
     def add_property_by_name(self, property_name: str) -> 'PropertyInferenceConfig':
         """
         Add a property to the list of properties to test.
+        A single property name can map to multiple test variants in the
+        registry. All variants will be added.
 
         Args:
             property_name: The name of the property to test.
@@ -71,9 +73,10 @@ class PropertyInferenceConfig:
             ValueError: If the property is not found in the registry.
         """
         try:
-            property_test = self.registry.get_by_name(property_name)
-            if property_test not in self.properties_to_test:
-                self.properties_to_test.append(property_test)
+            property_tests = self.registry.get_by_name(property_name)
+            for property_test in property_tests:
+                if property_test not in self.properties_to_test:
+                    self.properties_to_test.append(property_test)
         except KeyError:
             raise ValueError(f"Property '{property_name}' not found in registry. Please register it first.")
         return self

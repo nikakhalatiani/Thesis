@@ -1,0 +1,430 @@
+#!/usr/bin/env python3
+
+"""
+Property Inference Engine CLI
+A tool for inferring mathematical properties of functions through automated testing.
+"""
+
+import argparse
+import sys
+import os
+import time
+
+from core.properties import create_standard_registry, create_minimal_registry
+from input.input_parser import InputParser
+from config.property_inference_config import PropertyInferenceConfig
+from core.function_under_test import FunctionUnderTest, ComparisonStrategy
+from core.property_inference_engine import PropertyInferenceEngine
+from config.grammar_config import GrammarConfig
+
+import inspect
+
+
+def load_user_module(path: str):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("user_defined_functions", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Property Inference Engine - Analyze mathematical properties of functions",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                                    # Use default user_input.py
+  %(prog)s -f my_functions.py                 # Analyze custom functions
+  %(prog)s -f calc.py -e 500 -g custom.fan   # Custom settings
+  %(prog)s --standard-registry -v            # Use full property set with verbose output
+  %(prog)s --list-properties                  # Show available properties
+  %(prog)s -p Commutativity Associativity    # Test specific properties only
+  %(prog)s --timing --max-counterexamples 5  # Show timing with more counterexamples
+        """
+    )
+
+    # Input options
+    input_group = parser.add_argument_group('Input Options')
+    input_group.add_argument(
+        '-f', '--functions-file',
+        type=str,
+        default="input/user_input.py",
+        help='Path to Python file containing functions to analyze (default: input/user_input.py)'
+    )
+    input_group.add_argument(
+        '-c', '--class-name',
+        type=str,
+        default=None,
+        help='Name of the class containing functions to analyze (default: all classes)'
+    )
+
+    # Property registry options
+    registry_group = parser.add_argument_group('Property Registry Options')
+    registry_mutex = registry_group.add_mutually_exclusive_group()
+    registry_mutex.add_argument(
+        '--minimal-registry',
+        action='store_true',
+        default=True,
+        help='Use minimal property registry (default)'
+    )
+    registry_mutex.add_argument(
+        '--standard-registry',
+        action='store_true',
+        help='Use standard (full) property registry'
+    )
+
+    # Test configuration
+    config_group = parser.add_argument_group('Test Configuration')
+    config_group.add_argument(
+        '-e', '--examples',
+        type=int,
+        default=100,
+        help='Number of test examples to generate (default: 100)'
+    )
+    config_group.add_argument(
+        '--max-counterexamples',
+        type=int,
+        default=3,
+        help='Maximum number of counterexamples to show (default: 3)'
+    )
+    config_group.add_argument(
+        '-g', '--grammar',
+        type=str,
+        default="grammars/test.fan",
+        help='Default grammar file to use (default: grammars/test.fan)'
+    )
+    config_group.add_argument(
+        '--comparison-strategy',
+        choices=['FIRST_COMPATIBLE', 'CONSENSUS', 'MOST_RESTRICTIVE'],
+        default='FIRST_COMPATIBLE',
+        help='Strategy for comparing results (default: FIRST_COMPATIBLE)'
+    )
+
+    # Property selection
+    property_group = parser.add_argument_group('Property Selection')
+    property_group.add_argument(
+        '-p', '--properties',
+        nargs='*',
+        help='Specific properties to test (if not specified, all properties are tested)'
+    )
+    property_group.add_argument(
+        '--list-properties',
+        action='store_true',
+        help='List all available properties and exit'
+    )
+
+    # Output options
+    output_group = parser.add_argument_group('Output Options')
+    output_group.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Enable verbose output'
+    )
+    output_group.add_argument(
+        '-q', '--quiet',
+        action='store_true',
+        help='Suppress all output except results'
+    )
+    output_group.add_argument(
+        '--timing',
+        action='store_true',
+        help='Show execution timing information'
+    )
+    output_group.add_argument(
+        '--json',
+        action='store_true',
+        help='Output results in JSON format'
+    )
+    output_group.add_argument(
+        '-o', '--output',
+        type=str,
+        help='Write results to file instead of stdout'
+    )
+
+    # Advanced options
+    advanced_group = parser.add_argument_group('Advanced Options')
+    advanced_group.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Show configuration without running tests'
+    )
+
+    return parser.parse_args()
+
+
+def list_available_properties(registry):
+    """List all available properties in the registry."""
+    print("Available Properties:")
+    print("=" * 50)
+    for prop_name in registry.get_all():
+        print(f"  • {prop_name}")
+    print()
+
+
+def validate_arguments(args):
+    """Validate command line arguments."""
+    errors = []
+
+    # Check if functions file exists
+    if not os.path.exists(args.functions_file):
+        errors.append(f"Functions file not found: {args.functions_file}")
+
+    # Check if grammar file exists
+    if not os.path.exists(args.grammar):
+        errors.append(f"Grammar file not found: {args.grammar}")
+
+    # Validate examples count
+    if args.examples <= 0:
+        errors.append("Number of examples must be positive")
+
+    # Validate max counterexamples
+    if args.max_counterexamples < 0:
+        errors.append("Max counterexamples must be non-negative")
+
+    # Check for conflicting quiet/verbose flags
+    if args.quiet and args.verbose:
+        errors.append("Cannot use both --quiet and --verbose flags")
+
+    if errors:
+        print("Error: Invalid arguments:", file=sys.stderr)
+        for error in errors:
+            print(f"  • {error}", file=sys.stderr)
+        sys.exit(1)
+
+
+def setup_config(args):
+    """Set up the PropertyInferenceConfig based on arguments."""
+    # Build property registry
+    if args.standard_registry:
+        registry = create_standard_registry()
+        if not args.quiet:
+            print("Using standard property registry")
+    else:
+        registry = create_minimal_registry()
+        if not args.quiet:
+            print("Using minimal property registry")
+
+    # Handle list properties request
+    if args.list_properties:
+        list_available_properties(registry)
+        sys.exit(0)
+
+    # Build base config
+    default_parser = InputParser.for_nonterminal("<number>")
+
+    # Set comparison strategy
+    strategy_map = {
+        'FIRST_COMPATIBLE': ComparisonStrategy.FIRST_COMPATIBLE,
+        'CONSENSUS': ComparisonStrategy.CONSENSUS,
+        'MOST_RESTRICTIVE': ComparisonStrategy.MOST_RESTRICTIVE
+    }
+
+    config = (PropertyInferenceConfig(registry, example_count=args.examples)
+              .set_default_grammar(args.grammar)
+              .set_default_parser(default_parser)
+              .set_max_counterexamples(args.max_counterexamples)
+              .set_comparison_strategy(strategy_map[args.comparison_strategy]))
+
+    if args.verbose:
+        print(f"Configuration:")
+        print(f"  • Examples per test: {args.examples}")
+        print(f"  • Max counterexamples: {args.max_counterexamples}")
+        print(f"  • Grammar file: {args.grammar}")
+        print(f"  • Comparison strategy: {args.comparison_strategy}")
+
+    return config
+
+
+def load_and_register_functions(config, args):
+    """Load user module and register functions."""
+    try:
+        module = load_user_module(args.functions_file)
+    except Exception as e:
+        print(f"Error loading functions file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Determine which class(es) to pull functions from
+    if args.class_name:
+        # single named class
+        try:
+            classes = [(args.class_name, getattr(module, args.class_name))]
+        except AttributeError:
+            print(f"Error: Class '{args.class_name}' not found in {args.functions_file}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        # all classes defined in the module
+        classes = [
+            (name, cls)
+            for name, cls in inspect.getmembers(module, inspect.isclass)
+            if cls.__module__ == module.__name__
+        ]
+        if not classes:
+            print(f"No classes found in {args.functions_file} to register.", file=sys.stderr)
+            sys.exit(1)
+
+    # Extract overrides
+    converter_overrides: dict = {}
+    grammar_overrides: dict = {}
+    parser_overrides: dict = {}
+    comparator_overrides: dict = {}
+
+    for name, value in vars(module).items():
+        if name.startswith("converter_"):
+            func_name = name[len("converter_"):]
+            converter_overrides[func_name] = value
+
+        elif name.startswith("grammar_"):
+            func_name = name[len("grammar_"):]
+            if isinstance(value, GrammarConfig):
+                grammar_overrides[func_name] = value
+            elif isinstance(value, str):
+                grammar_overrides[func_name] = GrammarConfig(value)
+            else:
+                try:
+                    path_candidate = value[0]
+                    if isinstance(path_candidate, str) and path_candidate.endswith(".fan"):
+                        path = path_candidate
+                        constraints = value[1:]
+                    else:
+                        path = config.default_grammar.path
+                        constraints = value
+                    grammar_overrides[func_name] = GrammarConfig(path, extra_constraints=constraints)
+                except Exception as e:
+                    raise ValueError(f"Invalid grammar spec format for {name}: {value}") from e
+
+        elif name.startswith("parser_"):
+            func_name = name[len("parser_"):]
+            parser_overrides[func_name] = value
+
+        elif name.startswith("comparator_"):
+            func_name = name[len("comparator_"):]
+            comparator_overrides[func_name] = value
+
+    # Register functions from one or more classes
+    function_count = 0
+    for class_name, cls in classes:
+        for func_name, func in inspect.getmembers(cls, inspect.isfunction):
+            comp = comparator_overrides.get(func_name) or getattr(func, "__comparator__", None)
+            conv = converter_overrides.get(func_name) or getattr(func, "__converter__", None)
+            gram = grammar_overrides.get(func_name) or getattr(func, "__grammar__", None)
+            pars = parser_overrides.get(func_name) or getattr(func, "__parser__", None)
+
+            fut = FunctionUnderTest(func, arg_converter=conv, result_comparator=comp)
+            config.add_function(fut, grammar=gram, parser=pars)
+            function_count += 1
+
+    if not args.quiet:
+        class_list = ", ".join(name for name, _ in classes)
+        print(f"Registered {function_count} functions from class(es): {class_list}")
+
+    # Add specific properties if requested
+    if args.properties:
+        for prop_name in args.properties:
+            try:
+                config.add_property_by_name(prop_name)
+                if args.verbose:
+                    print(f"  • Added property: {prop_name}")
+            except Exception as e:
+                print(f"Warning: Could not add property '{prop_name}': {e}", file=sys.stderr)
+
+    return config
+
+
+def format_results(results, args):
+    """Format results for output."""
+    if args.json:
+        import json
+        return json.dumps(results, indent=2)
+
+    output_lines = []
+
+    for func_name, result in results.items():
+        output_lines.append(f"\n📊 Inferred Properties for {func_name}:")
+
+        for prop, outcome in result["outcomes"].items():
+            holds = outcome["holds"]
+            tests_run = outcome["stats"]["total_count"]
+            confidence = (outcome["stats"]["success_count"] / tests_run * 100) if tests_run > 0 else 0.0
+            status = "🟢" if holds else "🔴"
+
+            decision = (
+                f"{status} {prop} "
+                f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
+            )
+            output_lines.append(decision)
+
+            for ex in outcome["counterexamples"]:
+                output_lines.append(f"\t{ex}")
+
+    return "\n".join(output_lines)
+
+
+def main():
+    """Main CLI entry point."""
+    args = parse_arguments()
+
+    # Validate arguments
+    validate_arguments(args)
+
+    if args.dry_run:
+        print("Dry run mode - showing configuration without executing tests")
+        print(f"Functions file: {args.functions_file}")
+        print(f"Class name: {args.class_name}")
+        print(f"Examples: {args.examples}")
+        print(f"Registry: {'standard' if args.standard_registry else 'minimal'}")
+        print(f"Grammar file: {args.grammar}")
+        print(f"Comparison strategy: {args.comparison_strategy}")
+        if args.properties:
+            print(f"Properties to test: {', '.join(args.properties)}")
+        else:
+            print("Properties to test: all available")
+        return
+
+    try:
+        # Setup configuration
+        config = setup_config(args)
+
+        # Load and register functions
+        config = load_and_register_functions(config, args)
+
+        # Run the analysis
+        if not args.quiet:
+            print("\nRunning property inference analysis...")
+
+        start_time = time.perf_counter() if args.timing else None
+
+        engine = PropertyInferenceEngine(config)
+        results = engine.run()
+
+        end_time = time.perf_counter() if args.timing else None
+
+        # Format and output results
+        formatted_results = format_results(results, args)
+
+        if args.output:
+            with open(args.output, 'w') as f:
+                f.write(formatted_results)
+            if not args.quiet:
+                print(f"Results written to {args.output}")
+        else:
+            print(formatted_results)
+
+        # Show timing if requested
+        if args.timing and start_time and end_time:
+            print(f"\n⏱️  Execution time: {end_time - start_time:.4f} seconds")
+
+    except KeyboardInterrupt:
+        print("\nOperation cancelled by user", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if args.verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
