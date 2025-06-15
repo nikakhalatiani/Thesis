@@ -12,7 +12,7 @@ from core.properties.property_test import PropertyTest, TestResult
 
 class InferenceResult(TypedDict):
     """Mapping of property labels to their test outcomes."""
-    outcomes: dict[str, TestResult]
+    outcomes: dict[PropertyTest, TestResult]
 
 
 class PropertyInferenceEngine:
@@ -106,16 +106,11 @@ class PropertyInferenceEngine:
                             f"Skipping combination: {combined.names()}.")
                         continue
 
-                    # import time
-                    # start_time = time.perf_counter()
                     fan, examples = self._generate_examples(grammar, self.config.example_count)
                     input_sets = [parser.parse(fan, tree) for tree in examples]
                     # print(input_sets)
                     input_sets = [i for i in input_sets if i is not None]
-
-                    # end_time = time.perf_counter()
-                    # print(f"Execution time: {end_time - start_time:.4f} seconds")
-
+                    # input_sets = ["1", "0"] + input_sets  # Add some trivial inputs for testing
                     # from collections import Counter
                     # counts = Counter(len(s) for s in input_sets)
                     # print("🎲 input‐tuple length distribution:", counts)
@@ -128,5 +123,5 @@ class PropertyInferenceEngine:
                     if key not in results:
                         results[key] = InferenceResult(outcomes={})
 
-                    results[key]["outcomes"][str(prop)] = outcome
+                    results[key]["outcomes"][prop] = outcome
         return results

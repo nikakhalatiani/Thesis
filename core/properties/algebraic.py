@@ -1,50 +1,80 @@
 from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import TestResult, TestStats, PropertyTest
 
-from itertools import chain, combinations
+from itertools import chain, product
 
 
 class CommutativityTest(PropertyTest):
-    """Test if f(a,b) = f(b,a)"""
+    """Test if swapping two arguments of ``f`` yields the same result."""
 
-    def __init__(self):
+    def __init__(self, function_arity: int = 2,
+                 swap_indices: tuple[int, int] = (0, 1)) -> None:
+        """Create a new commutativity property test.
+
+        Parameters
+        function_arity:
+            The number of arguments ``f`` accepts. Defaults to ``2``.
+        swap_indices:
+            A pair of argument positions that should be swapped when calling
+            ``f``. Defaults to ``(0, 1)`` to check ``f(a, b) equals f(b, a)``.
+        """
+
+        if len(swap_indices) != 2 or swap_indices[0] == swap_indices[1]:
+            raise ValueError("swap_indices must be a tuple of two distinct indices")
+
+        if function_arity < 2:
+            raise ValueError("function_arity must be at least 2 for commutativity test")
+
         super().__init__(
             name="Commutativity",
-            input_arity=2,
-            function_arity=2,
-            description="Tests if f(a,b) equals f(b,a)",
+            input_arity=function_arity,
+            function_arity=function_arity,
+            description="Tests if swapping two arguments yields the same result",
             category="Algebraic"
         )
+        self.swap_indices = swap_indices
 
     def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        f_name = function.funcs[0].func.__name__
+        fut = function.funcs[0]
+        f_name = fut.func.__name__
+
+        input_arity = self.input_arity
 
         # Gather all unique elements from valid input sets
-        all_elements = frozenset(chain.from_iterable(inputs))
+        valid_inputs = [inp[:input_arity] for inp in inputs if len(inp) >= input_arity]
 
-        # all_elements = list(all_elements)
-        if len(all_elements) < self.input_arity:
+        if not valid_inputs:
             return {
                 "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
+                "counterexamples": ["No valid inputs found\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
         total_tests = 0
         counterexamples = []
 
-        for a, b in combinations(all_elements, 2):
-            # for i in range(0, len(all_elements) - 1):
-            #     a = all_elements[i]
-            #     b = all_elements[i + 1]
-            r1 = function.call(0, a, b)
-            r2 = function.call(0, b, a)
+        for args in valid_inputs:
+            swapped = list(args)
+            if max(self.swap_indices) >= len(swapped):
+                continue
+            # Swap the specified indices
+            swapped[self.swap_indices[0]], swapped[self.swap_indices[1]] = \
+                swapped[self.swap_indices[1]], swapped[self.swap_indices[0]]
+
+            arg_converter = fut.arg_converter
+            rev_converter = list(reversed(arg_converter))
+
+            conv_args = function.convert_args(0, *args, arg_converter=arg_converter)
+            conv_swapped = function.convert_args(0, *swapped, arg_converter=rev_converter)
+
+            r1 = function.call(0, *conv_args)
+            r2 = function.call(0, *conv_swapped)
             total_tests += 1
 
             if not function.compare_results(r1, r2):
                 counterexamples.append(
-                    f"{f_name}({a}, {b}): {r1}\n\t"
-                    f"{f_name}({b}, {a}): {r2}\n"
+                    f"{f_name}{tuple(conv_args)}: {r1}\n\t"
+                    f"{f_name}{tuple(conv_swapped)}: {r2}\n"
                 )
                 if len(counterexamples) >= max_counterexamples:
                     break
@@ -54,10 +84,18 @@ class CommutativityTest(PropertyTest):
             "success_count": total_tests - len(counterexamples)
         }
 
+        if total_tests == 0:
+            return {
+                "holds": False,
+                "counterexamples": ["No tests were performed due to inapplicable configuration\n"],
+                "stats": test_stats,
+            }
+
         if not counterexamples:
             return {
                 "holds": True,
-                "counterexamples": [f"{f_name}(a,b) == {f_name}(b,a) for all tested inputs\n"],
+                "counterexamples": [
+                    f"Swapping arguments at positions {self.swap_indices} yields same result for all tested inputs\n"],
                 "stats": test_stats,
             }
         else:
@@ -69,26 +107,34 @@ class CommutativityTest(PropertyTest):
 
 
 class AssociativityTest(PropertyTest):
-    """Test if f(a, f(b, c)) = f(f(a, b), c)"""
+    """Test if ``f(a, f(b, c))`` equals ``f(f(a, b), c)``."""
 
     def __init__(self):
+        """Create a new associativity property test.
+
+        Parameters
+        function_arity:
+            The arity of both functions under test. Defaults to ``2``.
+        """
         super().__init__(
             name="Associativity",
             input_arity=3,
             function_arity=2,
-            description="Tests if f(a, f(b, c)) equals f(f(a, b), c)",
+            description="Tests if f(a, g(b, c)) equals f(g(a, b), c)",
             category="Algebraic"
         )
         self.num_functions = 2
 
     def test(self, combined: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        f_name = combined.funcs[0].func.__name__
-        g_name = combined.funcs[1].func.__name__
+        fut_f, fut_g = combined.funcs
+        f_name, g_name = fut_f.func.__name__, fut_g.func.__name__
+
+        input_arity = self.input_arity
 
         # Filter valid inputs based on arity
-        all_elements = frozenset(chain.from_iterable(inputs))
+        valid_inputs = [inp[:input_arity] for inp in inputs if len(inp) >= input_arity]
 
-        if len(all_elements) < self.input_arity:
+        if not valid_inputs:
             return {
                 "holds": False,
                 "counterexamples": ["Not enough elements provided\n"],
@@ -99,13 +145,17 @@ class AssociativityTest(PropertyTest):
         total_tests = 0
         counterexamples = []
 
-        for a, b, c in combinations(all_elements, 3):
+        for args in valid_inputs:
+            a, b, c = args
             total_tests += 1
 
-            # Test f(a, g(b, c)) == f(g(a, b), c)
-            r1 = combined.call(0, a, combined.call(1, b, c))
-            r2 = combined.call(0, combined.call(1, a, b), c)
+            g_bc = combined.call(1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter))
+            r1 = combined.call(0, *combined.convert_args(0, a, g_bc, arg_converter=fut_f.arg_converter))
 
+            g_ab = combined.call(1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter))
+            r2 = combined.call(0, *combined.convert_args(0, g_ab, c, arg_converter=fut_f.arg_converter))
+
+            # 5) compare
             if not combined.compare_results(r1, r2):
                 counterexamples.append(
                     f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
@@ -162,7 +212,8 @@ class IdempotenceTest(PropertyTest):
         self.result_index = result_index
 
     def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        f_name = function.funcs[0].func.__name__
+        fut = function.funcs[0]
+        f_name = fut.func.__name__
 
         valid_inputs = [input_set[:self.input_arity] for input_set in inputs if len(input_set) >= self.input_arity]
 
@@ -181,7 +232,8 @@ class IdempotenceTest(PropertyTest):
 
         for args in valid_inputs:
             # print(f"Testing with args: {args}")
-            r1 = function.call(0, *args)
+            conv_args = function.convert_args(0, *args, arg_converter=fut.arg_converter)
+            r1 = function.call(0, *conv_args)
 
             new_args = list(args)
             if len(new_args) > self.result_index:
@@ -190,15 +242,16 @@ class IdempotenceTest(PropertyTest):
                 # If result_index is out of range, just append
                 new_args.append(r1)
 
-            r2 = function.call(0, *new_args)
+            conv_new_args = function.convert_args(0, *new_args, arg_converter=fut.arg_converter)
+            r2 = function.call(0, *conv_new_args)
             total_tests += 1
 
             # print(f"Result 1: {r1}, Result 2: {r2}")
 
             if not function.compare_results(r1, r2):
                 counterexamples.append(
-                    f"{f_name}{tuple(args)}: {r1}\n\t"
-                    f"{f_name}{tuple(new_args)}: {r2}\n"
+                    f"{f_name}{tuple(conv_args)}: {r1}\n\t"
+                    f"{f_name}{tuple(conv_new_args)}: {r2}\n"
                 )
                 if len(counterexamples) >= max_counterexamples:
                     break
@@ -223,260 +276,369 @@ class IdempotenceTest(PropertyTest):
             }
 
 
-class DistributivityTest(PropertyTest):
-    """Test if f(a, g(b, c)) == g(f(a, b), f(a, c))"""
+class _DistributivityTest(PropertyTest):
+    """Private base class for distributivity tests."""
 
-    def __init__(self) -> None:
+    def __init__(self, name: str, description: str):
         super().__init__(
-            name="Distributivity",
+            name=name,
             input_arity=3,
             function_arity=2,
-            description="f(a, g(b,c)) == g(f(a,b), f(a,c))",
+            description=description,
             category="Algebraic"
         )
         self.num_functions = 2
 
+    def compute_results(self, combined: CombinedFunctionUnderTest, fut_f, fut_g, a, b, c):
+        """Compute (r1, r2) for given inputs; to be implemented by subclasses."""
+        raise NotImplementedError
+
+    def format_counterexample(self, a, b, c, r1, r2, f_name, g_name):
+        """Format counterexample message; to be implemented by subclasses."""
+        raise NotImplementedError
+
     def test(self, combined: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        f_name = combined.funcs[0].func.__name__
-        g_name = combined.funcs[1].func.__name__
+        fut_f, fut_g = combined.funcs
+        f_name, g_name = fut_f.func.__name__, fut_g.func.__name__
+        valid_inputs = [inp[:self.input_arity] for inp in inputs if len(inp) >= self.input_arity]
 
-        # Filter valid inputs based on arity
-        all_elements = frozenset(chain.from_iterable(inputs))
-
-        if len(all_elements) < self.input_arity:
+        if not valid_inputs:
             return {
                 "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
+                "counterexamples": ["No valid inputs found\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
-        # Test distributivity for each valid input
         total_tests = 0
         counterexamples = []
-
-        for a, b, c in combinations(all_elements, 3):
+        for args in valid_inputs:
+            a, b, c = args
             total_tests += 1
-
-            # Test f(a, g(b, c)) == g(f(a, b), f(a, c))
-            # compute f(a, g(b,c))
-            inner = combined.call(1, b, c)
-            r1 = combined.call(0, a, inner)
-
-            # compute g(f(a,b), f(a,c))
-            left_inner = combined.call(0, a, b)
-            right_inner = combined.call(0, a, c)
-            r2 = combined.call(1, left_inner, right_inner)
+            r1, r2 = self.compute_results(combined, fut_f, fut_g, a, b, c)
 
             if not combined.compare_results(r1, r2):
                 counterexamples.append(
-                    f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
-                    f"{g_name}({f_name}({a}, {b}) ,{f_name}({a}, {c})): {r2}\n"
+                    self.format_counterexample(a, b, c, r1, r2, f_name, g_name)
                 )
-
                 if len(counterexamples) >= max_counterexamples:
                     break
 
-        # Build result
-        test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': total_tests - len(counterexamples)
-        }
+        stats: TestStats = {"total_count": total_tests, "success_count": total_tests - len(counterexamples)}
 
         if not counterexamples:
+            if self.name == "Left Distributivity":
+                result = f"{f_name}(a, {g_name}(b, c)) == {g_name}({f_name}(a, b), {f_name}(a, c)) for all tested inputs\n"
+            else:
+                result = f"{f_name}({g_name}(a, b), c) == {g_name}({f_name}(a, c), {f_name}(b, c)) for all tested inputs\n"
+            return {
+                "holds": True,
+                "counterexamples": [result],
+                "stats": stats,
+            }
+        return {"holds": False, "counterexamples": counterexamples, "stats": stats}
+
+
+class LeftDistributivityTest(_DistributivityTest):
+    """Test left distributivity: f(a, g(b, c)) == g(f(a, b), f(a, c))"""
+
+    def __init__(self):
+        super().__init__(
+            name="Left Distributivity",
+            description="Tests left distributivity: f(a, g(b, c)) == g(f(a, b), f(a, c))"
+        )
+
+    def compute_results(self, combined, fut_f, fut_g, a, b, c):
+        # f(a, g(b, c))
+        inner_bc = combined.call(1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter))
+        r1 = combined.call(0, *combined.convert_args(0, a, inner_bc, arg_converter=fut_f.arg_converter))
+
+        # g(f(a, b), f(a, c))
+        left = combined.call(0, *combined.convert_args(0, a, b, arg_converter=fut_f.arg_converter))
+        right = combined.call(0, *combined.convert_args(0, a, c, arg_converter=fut_f.arg_converter))
+        r2 = combined.call(1, *combined.convert_args(1, left, right, arg_converter=fut_g.arg_converter))
+        return r1, r2
+
+    def format_counterexample(self, a, b, c, r1, r2, f_name, g_name):
+        return (f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
+                f"{g_name}({f_name}({a}, {b}), {f_name}({a}, {c})): {r2}\n")
+
+
+class RightDistributivityTest(_DistributivityTest):
+    """Test right distributivity: f(g(a, b), c) == g(f(a, c), f(b, c))"""
+
+    def __init__(self):
+        super().__init__(
+            name="Right Distributivity",
+            description="Tests right distributivity: f(g(a, b), c) == g(f(a, c), f(b, c))",
+        )
+
+    def compute_results(self, combined, fut_f, fut_g, a, b, c):
+        # f(g(a, b), c)
+        inner_ab = combined.call(1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter))
+        r1 = combined.call(0, *combined.convert_args(0, inner_ab, c, arg_converter=fut_f.arg_converter))
+
+        # g(f(a, c), f(b, c))
+        left = combined.call(0, *combined.convert_args(0, a, c, arg_converter=fut_f.arg_converter))
+        right = combined.call(0, *combined.convert_args(0, b, c, arg_converter=fut_f.arg_converter))
+        r2 = combined.call(1, *combined.convert_args(1, left, right, arg_converter=fut_g.arg_converter))
+        return r1, r2
+
+    def format_counterexample(self, a, b, c, r1, r2, f_name, g_name):
+        return (f"{f_name}({g_name}({a}, {b}), {c}): {r1}\n\t"
+                f"{g_name}({f_name}({a}, {c}), {f_name}({b}, {c})): {r2}\n")
+
+
+class DistributivityTest(PropertyTest):
+    """Test two-sided distributivity: both left and right distributivity must hold"""
+
+    def __init__(self):
+        super().__init__(
+            name="Distributivity",
+            input_arity=3,
+            function_arity=2,
+            description="Tests both left and right distributivity",
+            category="Algebraic"
+        )
+        self.num_functions = 2
+        self.left_test = LeftDistributivityTest()
+        self.right_test = RightDistributivityTest()
+
+    def test(self, combined, inputs, max_counterexamples) -> TestResult:
+        left_result = self.left_test.test(combined, inputs, max_counterexamples)
+        right_result = self.right_test.test(combined, inputs, max_counterexamples)
+        both_hold = left_result["holds"] and right_result["holds"]
+
+        combined_stats: TestStats = {
+            'total_count': left_result["stats"]["total_count"] + right_result["stats"]["total_count"],
+            'success_count': left_result["stats"]["success_count"] + right_result["stats"]["success_count"]
+        }
+
+        all_ce = []
+        if not left_result["holds"]:
+            all_ce.extend([f"Left distributivity failed:\n\t{ce}" for ce in left_result["counterexamples"]])
+        if not right_result["holds"]:
+            all_ce.extend([f"Right distributivity failed:\n\t{ce}" for ce in right_result["counterexamples"]])
+
+        if len(all_ce) > max_counterexamples:
+            all_ce = all_ce[:max_counterexamples]
+
+        if both_hold:
+            fut_f, fut_g = combined.funcs
+            f_name, g_name = fut_f.func.__name__, fut_g.func.__name__
             return {
                 "holds": True,
                 "counterexamples": [
-                    f"{f_name}(a, {g_name}(b, c)) == {g_name}({f_name}(a, b), {f_name}(a, c)) for all tested inputs\n"],
-                "stats": test_stats,
+                    f"Two-sided distributivity holds for {f_name} and {g_name}:\n\t"
+                    f"Left: {f_name}(a, {g_name}(b, c)) == {g_name}({f_name}(a, b), {f_name}(a, c))\n\t"
+                    f"Right: {f_name}({g_name}(a, b), c) == {g_name}({f_name}(a, c), {f_name}(b, c))\n"
+                ],
+                "stats": combined_stats,
             }
         else:
+            return {"holds": False, "counterexamples": all_ce, "stats": combined_stats}
+
+
+class _CandidateElementTest(PropertyTest):
+    """Private base class for candidate element tests (identity or absorbing)."""
+    # TODO think maybe we can control converter used better
+    def __init__(
+            self,
+            name: str,
+            description: str,
+            function_arity: int,
+            element_positions: list[int],
+            target_positions: list[int]
+    ):
+        super().__init__(
+            name=name,
+            input_arity=function_arity,
+            function_arity=function_arity,
+            description=description,
+            category="Algebraic"
+        )
+        if len(element_positions) != len(target_positions):
+            raise ValueError("element_positions and target_positions must match lengths")
+        self.element_positions = element_positions
+        self.target_positions = target_positions
+
+    def test(
+            self,
+            combined: CombinedFunctionUnderTest,
+            inputs,
+            max_counterexamples: int
+    ) -> TestResult:
+        fut = combined.funcs[0]
+        arg_conv = fut.arg_converter
+
+        # Collect all possible candidates
+        all_values = frozenset(chain.from_iterable(inputs))
+        # Filter valid inputs
+        valid_inputs = [inp[:self.function_arity] for inp in inputs if len(inp) >= self.function_arity]
+        # to_test = product(all_values, repeat=self.function_arity)
+        # valid_inputs = [list(vals) for vals in to_test] # This may cause an issue due to division by zero
+        if not valid_inputs:
             return {
                 "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
+                "counterexamples": ["No valid inputs found\n"],
+                "stats": {"total_count": 0, "success_count": 0},
             }
 
+        candidates = set(all_values)
+        counterexamples = []
+        total_tests = 0
 
-class IdentityElementTest(PropertyTest):
-    """
-    Test if a binary function f has an identity element e such that:
-        f(a, e) == a  and  f(e, a) == a
-    """
+        for raw_args in valid_inputs:
+            if not candidates:
+                break
+            to_remove = set()
+            for candidate in candidates:
+                for pos, target in zip(self.element_positions, self.target_positions):
+                    args = list(raw_args)
+                    args[pos] = candidate
+                    # convert and call
+                    conv_args = combined.convert_args(0, *args, arg_converter=arg_conv)
+                    result = combined.call(0, *conv_args)
+                    # expected from original raw_args
+                    exp_args = combined.convert_args(0, *args, arg_converter=arg_conv)
+                    expected = exp_args[target]
+                    total_tests += 1
+                    if not combined.compare_results(result, expected):
+                        to_remove.add(candidate)
+                        counterexamples.append(
+                            f"{fut.func.__name__}{tuple(conv_args)}: {result}\n"
+                            f"\tExpected: {expected} (pos {pos}->{target})\n"
+                        )
+                        break
+            candidates -= to_remove
 
-    def __init__(self) -> None:
+        stats: TestStats = {"total_count": total_tests, "success_count": total_tests if candidates else 0}
+        if candidates:
+            return {
+                "holds": True,
+                "counterexamples": [
+                    f"{c} is a valid element for {self.name}\n" for c in candidates
+                ],
+                "stats": stats,
+            }
+        else:
+            return {"holds": False, "counterexamples": counterexamples, "stats": stats}
+
+
+class LeftIdentityElementTest(_CandidateElementTest):
+    """Test for left identity element: f(e, a, ...) == a"""
+
+    def __init__(self, function_arity: int = 2, identity_position: int = 0, target_position: int = 1):
+        super().__init__(
+            name="LeftIdentityElement",
+            description=f"Checks whether f(e, a, ...) = a at pos {identity_position}->{target_position}",
+            function_arity=function_arity,
+            element_positions=[identity_position],
+            target_positions=[target_position]
+        )
+
+
+class RightIdentityElementTest(_CandidateElementTest):
+    """Test for right identity element: f(a, e) == a"""
+
+    def __init__(self, function_arity: int = 2, identity_position: int = 1, target_position: int = 0):
+        super().__init__(
+            name="RightIdentityElement",
+            description=f"Checks whether f(a, e) = a at pos {identity_position}->{target_position}",
+            function_arity=function_arity,
+            element_positions=[identity_position],
+            target_positions=[target_position]
+        )
+
+
+class IdentityElementTest(_CandidateElementTest):
+    """Test for two-sided identity elements."""
+
+    def __init__(self, function_arity: int = 2, positions: list[int] = (0, 1), targets: list[int] = (1, 0)):
         super().__init__(
             name="IdentityElement",
-            input_arity=2,
-            function_arity=2,
-            description="Checks whether candidate acts as an identity element for f",
-            category="Algebraic"
+            description=f"Checks two-sided identity at {positions}->{targets}",
+            function_arity=function_arity,
+            element_positions=positions,
+            target_positions=targets
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, max_counter_examples) -> TestResult:
-        fut = function.funcs[0]
-        f_name = fut.func.__name__
 
-        # Extract all unique elements from valid input tuples
-        all_elements = frozenset(chain.from_iterable(inputs))
+class GeneralIdentityElementTest(_CandidateElementTest):
+    """Test for identity elements at arbitrary positions."""
 
-        if len(all_elements) < self.input_arity:
-            return {
-                "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
-                "stats": {"total_count": 0, "success_count": 0},
-            }
+    def __init__(self, function_arity: int = 2, identity_positions: list[int] | None = None,
+                 target_positions: list[int] | None = None):
+        if identity_positions is None:
+            identity_positions = list(range(function_arity))
+        if target_positions is None:
+            # Get opposite positions from identity_positions
+            target_positions = identity_positions[::-1]
 
-        # Setup conversion cache
-        conversion_cache = {}
-
-        def cached_convert(raw_val):
-            if raw_val not in conversion_cache:
-                conversion_cache[raw_val] = fut.arg_converter(raw_val)
-            return conversion_cache[raw_val]
-
-        identity_candidates = set(all_elements)
-        counterexamples = []
-        total_tests = 0
-
-        # Test each element against all remaining candidates
-        for element in all_elements:
-            candidates_to_remove = set()
-
-            for candidate in identity_candidates:
-                total_tests += 1
-                # Test both f(element, candidate) and f(candidate, element)
-                r1 = function.call(0, element, candidate)
-                r2 = function.call(0, candidate, element)
-                expected = cached_convert(element)
-
-                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
-                    candidates_to_remove.add(candidate)
-                    counterexamples.append(
-                        f"{f_name}({element}, {candidate}): {r1}\n\t"
-                        f"{f_name}({candidate}, {element}): {r2}\n\t"
-                        f"Expected both to equal: {element}\n"
-                    )
-
-            # Remove eliminated candidates
-            identity_candidates -= candidates_to_remove
-
-            # Early exit if no candidates left
-            if not identity_candidates:
-                break
-
-        # Convert surviving candidates to result format
-        surviving_candidates = [f"{candidate} is an identity element\n"
-                                for candidate in identity_candidates]
-
-        # Build result
-        test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': total_tests if surviving_candidates else 0
-        }
-
-        if surviving_candidates:
-            return {
-                "holds": True,
-                "counterexamples": surviving_candidates,
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
+        super().__init__(
+            name="GeneralIdentityElement",
+            description=f"Checks identity at positions {identity_positions}->"
+                        f"{target_positions} for arity {function_arity}",
+            function_arity=function_arity,
+            element_positions=identity_positions,
+            target_positions=target_positions
+        )
 
 
-class AbsorbingElementTest(PropertyTest):
-    """
-    Test if a binary function f has an absorbing element z such that:
-        f(a, z) == z  and  f(z, a) == z
-    """
+class LeftAbsorbingElementTest(_CandidateElementTest):
+    """Test for left absorbing: f(z, a, ...) = z (or target)"""
 
-    def __init__(self) -> None:
+    def __init__(self, function_arity: int = 2, absorbing_position: int = 0, target_position: int = 0):
+        super().__init__(
+            name="LeftAbsorbingElement",
+            description=f"Checks absorbing element at pos {absorbing_position}->{target_position}",
+            function_arity=function_arity,
+            element_positions=[absorbing_position],
+            target_positions=[target_position]
+        )
+
+
+class RightAbsorbingElementTest(_CandidateElementTest):
+    """Test for right absorbing: f(a, z) = z (or target)"""
+
+    def __init__(self, function_arity: int = 2, absorbing_position: int = 1, target_position: int = 1):
+        super().__init__(
+            name="RightAbsorbingElement",
+            description=f"Checks absorbing element at pos {absorbing_position}->{target_position}",
+            function_arity=function_arity,
+            element_positions=[absorbing_position],
+            target_positions=[target_position]
+        )
+
+
+class AbsorbingElementTest(_CandidateElementTest):
+    """Test for two-sided absorbing elements."""
+
+    def __init__(self, function_arity: int = 2, positions: list[int] = (0, 1), targets: list[int] = (0, 1)):
         super().__init__(
             name="AbsorbingElement",
-            input_arity=2,
-            function_arity=2,
-            description="Checks whether candidate acts as an absorbing element for f",
-            category="Algebraic"
+            description=f"Checks two-sided absorbing at {positions}->{targets}",
+            function_arity=function_arity,
+            element_positions=positions,
+            target_positions=targets
         )
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        fut = function.funcs[0]
-        f_name = fut.func.__name__
 
-        # Extract all unique elements from valid input tuples
-        all_elements = frozenset(chain.from_iterable(inputs))
+class GeneralAbsorbingElementTest(_CandidateElementTest):
+    """Test for absorbing elements at arbitrary positions."""
 
-        if len(all_elements) < self.input_arity:
-            return {
-                "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
-                "stats": {"total_count": 0, "success_count": 0},
-            }
-
-        # Setup conversion cache
-        conversion_cache = {}
-
-        def cached_convert(raw_val):
-            if raw_val not in conversion_cache:
-                conversion_cache[raw_val] = fut.arg_converter(raw_val)
-            return conversion_cache[raw_val]
-
-        absorbing_candidates = set(all_elements)
-        counterexamples = []
-        total_tests = 0
-
-        for element in all_elements:
-            candidates_to_remove = set()
-
-            for candidate in absorbing_candidates:
-                total_tests += 1
-
-                # Test both f(element, candidate) and f(candidate, element)
-                r1 = function.call(0, element, candidate)
-                r2 = function.call(0, candidate, element)
-                expected = cached_convert(candidate)
-
-                if not (function.compare_results(r1, expected) and function.compare_results(r2, expected)):
-                    candidates_to_remove.add(candidate)
-                    counterexamples.append(
-                        f"{f_name}({element}, {candidate}): {r1}\n\t"
-                        f"{f_name}({candidate}, {element}): {r2}\n\t"
-                        f"Expected both to equal: {candidate}\n"
-                    )
-
-            # Remove eliminated candidates
-            absorbing_candidates -= candidates_to_remove
-
-            # Early exit if no candidates left
-            if not absorbing_candidates:
-                break
-
-        # Convert surviving candidates to result format
-        surviving_candidates = [f"{candidate} is an absorbing element\n"
-                                for candidate in absorbing_candidates]
-
-        # Build result
-        test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': total_tests if surviving_candidates else 0
-        }
-
-        if surviving_candidates:
-            return {
-                "holds": True,
-                "counterexamples": surviving_candidates,
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
+    def __init__(self, function_arity: int = 2, absorbing_positions: list[int] | None = None,
+                 target_positions: list[int] | None = None):
+        if absorbing_positions is None:
+            absorbing_positions = list(range(function_arity))
+        if target_positions is None:
+            target_positions = absorbing_positions
+        super().__init__(
+            name="GeneralAbsorbingElement",
+            description=f"Checks absorbing at positions {absorbing_positions}->{target_positions}",
+            function_arity=function_arity,
+            element_positions=absorbing_positions,
+            target_positions=target_positions
+        )
 
 
 class FixedPointTest(PropertyTest):
@@ -511,7 +673,6 @@ class FixedPointTest(PropertyTest):
         # Setup conversion cache
         conversion_cache = {}
 
-        # TODO think maybe move out of test method
         def cached_convert(raw_val):
             if raw_val not in conversion_cache:
                 conversion_cache[raw_val] = fut.arg_converter(raw_val)

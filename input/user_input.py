@@ -44,8 +44,8 @@ parser_add_to_set = InputParser.for_grammar_pattern("<set>", "<number_to_add>")
 grammar_remove_from_set = ["grammars/set_and_element.fan"]
 parser_remove_from_set = InputParser.for_grammar_pattern("<set>", "<number_to_add>")
 
-grammar_union_sets = "grammars/two_sets.fan"
-parser_union_sets = InputParser.for_grammar_pattern("<first_set>", "<second_set>")
+grammar_union_sets = "grammars/int_sets.fan"
+parser_union_sets = InputParser.for_all_sets()
 
 
 

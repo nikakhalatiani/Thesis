@@ -25,7 +25,7 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
     # registry = create_standard_registry()
 
     # 2) build base config
-    default_parser = InputParser.for_number_values()
+    default_parser = InputParser.for_numbers()
     config = (PropertyInferenceConfig(registry, example_count = 10)
               .set_default_grammar("grammars/test.fan")
               .set_default_parser(default_parser)

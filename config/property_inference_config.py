@@ -30,7 +30,7 @@ class PropertyInferenceConfig:
         self.function_to_grammar: dict[str, GrammarConfig] = {}
         self.function_to_parser: dict[str, InputParser] = {}
         self.example_count: int = example_count
-        self.max_counterexamples: int = 1
+        self.max_counterexamples: int = example_count
         self.comparison_strategy = comparison_strategy
 
     def add_function(

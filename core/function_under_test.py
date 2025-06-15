@@ -2,7 +2,7 @@ from collections.abc import Callable
 from typing import Any
 
 
-class FunctionCallError:
+class FunctionConvertError:
     """
     Custom error class for representing function call failures.
 
@@ -26,18 +26,17 @@ class FunctionUnderTest:
 
     Attributes:
         func: The function to be tested.
-        arg_converter: Either a single converter applied to all arguments or a
-            list of converters applied positionally. Defaults to a smart
+        arg_converter: List of converters applied positionally. Defaults to a smart
             converter if not provided.
         result_comparator: A function to compare results of ``func``.
             Defaults to equality comparison if not provided.
     """
 
     def __init__(self, func: Callable,
-                 arg_converter: Callable | list[Callable] | None = None,
+                 arg_converter: list[Callable] | None = None,
                  result_comparator: Callable | None = None) -> None:
         self.func: Callable = func
-        self.arg_converter: Callable | list[Callable] = arg_converter or self._smart_converter
+        self.arg_converter: list[Callable] = arg_converter or [FunctionUnderTest._smart_converter]
         self.result_comparator: Callable[[Any, Any], bool] = result_comparator or (lambda x, y: x == y)
 
     @staticmethod
@@ -69,7 +68,39 @@ class FunctionUnderTest:
 
         return value
 
-    def call(self, *args: Any) -> Any:
+    def convert_args(self, *args: Any, arg_converter) -> tuple[Any, ...]:
+        """
+        Converts the provided arguments using the argument converter.
+
+        Args:
+            *args: The arguments to convert.
+
+        Returns:
+            A tuple of converted arguments.
+            If conversion fails, returns a tuple containing FunctionConvertError objects.
+        """
+        try:
+            if arg_converter:
+                # If there are converters, use the last one as the default
+                default = arg_converter[-1]
+            else:
+                default = self._smart_converter
+
+            converted_args = []
+            for i, arg in enumerate(args):
+                # Use the i-th converter if available, otherwise use the default
+                if i < len(arg_converter):
+                    converted_args.append(arg_converter[i](arg))
+                else:
+                    converted_args.append(default(arg))
+
+            return tuple(converted_args)
+        except Exception as e:
+            error_message = f"Error converting args {args}: {str(e)}"
+            print(error_message)
+            return tuple(FunctionConvertError(f"Error: {str(e)}") for _ in args)
+
+    def call2(self, *args: Any) -> Any:
         """
           Calls the function under test with the provided arguments after applying the argument converter.
 
@@ -78,34 +109,23 @@ class FunctionUnderTest:
 
         Returns:
             The result of calling the function under test with the converted arguments.
-            If conversion or function call fails, returns a FunctionCallError.
+            If conversion or function call fails, returns a FunctionConvertError.
         """
         try:
-            if isinstance(self.arg_converter, list):
-                converters = list(self.arg_converter)
-                if converters:
-                    # If there are converters, use the last one as the default
-                    default = converters[-1]
-                else:
-                    default = self._smart_converter
+            converted_args = self.convert_args(*args, arg_converter=self.arg_converter)
 
-                converted_args = []
-                for i, arg in enumerate(args):
-                    # Use the i-th converter if available, otherwise use the default
-                    if i < len(converters):
-                        converted_args.append(converters[i](arg))
-                    else:
-                        converted_args.append(default(arg))
-            else:
-                converted_args = [self.arg_converter(arg) for arg in args]
+            # Check if any conversion failed
+            if any(isinstance(arg, FunctionConvertError) for arg in converted_args):
+                return converted_args[0]  # Return the first error
+
             result = self.func(*converted_args)
             return result
         except Exception as e:
             error_message = f"Error calling {self.func.__name__} with args {args}: {str(e)}"
             print(error_message)
-            return FunctionCallError(f"Error: {str(e)}")
+            return FunctionConvertError(f"Error: {str(e)}")
 
-    def call_no_convert(self, *args: Any) -> Any:
+    def call(self, *args: Any) -> Any:
         """
         Calls the function under test with the provided arguments directly, without applying the argument converter.
 
@@ -114,15 +134,19 @@ class FunctionUnderTest:
 
         Returns:
             The result of calling the function under test with the original arguments.
-            If the function call fails, returns a FunctionCallError.
+            If the function call fails, returns a FunctionConvertError.
         """
         try:
+            # Check if any conversion failed
+            if any(isinstance(arg, FunctionConvertError) for arg in args):
+                return args[0]  # Return the first error
+
             result = self.func(*args)
             return result
         except Exception as e:
             error_message = f"Error calling {self.func.__name__} with args {args}: {str(e)}"
             print(error_message)
-            return FunctionCallError(f"Error: {str(e)}")
+            return FunctionConvertError(f"Error: {str(e)}")
 
     def compare_results(self, result1: Any, result2: Any) -> bool:
         """
@@ -134,23 +158,18 @@ class FunctionUnderTest:
 
         Returns:
             True if the results are equal according to the comparator, False otherwise.
-            If either result is a FunctionCallError, returns False.
+            If either result is a FunctionConvertError, returns False.
         """
-        if isinstance(result1, FunctionCallError) or isinstance(result2, FunctionCallError):
+        if isinstance(result1, FunctionConvertError) or isinstance(result2, FunctionConvertError):
             # Any error means the comparison fails
             return False
 
         return self.result_comparator(result1, result2)
 
     def __str__(self):
-        def conv_name(conv: Callable | list[Callable]) -> str:
-            if isinstance(conv, list):
-                return '[' + ', '.join(c.__name__ for c in conv) + ']'
-            return conv.__name__
-
         return (
             f"FunctionUnderTest(func={self.func.__name__}, "
-            f"arg_converter={conv_name(self.arg_converter)}, "
+            f"arg_converter={'[' + ', '.join(c.__name__ for c in self.arg_converter) + ']'}, "
             f"result_comparator={self.result_comparator.__name__})"
         )
 
@@ -179,10 +198,12 @@ class CombinedFunctionUnderTest:
     def names(self) -> str:
         def get_name(helper: Callable | list[Callable]) -> str:
             if isinstance(helper, list):
-                names = ', '.join(h.__name__ for h in helper)
-                return f'[{names}]'
+                names = ', '.join(h.__name__ for h in helper if h.__name__ not in ["_smart_converter", '<lambda>'])
+                if not names:
+                    return 'default'
+                return f"[{names}]"
             name = helper.__name__
-            if name.startswith('_') or name == '<lambda>':
+            if name == "[_smart_converter]" or name == '<lambda>':
                 return 'default'
             return name
 
@@ -218,6 +239,20 @@ class CombinedFunctionUnderTest:
             descriptions.append(desc)
 
         return ", ".join(descriptions)
+
+    def convert_args(self, idx: int, *args: Any, arg_converter) -> tuple[Any, ...]:
+        """
+        Converts the provided arguments using the argument converter of the specified function.
+
+        Args:
+            idx: The index of the function whose converter to use.
+            *args: The arguments to convert.
+            arg_converter: The argument converter to use for conversion.
+
+        Returns:
+            A tuple of converted arguments.
+        """
+        return self.funcs[idx].convert_args(*args, arg_converter=arg_converter)
 
     def call(self, idx: int, *args: Any) -> Any:
         return self.funcs[idx].call(*args)

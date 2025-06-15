@@ -62,7 +62,11 @@ class PropertyTest(ABC, metaclass=MultitonMeta):
         self.function_arity = function_arity
         self.description = description
         self.category = category
-        self.num_functions: int = 1  # default: single-function properties
+        self.num_functions = 1
+        self.swap_indices = None
+        self.result_index = None
+        self.distribute_over_index = None
+        self.identity_positions = None
 
     @abstractmethod
     def test(self, candidate: CombinedFunctionUnderTest, inputs: list[tuple], max_counterexamples) -> TestResult:
@@ -78,4 +82,18 @@ class PropertyTest(ABC, metaclass=MultitonMeta):
         return all(len(inspect.signature(fut.func).parameters) == self.function_arity for fut in candidate.funcs)
 
     def __str__(self) -> str:
-        return f"{self.name} (arity: {self.input_arity}/{self.function_arity})"
+        """String representation of the property test."""
+        parts = [f"{self.name} (arity: {self.input_arity}/{self.function_arity})"]
+
+        optional_attributes = {
+            "swap": self.swap_indices,
+            "result_index": self.result_index,
+            "distribute_over_index": self.distribute_over_index,
+            "identity_positions": self.identity_positions,
+        }
+
+        for key, value in optional_attributes.items():
+            if value:
+                parts.append(f"{key}: {value}")
+
+        return ", ".join(parts)
