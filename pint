@@ -102,6 +102,12 @@ Examples:
         help='Strategy for comparing results (default: FIRST_COMPATIBLE)'
     )
 
+    config_group.add_argument(
+        '--no-cache',
+        action='store_true',
+        help='Disable caching of generated inputs'
+    )
+
     # Property selection
     property_group = parser.add_argument_group('Property Selection')
     property_group.add_argument(
@@ -221,11 +227,13 @@ def setup_config(args):
         'MOST_RESTRICTIVE': ComparisonStrategy.MOST_RESTRICTIVE
     }
 
-    config = (PropertyInferenceConfig(registry, example_count=args.examples)
+    config = (PropertyInferenceConfig(registry)
               .set_default_grammar(args.grammar)
               .set_default_parser(default_parser)
               .set_max_counterexamples(args.max_counterexamples)
-              .set_comparison_strategy(strategy_map[args.comparison_strategy]))
+              .set_example_count(args.examples)
+              .set_comparison_strategy(strategy_map[args.comparison_strategy])
+              .set_use_input_cache(not args.no_cache))
 
     if args.verbose:
         print(f"Configuration:")
@@ -233,6 +241,7 @@ def setup_config(args):
         print(f"  • Max counterexamples: {args.max_counterexamples}")
         print(f"  • Grammar file: {args.grammar}")
         print(f"  • Comparison strategy: {args.comparison_strategy}")
+        print(f"  • Use input cache: {not args.no_cache}")
 
     return config
 

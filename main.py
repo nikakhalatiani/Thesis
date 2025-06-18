@@ -26,11 +26,12 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
 
     # 2) build base config
     default_parser = InputParser.for_numbers()
-    config = (PropertyInferenceConfig(registry, example_count = 10)
+    config = (PropertyInferenceConfig(registry)
               .set_default_grammar("grammars/test.fan")
               .set_default_parser(default_parser)
-              .set_max_counterexamples(3)
-              .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)  # Set your preferred strategy here
+              .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)
+              .set_use_input_cache(True)
+              .set_example_count(100)  # Set the number of examples to generate
               )
 
     # 3) dynamically load the user’s module
@@ -100,7 +101,6 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
     # config.add_property_by_name("Associativity")
     # config.add_property_by_name("Distributivity")
     # config.add_property_by_name("Idempotence")
-
 
     # 3) run
     # import time

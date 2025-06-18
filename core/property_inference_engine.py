@@ -18,6 +18,78 @@ class InferenceResult(TypedDict):
 class PropertyInferenceEngine:
     def __init__(self, config: PropertyInferenceConfig) -> None:
         self.config: PropertyInferenceConfig = config
+        # Cache generated input sets for function combinations so they can be
+        # reused across properties. The key is the tuple of function names in
+        # the combination and the value is the list of parsed input tuples. If
+        # a combination cannot be processed (e.g. grammar mismatch) we store
+        # ``None`` to avoid repeating work.
+        self._input_cache: dict[tuple[str, ...], list[tuple] | None] = {}
+
+    def _get_inputs_for_combination(self, funcs: tuple) -> list[tuple] | None:
+        """Return cached inputs for ``funcs`` or generate and cache them."""
+
+        combination_key = tuple(fut.func.__name__ for fut in funcs)
+        if self.config.use_input_cache and combination_key in self._input_cache:
+            cached = self._input_cache[combination_key]
+            # return a shallow copy to avoid accidental modification
+            return list(cached) if cached is not None else None
+
+        base = None
+        combined_constraints: set[str] = set()
+
+        for fut in funcs:
+            fg = self.config.function_to_grammar.get(
+                fut.func.__name__, self.config.default_grammar
+            )
+            if base is None:
+                base = fg
+            elif fg.path != base.path:
+                print(
+                    f"⚠️ Cannot combine grammars with different spec paths: "
+                    f"{base.path} vs {fg.path}. Skipping combination: "
+                    f"{', '.join(f.func.__name__ for f in funcs)}."
+                )
+                if self.config.use_input_cache:
+                    self._input_cache[combination_key] = None
+                return None
+            if fg.extra_constraints:
+                combined_constraints.update(fg.extra_constraints)
+        else:
+            grammar = GrammarConfig(
+                base.path,
+                list(combined_constraints) if combined_constraints else None,
+            )
+
+            unique_parsers = {
+                self.config.function_to_parser.get(
+                    fut.func.__name__, self.config.default_parser
+                )
+                for fut in funcs
+            }
+            if len(unique_parsers) == 1:
+                parser = unique_parsers.pop()
+            else:
+                print(
+                    f"⚠️ Cannot combine different parsers for functions: "
+                    f"{', '.join(fut.func.__name__ for fut in funcs)}. "
+                    f"Skipping combination: {', '.join(f.func.__name__ for f in funcs)}."
+                )
+                if self.config.use_input_cache:
+                    self._input_cache[combination_key] = None
+                return None
+
+            fan, examples = self._generate_examples(grammar, self.config.example_count)
+            input_sets = [parser.parse(fan, tree) for tree in examples]
+            # print(input_sets)
+            input_sets = [i for i in input_sets if i is not None]
+            # input_sets = ["1", "0"] + input_sets  # Add some trivial inputs for testing
+            # from collections import Counter
+            # counts = Counter(len(s) for s in input_sets)
+            # print("🎲 input‐tuple length distribution:", counts)
+
+            if self.config.use_input_cache:
+                self._input_cache[combination_key] = input_sets
+            return list(input_sets)
 
     @staticmethod
     def _generate_examples(grammar: GrammarConfig, num_examples: int) -> tuple[Fandango, list[DerivationTree]]:
@@ -67,61 +139,19 @@ class PropertyInferenceEngine:
                     # print(f"⚠️ Property '{str(prop)}' is not applicable to combination: {combined.names()}. Skipping.")
                     continue
 
-                # gather each function's override or default
-                base = None
-                combined_constraints: set[str] = set()
+                input_sets = self._get_inputs_for_combination(funcs)
+                if not input_sets:
+                    continue
 
-                for fut in funcs:
-                    fg = self.config.function_to_grammar.get(fut.func.__name__, self.config.default_grammar)
-                    if base is None:
-                        base = fg
-                    elif fg.path != base.path:
-                        print(
-                            f"⚠️ Cannot combine grammars with different spec paths: {base.path} vs {fg.path}. "
-                            f"Skipping combination: {combined.names()}.")
-                        break
-                    # merge constraints into a set
-                    if fg.extra_constraints:
-                        combined_constraints.update(fg.extra_constraints)
-                else:
-                    # This else clause executes only if the for loop completed without breaking
-                    # 3) Build a new GrammarConfig using the base path + deduped constraints
-                    grammar = GrammarConfig(
-                        base.path,
-                        list(combined_constraints) if combined_constraints else None
-                    )
+                outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
 
-                    # Collect unique parser objects
-                    unique_parsers = {
-                        self.config.function_to_parser.get(fut.func.__name__, self.config.default_parser)
-                        for fut in funcs
-                    }
-                    if len(unique_parsers) == 1:
-                        # All slots share the same parser instance
-                        parser = unique_parsers.pop()
-                    else:
-                        # Conflicting slot‐specific parsers
-                        print(
-                            f"⚠️ Cannot combine different parsers for functions: {', '.join(fut.func.__name__ for fut in funcs)}. "
-                            f"Skipping combination: {combined.names()}.")
-                        continue
+                key = f"combination ({combined.names()})"
 
-                    fan, examples = self._generate_examples(grammar, self.config.example_count)
-                    input_sets = [parser.parse(fan, tree) for tree in examples]
-                    # print(input_sets)
-                    input_sets = [i for i in input_sets if i is not None]
-                    # input_sets = ["1", "0"] + input_sets  # Add some trivial inputs for testing
-                    # from collections import Counter
-                    # counts = Counter(len(s) for s in input_sets)
-                    # print("🎲 input‐tuple length distribution:", counts)
+                if key not in results:
+                    results[key] = InferenceResult(outcomes={})
 
-                    outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
+                results[key]["outcomes"][prop] = outcome
+        # print(f"🔍 Tested {len(results)} combinations with {len(properties_to_test)} properties.")
+        # print(f"📦 Cached {len(self._input_cache)} unique input sets for function combinations.")
 
-                    key = f"combination ({combined.names()})"
-
-                    # If we haven't initialized an entry for this combination yet, do so
-                    if key not in results:
-                        results[key] = InferenceResult(outcomes={})
-
-                    results[key]["outcomes"][prop] = outcome
         return results

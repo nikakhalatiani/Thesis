@@ -18,10 +18,10 @@ class PropertyInferenceConfig:
         function_to_grammar: Mapping of function names to grammar.
         function_to_parser: Mapping of function names to parsers.
         example_count: Number of examples to generate for testing.
+        use_input_cache: Whether to reuse generated inputs across properties.
     """
 
-    def __init__(self, registry: PropertyRegistry, example_count: int = 100,
-                 comparison_strategy: ComparisonStrategy = ComparisonStrategy.CONSENSUS) -> None:
+    def __init__(self, registry: PropertyRegistry) -> None:
         self.registry: PropertyRegistry = registry
         self.functions_under_test: list[FunctionUnderTest] = []
         self.properties_to_test: list[PropertyTest] = []
@@ -29,9 +29,10 @@ class PropertyInferenceConfig:
         self.default_parser: InputParser | None = None
         self.function_to_grammar: dict[str, GrammarConfig] = {}
         self.function_to_parser: dict[str, InputParser] = {}
-        self.example_count: int = example_count
-        self.max_counterexamples: int = example_count
-        self.comparison_strategy = comparison_strategy
+        self.example_count: int = 100
+        self.max_counterexamples: int = 100
+        self.comparison_strategy = ComparisonStrategy.CONSENSUS
+        self.use_input_cache = True
 
     def add_function(
             self,
@@ -125,4 +126,14 @@ class PropertyInferenceConfig:
     def set_comparison_strategy(self, strategy: ComparisonStrategy) -> 'PropertyInferenceConfig':
         """Set the comparison strategy for combined functions."""
         self.comparison_strategy = strategy
+        return self
+
+    def set_use_input_cache(self, enabled: bool) -> 'PropertyInferenceConfig':
+        """Enable or disable caching of generated input sets."""
+        self.use_input_cache = enabled
+        return self
+
+    def set_example_count(self, count: int) -> 'PropertyInferenceConfig':
+        """Set the number of examples to generate for testing."""
+        self.example_count = count
         return self
