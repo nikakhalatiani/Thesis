@@ -350,228 +350,6 @@ class DistributivityTest(PropertyTest):
             return {"holds": False, "counterexamples": all_ce, "stats": combined_stats}
 
 
-class _CompositionTest(PropertyTest):
-    """Private base for f∘g composition tests."""
-
-    def __init__(
-            self,
-            name: str,
-            description: str,
-            function_arity: int,
-            result_index: int
-    ) -> None:
-        super().__init__(
-            name=name,
-            input_arity=function_arity,
-            function_arity=function_arity,
-            description=description,
-            category="Algebraic"
-        )
-        # This test requires two functions: f (index 0) and g (index 1)
-        self.num_functions = 2
-        if result_index < 0 or result_index >= function_arity:
-            raise ValueError("result_index must be within function arity range")
-        self.result_index = result_index
-
-    def compute_results(
-            self,
-            combined: CombinedFunctionUnderTest,
-            *raw_args
-    ):
-        """Return a tuple (r1, r2) to compare."""
-        raise NotImplementedError
-
-    def format_counterexample(
-            self,
-            raw_args,
-            r1,
-            r2,
-            f_name: str,
-            g_name: str,
-            conv_f,
-            conv_g,
-    ) -> str:
-        """Format a counterexample message for failed test."""
-        raise NotImplementedError
-
-    def test(
-            self,
-            combined: CombinedFunctionUnderTest,
-            inputs,
-            max_counterexamples: int
-    ) -> TestResult:
-        fut_f, fut_g = combined.funcs
-        f_name, g_name = fut_f.func.__name__, fut_g.func.__name__
-
-        valid_inputs = [input_set[:self.input_arity] for input_set in inputs if len(input_set) >= self.input_arity]
-
-        if not valid_inputs:
-            return {
-                "holds": False,
-                "counterexamples": ["No valid inputs found\n"],
-                "stats": {"total_count": 0, "success_count": 0},
-            }
-
-        total_tests = 0
-        counterexamples = []
-
-        for args in valid_inputs:
-            total_tests += 1
-            r1, r2, conv_1, conv_2 = self.compute_results(combined, *args)
-
-            if not combined.compare_results(r1, r2):
-                counterexamples.append(
-                    self.format_counterexample(args, r1, r2, g_name, f_name, conv_1, conv_2)
-                )
-                if len(counterexamples) >= max_counterexamples:
-                    break
-
-        # Build result
-        test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': total_tests - len(counterexamples)
-        }
-
-        if not counterexamples:
-            if self.name == "LeftComposition":
-                msg = f"{f_name} ∘ {g_name} equals {g_name} for all tested inputs"
-            elif self.name == "RightComposition":
-                msg = f"{f_name} ∘ {g_name} equals {f_name} for all tested inputs"
-            else:
-                msg = f"{self.name} holds for all tested inputs\n"
-            return {
-                "holds": True,
-                "counterexamples": [msg],
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
-
-
-class LeftCompositionTest(_CompositionTest):
-    """Test f∘g = g: f(g(x1,...,xn)) == g(x1,...,xn)"""
-
-    def __init__(self, function_arity: int = 1, result_index: int = 0) -> None:
-        """Create a new left composition property test.
-
-        Parameters
-        ----------
-        function_arity : int
-            The number of arguments the functions accept. Defaults to 1.
-        result_index : int
-            The position where the result of g is inserted into f.
-            Defaults to 0.
-        """
-        super().__init__(
-            name="LeftComposition",
-            description=f"Checks f(g(x1..x{function_arity})) == g(x1..x{function_arity}) at pos {result_index}",
-            function_arity=function_arity,
-            result_index=result_index
-        )
-
-    def compute_results(
-            self,
-            combined: CombinedFunctionUnderTest,
-            *raw_args
-    ):
-        fut_f, fut_g = combined.funcs
-        # compute g(x...)
-        conv_g = combined.convert_args(1, *raw_args, arg_converter=fut_g.arg_converter)
-        r_g = combined.call(1, *conv_g)
-
-        # insert r_g into f at the identity position
-        f_args = list(raw_args)
-        f_args[self.result_index] = r_g
-        conv_fg = combined.convert_args(0, *f_args, arg_converter=fut_f.arg_converter)
-        r_fg = combined.call(0, *conv_fg)
-
-        return r_g, r_fg, conv_g, conv_fg
-
-    def format_counterexample(
-            self,
-            raw_args,
-            r1,
-            r2,
-            g_name: str,
-            f_name: str,
-            conv_g,
-            conv_f,
-    ) -> str:
-        fg_args = list(conv_f)
-        fg_args[self.result_index] = f"{g_name}{tuple(conv_g)}"
-
-        return (
-            f"{f_name}({', '.join(map(str, fg_args))}): {r2}\n\t"
-            f"{g_name}{tuple(conv_g)}: {r1}\n"
-        )
-
-
-class RightCompositionTest(_CompositionTest):
-    """Test f∘g = f: f(g(x1,...,xn)) == f(x1,...,xn)"""
-
-    def __init__(self, function_arity: int = 1, result_index: int = 0) -> None:
-        """Create a new right composition property test.
-
-        Parameters
-        ----------
-        function_arity : int
-            The number of arguments the functions accept. Defaults to 1.
-        result_index : int
-            The position where the result of g is inserted into f.
-            Defaults to 0.
-        """
-        super().__init__(
-            name="RightComposition",
-            description=f"Checks f(g(x1..x{function_arity})) == f(x1..x{function_arity}) at pos {result_index}",
-            function_arity=function_arity,
-            result_index=result_index
-        )
-
-    def compute_results(
-            self,
-            combined: CombinedFunctionUnderTest,
-            *raw_args
-    ):
-        fut_f, fut_g = combined.funcs
-        # original f(x...)
-        conv_f = combined.convert_args(0, *raw_args, arg_converter=fut_f.arg_converter)
-        r_f = combined.call(0, *conv_f)
-
-        # compute g(x...)
-        conv_g = combined.convert_args(1, *raw_args, arg_converter=fut_g.arg_converter)
-        r_g = combined.call(1, *conv_g)
-
-        # insert r_g into f at result position
-        f_args = list(raw_args)
-        f_args[self.result_index] = r_g
-        conv_fg = combined.convert_args(0, *f_args, arg_converter=fut_f.arg_converter)
-        r_fg = combined.call(0, *conv_fg)
-
-        return r_f, r_fg, conv_g, conv_f
-
-    def format_counterexample(
-            self,
-            raw_args,
-            r1,
-            r2,
-            g_name: str,
-            f_name: str,
-            conv_g,
-            conv_f,
-    ) -> str:
-        fg_args = list(conv_f)
-        fg_args[self.result_index] = f"{g_name}{tuple(conv_g)}"
-
-        return (
-            f"{f_name}({', '.join(map(str, fg_args))}): {r2}\n\t"
-            f"{f_name}{tuple(conv_f)}: {r1}\n"
-        )
-
-
 class _CandidateElementTest(PropertyTest):
     """Private base class for candidate element tests (identity or absorbing)."""
 
@@ -804,89 +582,6 @@ class GeneralAbsorbingElementTest(_CandidateElementTest):
         )
 
 
-class FixedPointTest(PropertyTest):
-    """Test for fixed points with configurable function arity and comparison index."""
-
-    def __init__(self, function_arity: int = 1, result_index: int = 0):
-        """Create a new fixed point test.
-
-        Parameters:
-        function_arity:
-            The number of arguments the function accepts. Defaults to 1.
-        result_index:
-            Which argument position to compare with the result for fixed point.
-            For f(x) = x, this would be 0. For f(state, value) where we check
-            if the state is unchanged, this would be 0.
-        """
-        super().__init__(
-            name="FixedPoint",
-            input_arity=function_arity,
-            function_arity=function_arity,
-            description=f"Checks for fixed points comparing result with argument {result_index}",
-            category="Algebraic"
-        )
-        self.result_index = result_index
-
-    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        fut = function.funcs[0]
-        f_name = fut.func.__name__
-
-        # Extract all unique elements from valid input tuples
-        valid_inputs = [input_set[:self.function_arity] for input_set in inputs if
-                        len(input_set) >= self.function_arity]
-
-        if not valid_inputs:
-            return {
-                "holds": False,
-                "counterexamples": ["No valid inputs found\n"],
-                "stats": {"total_count": 0, "success_count": 0},
-            }
-
-        total_tests = 0
-        fixed_points = []
-        counterexamples = []
-
-        for valid_input in valid_inputs:
-            total_tests += 1
-
-            if self.result_index < len(valid_input):
-                args = list(valid_input)
-                # Convert args using the function's argument converter
-                conv_args = function.convert_args(0, *args, arg_converter=fut.arg_converter)
-                # Call the function with converted args
-                expected = conv_args[self.result_index]
-                # Call the function
-                result1 = function.call(0, *conv_args)
-                # Double-check if result really matches expected
-                result2 = function.call(0, *conv_args)
-
-                if function.compare_results(result1, expected) and function.compare_results(result2, expected):
-                    fixed_points.append(
-                        f"{f_name}{tuple(conv_args)}: {result1} == {conv_args[self.result_index]}\n"
-                    )
-                else:
-                    counterexamples.append(f"{f_name}{tuple(conv_args)}: {result1} ≠ {conv_args[self.result_index]}\n")
-
-        test_stats: TestStats = {
-            'total_count': total_tests,
-            # 'success_count': total_tests if fixed_points else 0
-            'success_count': len(fixed_points)
-        }
-
-        if fixed_points:
-            return {
-                "holds": True,
-                "counterexamples": fixed_points,
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
-
-
 class InjectivityTest(PropertyTest):
     """Test injectivity with configurable function arity and projection strategy"""
 
@@ -980,6 +675,89 @@ class InjectivityTest(PropertyTest):
             return {
                 "holds": True,
                 "counterexamples": [f"{f_name} is injective on the tested inputs\n"],
+                "stats": test_stats,
+            }
+
+
+class FixedPointTest(PropertyTest):
+    """Test for fixed points with configurable function arity and comparison index."""
+
+    def __init__(self, function_arity: int = 1, result_index: int = 0):
+        """Create a new fixed point test.
+
+        Parameters:
+        function_arity:
+            The number of arguments the function accepts. Defaults to 1.
+        result_index:
+            Which argument position to compare with the result for fixed point.
+            For f(x) = x, this would be 0. For f(state, value) where we check
+            if the state is unchanged, this would be 0.
+        """
+        super().__init__(
+            name="FixedPoint",
+            input_arity=function_arity,
+            function_arity=function_arity,
+            description=f"Checks for fixed points comparing result with argument {result_index}",
+            category="Algebraic"
+        )
+        self.result_index = result_index
+
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
+        fut = function.funcs[0]
+        f_name = fut.func.__name__
+
+        # Extract all unique elements from valid input tuples
+        valid_inputs = [input_set[:self.function_arity] for input_set in inputs if
+                        len(input_set) >= self.function_arity]
+
+        if not valid_inputs:
+            return {
+                "holds": False,
+                "counterexamples": ["No valid inputs found\n"],
+                "stats": {"total_count": 0, "success_count": 0},
+            }
+
+        total_tests = 0
+        fixed_points = []
+        counterexamples = []
+
+        for valid_input in valid_inputs:
+            total_tests += 1
+
+            if self.result_index < len(valid_input):
+                args = list(valid_input)
+                # Convert args using the function's argument converter
+                conv_args = function.convert_args(0, *args, arg_converter=fut.arg_converter)
+                # Call the function with converted args
+                expected = conv_args[self.result_index]
+                # Call the function
+                result1 = function.call(0, *conv_args)
+                # Double-check if result really matches expected
+                result2 = function.call(0, *conv_args)
+
+                if function.compare_results(result1, expected) and function.compare_results(result2, expected):
+                    fixed_points.append(
+                        f"{f_name}{tuple(conv_args)}: {result1} == {conv_args[self.result_index]}\n"
+                    )
+                else:
+                    counterexamples.append(f"{f_name}{tuple(conv_args)}: {result1} ≠ {conv_args[self.result_index]}\n")
+
+        test_stats: TestStats = {
+            'total_count': total_tests,
+            # 'success_count': total_tests if fixed_points else 0
+            'success_count': len(fixed_points)
+        }
+
+        if fixed_points:
+            return {
+                "holds": True,
+                "counterexamples": fixed_points,
+                "stats": test_stats,
+            }
+        else:
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
                 "stats": test_stats,
             }
 

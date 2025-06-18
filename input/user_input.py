@@ -61,6 +61,9 @@ def comparator_abs(x, y):
 def comparator_close(x, y):
     return math.isclose(x, y, rel_tol=1e-9, abs_tol=1e-9)
 
+comparator_multiply = comparator_close
+comparator_divide = comparator_close
+
 
 # --- Argument Converters --------------------------------------------------
 def converter_int(x):
