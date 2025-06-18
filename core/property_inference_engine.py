@@ -82,7 +82,7 @@ class PropertyInferenceEngine:
             input_sets = [parser.parse(fan, tree) for tree in examples]
             # print(input_sets)
             input_sets = [i for i in input_sets if i is not None]
-            # input_sets = ["1", "0"] + input_sets  # Add some trivial inputs for testing
+            input_sets = [("1", "0")] + input_sets  # Add some trivial inputs for testing
             # from collections import Counter
             # counts = Counter(len(s) for s in input_sets)
             # print("🎲 input‐tuple length distribution:", counts)

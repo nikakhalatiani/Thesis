@@ -74,11 +74,11 @@ class FunctionUnderTest:
 
         Args:
             *args: The arguments to convert.
+            arg_converter: List of argument converters to apply positionally.
 
         Returns:
             A tuple of converted arguments.
-            If conversion fails, returns a tuple containing FunctionConvertError objects.
-        """
+            If conversion fails, returns a tuple containing FunctionConvertError objects.        """
         try:
             if arg_converter:
                 # If there are converters, use the last one as the default

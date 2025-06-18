@@ -35,7 +35,7 @@ def create_minimal_registry() -> PropertyRegistry:
     """Create a registry with basic properties."""
     registry = PropertyRegistry()
 
-    # registry.register(CommutativityTest(2)) # new instance
+    # registry.register(CommutativityTest()) # new instance
     # registry.register(CommutativityTest(2, (1,0))) # new instance
     # registry.register(CommutativityTest(3))  # new instance
     # registry.register(AssociativityTest())  # new instance
@@ -46,11 +46,16 @@ def create_minimal_registry() -> PropertyRegistry:
     # registry.register(DistributivityTest())
     registry.register(LeftIdentityElementTest())
     registry.register(RightIdentityElementTest())
-    # registry.register(IdentityElementTest())
     registry.register(LeftAbsorbingElementTest())
     registry.register(RightAbsorbingElementTest())
-    # registry.register(AbsorbingElementTest())
-    # registry.register(GeneralAbsorbingElementTest()) # same as AbsorbingElementTest
+    registry.register(AbsorbingElementTest())
+    # registry.register(GeneralAbsorbingElementTest(2,[0,1]))
+    registry.register(IdentityElementTest())
     # registry.register(GeneralIdentityElementTest()) # same as IdentityElementTest
+    # registry.register(FixedPointTest())
+    # registry.register(FixedPointTest(2,1))
+    # registry.register(FixedPointTest(2))
+    # registry.register(InjectivityTest())
+    # registry.register(InjectivityTest(2))
 
     return registry

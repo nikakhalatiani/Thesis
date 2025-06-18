@@ -93,7 +93,7 @@ class PropertyTest(ABC, metaclass=MultitonMeta):
         }
 
         for key, value in optional_attributes.items():
-            if value:
+            if value is not None:
                 parts.append(f"{key}: {value}")
 
         return ", ".join(parts)

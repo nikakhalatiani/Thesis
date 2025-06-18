@@ -32,6 +32,7 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
               .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)
               .set_use_input_cache(True)
               .set_example_count(100)  # Set the number of examples to generate
+              .set_max_counterexamples(3)
               )
 
     # 3) dynamically load the user’s module

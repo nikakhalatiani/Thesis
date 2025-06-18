@@ -1,7 +1,7 @@
+from collections.abc import Hashable
+
 from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import TestResult, TestStats, PropertyTest
-
-from itertools import chain, product
 
 
 class CommutativityTest(PropertyTest):
@@ -186,7 +186,7 @@ class AssociativityTest(PropertyTest):
             }
 
 
-# TODO ask if f(g(x)) = f(x) is a valid property test or f(g(x)) = g(x) or f(g(x)) = g(f(x)) is a valid property test
+# TODO ask if f(g(x)) = f(x) is a valid property test or f(g(x)) = g(x)
 class IdempotenceTest(PropertyTest):
     """Test if repeatedly applying ``f`` yields the same result."""
 
@@ -440,7 +440,7 @@ class DistributivityTest(PropertyTest):
 
 class _CandidateElementTest(PropertyTest):
     """Private base class for candidate element tests (identity or absorbing)."""
-    # TODO think maybe we can control converter used better
+
     def __init__(
             self,
             name: str,
@@ -457,7 +457,7 @@ class _CandidateElementTest(PropertyTest):
             category="Algebraic"
         )
         if len(element_positions) != len(target_positions):
-            raise ValueError("element_positions and target_positions must match lengths")
+            raise ValueError("element_positions and target_positions lengths must match")
         self.element_positions = element_positions
         self.target_positions = target_positions
 
@@ -468,14 +468,27 @@ class _CandidateElementTest(PropertyTest):
             max_counterexamples: int
     ) -> TestResult:
         fut = combined.funcs[0]
-        arg_conv = fut.arg_converter
+        orig_conv = list(fut.arg_converter)
 
-        # Collect all possible candidates
-        all_values = frozenset(chain.from_iterable(inputs))
-        # Filter valid inputs
-        valid_inputs = [inp[:self.function_arity] for inp in inputs if len(inp) >= self.function_arity]
-        # to_test = product(all_values, repeat=self.function_arity)
-        # valid_inputs = [list(vals) for vals in to_test] # This may cause an issue due to division by zero
+        # determine default converter exactly as convert_args does
+        if orig_conv:
+            default_conv = orig_conv[-1]
+        else:
+            default_conv = fut._smart_converter  # fallback if no converters
+
+        # filter valid inputs and collect candidate values
+        valid_inputs = [
+            inp[: self.function_arity]
+            for inp in inputs
+            if len(inp) >= self.function_arity
+        ]
+        candidates = {
+            raw[pos]
+            for raw in valid_inputs
+            for pos in self.element_positions
+            if pos < len(raw)
+        }
+
         if not valid_inputs:
             return {
                 "holds": False,
@@ -483,32 +496,52 @@ class _CandidateElementTest(PropertyTest):
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
-        candidates = set(all_values)
-        counterexamples = []
+        # map each candidate back to its “home” converter
+        candidate_to_conv: dict = {}
+        for raw in valid_inputs:
+            for pos in self.element_positions:
+                if pos < len(raw):
+                    val = raw[pos]
+                    # pick converter[pos] if it exists, else default_conv
+                    conv = orig_conv[pos] if pos < len(orig_conv) else default_conv
+                    # skip if already mapped
+                    candidate_to_conv.setdefault(val, conv)
+
+        counterexamples: list[str] = []
         total_tests = 0
 
         for raw_args in valid_inputs:
             if not candidates:
                 break
             to_remove = set()
+
             for candidate in candidates:
                 for pos, target in zip(self.element_positions, self.target_positions):
                     args = list(raw_args)
                     args[pos] = candidate
-                    # convert and call
-                    conv_args = combined.convert_args(0, *args, arg_converter=arg_conv)
+
+                    # build a fresh copy of the converter list
+                    test_conv = orig_conv.copy()
+                    # pad if pos is beyond current length
+                    if pos >= len(test_conv):
+                        test_conv.extend([default_conv] * (pos + 1 - len(test_conv)))
+                    # swap in the candidate’s original converter
+                    test_conv[pos] = candidate_to_conv.get(candidate, default_conv)
+
+                    # convert & call
+                    conv_args = combined.convert_args(0, *args, arg_converter=test_conv)
                     result = combined.call(0, *conv_args)
-                    # expected from original raw_args
-                    exp_args = combined.convert_args(0, *args, arg_converter=arg_conv)
-                    expected = exp_args[target]
+                    expected = conv_args[target]
                     total_tests += 1
+
                     if not combined.compare_results(result, expected):
                         to_remove.add(candidate)
                         counterexamples.append(
-                            f"{fut.func.__name__}{tuple(conv_args)}: {result}\n"
-                            f"\tExpected: {expected} (pos {pos}->{target})\n"
+                            f"{fut.func.__name__}{tuple(conv_args)}: {result}\n\t"
+                            f"Expected: {expected} (pos {pos}->{target})\n"
                         )
                         break
+
             candidates -= to_remove
 
         stats: TestStats = {"total_count": total_tests, "success_count": total_tests if candidates else 0}
@@ -566,13 +599,10 @@ class IdentityElementTest(_CandidateElementTest):
 class GeneralIdentityElementTest(_CandidateElementTest):
     """Test for identity elements at arbitrary positions."""
 
-    def __init__(self, function_arity: int = 2, identity_positions: list[int] | None = None,
-                 target_positions: list[int] | None = None):
+    def __init__(self, function_arity: int = 2, identity_positions: list[int] | None = None):
         if identity_positions is None:
             identity_positions = list(range(function_arity))
-        if target_positions is None:
-            # Get opposite positions from identity_positions
-            target_positions = identity_positions[::-1]
+        target_positions = identity_positions[::-1]
 
         super().__init__(
             name="GeneralIdentityElement",
@@ -626,12 +656,11 @@ class AbsorbingElementTest(_CandidateElementTest):
 class GeneralAbsorbingElementTest(_CandidateElementTest):
     """Test for absorbing elements at arbitrary positions."""
 
-    def __init__(self, function_arity: int = 2, absorbing_positions: list[int] | None = None,
-                 target_positions: list[int] | None = None):
+    def __init__(self, function_arity: int = 2, absorbing_positions: list[int] | None = None):
         if absorbing_positions is None:
             absorbing_positions = list(range(function_arity))
-        if target_positions is None:
-            target_positions = absorbing_positions
+
+        target_positions = absorbing_positions
         super().__init__(
             name="GeneralAbsorbingElement",
             description=f"Checks absorbing at positions {absorbing_positions}->{target_positions}",
@@ -642,59 +671,68 @@ class GeneralAbsorbingElementTest(_CandidateElementTest):
 
 
 class FixedPointTest(PropertyTest):
-    """
-    Test if a unary function f has fixed points where:
-        f(x) == x
-    """
+    """Test for fixed points with configurable function arity and comparison index."""
 
-    def __init__(self) -> None:
+    def __init__(self, function_arity: int = 1, result_index: int = 0):
+        """Create a new fixed point test.
+
+        Parameters:
+        function_arity:
+            The number of arguments the function accepts. Defaults to 1.
+        result_index:
+            Which argument position to compare with the result for fixed point.
+            For f(x) = x, this would be 0. For f(state, value) where we check
+            if the state is unchanged, this would be 0.
+        """
         super().__init__(
             name="FixedPoint",
-            input_arity=1,
-            function_arity=1,
-            description="Checks whether inputs act as fixed points for f",
+            input_arity=function_arity,
+            function_arity=function_arity,
+            description=f"Checks for fixed points comparing result with argument {result_index}",
             category="Algebraic"
         )
+        self.result_index = result_index
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, max_counter_examples) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
 
         # Extract all unique elements from valid input tuples
-        all_elements = frozenset(chain.from_iterable(inputs))
+        valid_inputs = [input_set[:self.function_arity] for input_set in inputs if
+                        len(input_set) >= self.function_arity]
 
-        if len(all_elements) < self.input_arity:
+        if not valid_inputs:
             return {
                 "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
+                "counterexamples": ["No valid inputs found\n"],
                 "stats": {"total_count": 0, "success_count": 0},
             }
-
-        # Setup conversion cache
-        conversion_cache = {}
-
-        def cached_convert(raw_val):
-            if raw_val not in conversion_cache:
-                conversion_cache[raw_val] = fut.arg_converter(raw_val)
-            return conversion_cache[raw_val]
 
         total_tests = 0
         fixed_points = []
         counterexamples = []
 
-        for candidate in all_elements:
+        for input in valid_inputs:
             total_tests += 1
 
-            expected = cached_convert(candidate)
-            result1 = function.call(0, candidate)
-            result2 = function.call(0, candidate)  # Call twice to ensure consistency
+            if self.result_index < len(input):
+                args = list(input)
+                # Convert args using the function's argument converter
+                conv_args = function.convert_args(0, *args, arg_converter=fut.arg_converter)
+                # Call the function with converted args
+                expected = conv_args[self.result_index]
+                # Call the function
+                result1 = function.call(0, *conv_args)
+                # Double-check if result really matches expected
+                result2 = function.call(0, *conv_args)
 
-            if function.compare_results(result1, expected) and function.compare_results(result2, expected):
-                fixed_points.append(f"{candidate} is a fixed point\n")
-            else:
-                counterexamples.append(f"{f_name}({candidate}): {result1} ≠ {candidate}\n")
+                if function.compare_results(result1, expected) and function.compare_results(result2, expected):
+                    fixed_points.append(
+                        f"{f_name}{tuple(conv_args)}: {result1} == {conv_args[self.result_index]}\n"
+                    )
+                else:
+                    counterexamples.append(f"{f_name}{tuple(conv_args)}: {result1} ≠ {conv_args[self.result_index]}\n")
 
-        # Build result
         test_stats: TestStats = {
             'total_count': total_tests,
             # 'success_count': total_tests if fixed_points else 0
@@ -714,6 +752,102 @@ class FixedPointTest(PropertyTest):
                 "stats": test_stats,
             }
 
+
+class InjectivityTest(PropertyTest):
+    """Test injectivity with configurable function arity and projection strategy"""
+
+    def __init__(self, function_arity: int = 1, projection_func=None):
+        """Create a new injectivity test.
+
+        Parameters:
+        function_arity:
+            The number of arguments the function accepts. Defaults to 1.
+        projection_func:
+            Optional function to extract comparable values from function results.
+            Useful for functions that return complex objects where only part
+            should be compared for injectivity.
+        """
+        super().__init__(
+            name="Injectivity",
+            input_arity=function_arity,
+            function_arity=function_arity,
+            description=f"Checks injectivity for {function_arity}-ary function",
+            category="Algebraic"
+        )
+        self.projection_func = projection_func or (lambda x: x)
+
+    @staticmethod
+    def _make_hashable(obj):
+        """Convert an object to a hashable representation."""
+        if isinstance(obj, Hashable):
+            return obj
+        elif isinstance(obj, set):
+            return frozenset(obj)
+        elif isinstance(obj, list):
+            return tuple(obj)
+        elif isinstance(obj, dict):
+            return tuple(sorted(obj.items()))
+        else:
+            return str(obj)
+
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
+        fut = function.funcs[0]
+        f_name = fut.func.__name__
+
+        valid_inputs = {tuple(input_set[:self.function_arity]) for input_set in inputs if
+                        len(input_set) >= self.function_arity}
+
+        if not valid_inputs:
+            return {
+                "holds": False,
+                "counterexamples": ["No valid inputs found\n"],
+                "stats": {"total_count": 0, "success_count": 0},
+            }
+
+        counterexamples = []
+        total_tests = 0
+        result_map = {}  # Maps projected results to the input that produced them
+
+        for args in valid_inputs:
+            total_tests += 1
+
+            # Convert args using the function's argument converter
+            conv_args = function.convert_args(0, *args, arg_converter=fut.arg_converter)
+            # Call the function with converted args
+            result = function.call(0, *conv_args)
+
+            projected_result = self.projection_func(result)
+            projected_result = self._make_hashable(projected_result)
+
+            # Check if we've seen this projected result before
+            if projected_result in result_map:
+                prev_args, prev_result = result_map[projected_result]
+                counterexamples.append(
+                    f"{f_name}{tuple(conv_args)} = {result}\n\t"
+                    f"{f_name}{tuple(prev_args)} = {prev_result}\n")
+
+                if len(counterexamples) >= max_counterexamples:
+                    break
+            else:
+                result_map[projected_result] = (conv_args, result)
+
+        test_stats: TestStats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
+        if counterexamples:
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
+        else:
+            return {
+                "holds": True,
+                "counterexamples": [f"{f_name} is injective on the tested inputs\n"],
+                "stats": test_stats,
+            }
 
 # TODO interesting usage of try catch needs attention (CONVERTER)
 # class ClosureTest(PropertyTest):
@@ -869,80 +1003,3 @@ class FixedPointTest(PropertyTest):
 #                     f"No valid inputs for composition test on {f_name}∘{g_name}\n"],
 #                 "stats": test_stats,
 #             }
-
-
-class InjectivityTest(PropertyTest):
-    """
-    Test if a unary function is injective (one-to-one) on the provided inputs:
-        ∀ a ≠ b: f(a) ≠ f(b)
-    """
-
-    def __init__(self) -> None:
-        super().__init__(
-            name="Injectivity",
-            input_arity=1,
-            function_arity=1,
-            description="Checks whether f produces distinct outputs for distinct inputs (injective)",
-            category="Algebraic"
-        )
-
-    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        fut = function.funcs[0]
-        f_name = fut.func.__name__
-
-        # Extract all unique elements from valid input tuples
-        all_elements = frozenset(chain.from_iterable(inputs))
-        if len(all_elements) < self.input_arity:
-            return {
-                "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
-                "stats": {"total_count": 0, "success_count": 0},
-            }
-
-        # Test all pairs of distinct elements for injectivity
-        counterexamples = []
-        total_tests = 0
-        success_count = 0
-        result_map = {}  # Maps function results to the input that produced them
-
-        for element in all_elements:
-            total_tests += 1
-
-            # Get function result for this element
-            result = function.call(0, element)
-
-            # Check if we've seen this result before
-            if result in result_map:
-                # Found a collision - injectivity violated
-                previous_element = result_map[result]
-                counterexamples.append(
-                    f"{f_name}({element}) = {result}\n\t"
-                    f"{f_name}({previous_element}) = {result}\n"
-                )
-
-                # Early exit if we've hit max counterexamples
-                if len(counterexamples) >= max_counterexamples:
-                    break
-            else:
-                # New result - store it in the map
-                result_map[result] = element
-                success_count += 1
-
-        # Build result
-        test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': success_count
-        }
-
-        if counterexamples:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": True,
-                "counterexamples": [f"{f_name} is injective on the tested inputs\n"],
-                "stats": test_stats,
-            }
