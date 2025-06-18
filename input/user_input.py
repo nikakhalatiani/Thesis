@@ -38,15 +38,15 @@ converter_remove_from_set = [converter_intset, int]
 converter_union_sets = [converter_intset, converter_intset]
 
 # Grammar and parser overrides
+parser_set_and_number = InputParser.for_grammar_pattern("<set>", "<number_to_add>")
 grammar_add_to_set = "grammars/set_and_element.fan"
-parser_add_to_set = InputParser.for_grammar_pattern("<set>", "<number_to_add>")
+parser_add_to_set = parser_set_and_number
 
 grammar_remove_from_set = ["grammars/set_and_element.fan"]
-parser_remove_from_set = InputParser.for_grammar_pattern("<set>", "<number_to_add>")
+parser_remove_from_set = parser_set_and_number
 
 grammar_union_sets = "grammars/int_sets.fan"
 parser_union_sets = InputParser.for_all_sets()
-
 
 
 # --- Comparators -----------------------------------------------------------
@@ -114,6 +114,7 @@ class SetOperations:
         if not isinstance(b, set):
             b = {b}
         return a | b
+
 
 class Calculator:
     """
@@ -197,3 +198,25 @@ class DataChecksum:
             data = str(data)
         # Force collisions by reducing range
         return hash(data) % 1000
+
+#
+# class CompositionTestFunctions:
+#     """Functions designed to test composition properties."""
+#
+#     @staticmethod
+#     def conditional_identity(x):
+#         """
+#         Acts as identity for even numbers, but transforms odd numbers.
+#         This will pass left composition with even_doubler but fail right composition.
+#         """
+#         if x % 2 == 0:  # Even numbers pass through unchanged
+#             return x
+#         else:  # Odd numbers get transformed
+#             return x + 1
+#
+#     @staticmethod
+#     def even_doubler(x):
+#         """
+#         Doubles the input, always producing an even number.
+#         """
+#         return x * 2

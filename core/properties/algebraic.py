@@ -186,96 +186,6 @@ class AssociativityTest(PropertyTest):
             }
 
 
-# TODO ask if f(g(x)) = f(x) is a valid property test or f(g(x)) = g(x)
-class IdempotenceTest(PropertyTest):
-    """Test if repeatedly applying ``f`` yields the same result."""
-
-    def __init__(self, function_arity: int = 1, result_index: int = 0) -> None:
-        """Create a new idempotence property test.
-
-        Parameters
-        function_arity:
-            The number of arguments ``f`` accepts.  Defaults to ``1``.
-        result_index:
-            Which argument should receive the result of the first call when
-            ``f`` is invoked again.  For example, if ``f`` represents a stateful
-            update ``f(state, value)`` then ``result_index`` would typically be
-            ``0`` to check ``f(f(state, value), value)``.
-        """
-        super().__init__(
-            name="Idempotence",
-            input_arity=function_arity,
-            function_arity=function_arity,
-            description="Tests if applying f twice yields the same result",
-            category="Algebraic"
-        )
-        self.result_index = result_index
-
-    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
-        fut = function.funcs[0]
-        f_name = fut.func.__name__
-
-        valid_inputs = [input_set[:self.input_arity] for input_set in inputs if len(input_set) >= self.input_arity]
-
-        # print(f"Testing idempotence for {f_name}")
-        # print(f"Input elements: {inputs}")
-
-        if not valid_inputs:
-            return {
-                "holds": False,
-                "counterexamples": ["No valid inputs found\n"],
-                "stats": {"total_count": 0, "success_count": 0},
-            }
-
-        total_tests = 0
-        counterexamples = []
-
-        for args in valid_inputs:
-            # print(f"Testing with args: {args}")
-            conv_args = function.convert_args(0, *args, arg_converter=fut.arg_converter)
-            r1 = function.call(0, *conv_args)
-
-            new_args = list(args)
-            if len(new_args) > self.result_index:
-                new_args[self.result_index] = r1
-            else:
-                # If result_index is out of range, just append
-                new_args.append(r1)
-
-            conv_new_args = function.convert_args(0, *new_args, arg_converter=fut.arg_converter)
-            r2 = function.call(0, *conv_new_args)
-            total_tests += 1
-
-            # print(f"Result 1: {r1}, Result 2: {r2}")
-
-            if not function.compare_results(r1, r2):
-                counterexamples.append(
-                    f"{f_name}{tuple(conv_args)}: {r1}\n\t"
-                    f"{f_name}{tuple(conv_new_args)}: {r2}\n"
-                )
-                if len(counterexamples) >= max_counterexamples:
-                    break
-
-        # Build result
-        test_stats: TestStats = {
-            'total_count': total_tests,
-            'success_count': total_tests - len(counterexamples)
-        }
-
-        if not counterexamples:
-            return {
-                "holds": True,
-                "counterexamples": [f"Repeated application of {f_name} yields the same result for all tested inputs\n"],
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
-
-
 class _DistributivityTest(PropertyTest):
     """Private base class for distributivity tests."""
 
@@ -289,7 +199,7 @@ class _DistributivityTest(PropertyTest):
         )
         self.num_functions = 2
 
-    def compute_results(self, combined: CombinedFunctionUnderTest, fut_f, fut_g, a, b, c):
+    def compute_results(self, combined: CombinedFunctionUnderTest, a, b, c):
         """Compute (r1, r2) for given inputs; to be implemented by subclasses."""
         raise NotImplementedError
 
@@ -314,7 +224,7 @@ class _DistributivityTest(PropertyTest):
         for args in valid_inputs:
             a, b, c = args
             total_tests += 1
-            r1, r2 = self.compute_results(combined, fut_f, fut_g, a, b, c)
+            r1, r2 = self.compute_results(combined, a, b, c)
 
             if not combined.compare_results(r1, r2):
                 counterexamples.append(
@@ -347,7 +257,8 @@ class LeftDistributivityTest(_DistributivityTest):
             description="Tests left distributivity: f(a, g(b, c)) == g(f(a, b), f(a, c))"
         )
 
-    def compute_results(self, combined, fut_f, fut_g, a, b, c):
+    def compute_results(self, combined, a, b, c):
+        fut_f, fut_g = combined.funcs
         # f(a, g(b, c))
         inner_bc = combined.call(1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter))
         r1 = combined.call(0, *combined.convert_args(0, a, inner_bc, arg_converter=fut_f.arg_converter))
@@ -372,7 +283,8 @@ class RightDistributivityTest(_DistributivityTest):
             description="Tests right distributivity: f(g(a, b), c) == g(f(a, c), f(b, c))",
         )
 
-    def compute_results(self, combined, fut_f, fut_g, a, b, c):
+    def compute_results(self, combined, a, b, c):
+        fut_f, fut_g = combined.funcs
         # f(g(a, b), c)
         inner_ab = combined.call(1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter))
         r1 = combined.call(0, *combined.convert_args(0, inner_ab, c, arg_converter=fut_f.arg_converter))
@@ -436,6 +348,228 @@ class DistributivityTest(PropertyTest):
             }
         else:
             return {"holds": False, "counterexamples": all_ce, "stats": combined_stats}
+
+
+class _CompositionTest(PropertyTest):
+    """Private base for f∘g composition tests."""
+
+    def __init__(
+            self,
+            name: str,
+            description: str,
+            function_arity: int,
+            result_index: int
+    ) -> None:
+        super().__init__(
+            name=name,
+            input_arity=function_arity,
+            function_arity=function_arity,
+            description=description,
+            category="Algebraic"
+        )
+        # This test requires two functions: f (index 0) and g (index 1)
+        self.num_functions = 2
+        if result_index < 0 or result_index >= function_arity:
+            raise ValueError("result_index must be within function arity range")
+        self.result_index = result_index
+
+    def compute_results(
+            self,
+            combined: CombinedFunctionUnderTest,
+            *raw_args
+    ):
+        """Return a tuple (r1, r2) to compare."""
+        raise NotImplementedError
+
+    def format_counterexample(
+            self,
+            raw_args,
+            r1,
+            r2,
+            f_name: str,
+            g_name: str,
+            conv_f,
+            conv_g,
+    ) -> str:
+        """Format a counterexample message for failed test."""
+        raise NotImplementedError
+
+    def test(
+            self,
+            combined: CombinedFunctionUnderTest,
+            inputs,
+            max_counterexamples: int
+    ) -> TestResult:
+        fut_f, fut_g = combined.funcs
+        f_name, g_name = fut_f.func.__name__, fut_g.func.__name__
+
+        valid_inputs = [input_set[:self.input_arity] for input_set in inputs if len(input_set) >= self.input_arity]
+
+        if not valid_inputs:
+            return {
+                "holds": False,
+                "counterexamples": ["No valid inputs found\n"],
+                "stats": {"total_count": 0, "success_count": 0},
+            }
+
+        total_tests = 0
+        counterexamples = []
+
+        for args in valid_inputs:
+            total_tests += 1
+            r1, r2, conv_1, conv_2 = self.compute_results(combined, *args)
+
+            if not combined.compare_results(r1, r2):
+                counterexamples.append(
+                    self.format_counterexample(args, r1, r2, g_name, f_name, conv_1, conv_2)
+                )
+                if len(counterexamples) >= max_counterexamples:
+                    break
+
+        # Build result
+        test_stats: TestStats = {
+            'total_count': total_tests,
+            'success_count': total_tests - len(counterexamples)
+        }
+
+        if not counterexamples:
+            if self.name == "LeftComposition":
+                msg = f"{f_name} ∘ {g_name} equals {g_name} for all tested inputs"
+            elif self.name == "RightComposition":
+                msg = f"{f_name} ∘ {g_name} equals {f_name} for all tested inputs"
+            else:
+                msg = f"{self.name} holds for all tested inputs\n"
+            return {
+                "holds": True,
+                "counterexamples": [msg],
+                "stats": test_stats,
+            }
+        else:
+            return {
+                "holds": False,
+                "counterexamples": counterexamples,
+                "stats": test_stats,
+            }
+
+
+class LeftCompositionTest(_CompositionTest):
+    """Test f∘g = g: f(g(x1,...,xn)) == g(x1,...,xn)"""
+
+    def __init__(self, function_arity: int = 1, result_index: int = 0) -> None:
+        """Create a new left composition property test.
+
+        Parameters
+        ----------
+        function_arity : int
+            The number of arguments the functions accept. Defaults to 1.
+        result_index : int
+            The position where the result of g is inserted into f.
+            Defaults to 0.
+        """
+        super().__init__(
+            name="LeftComposition",
+            description=f"Checks f(g(x1..x{function_arity})) == g(x1..x{function_arity}) at pos {result_index}",
+            function_arity=function_arity,
+            result_index=result_index
+        )
+
+    def compute_results(
+            self,
+            combined: CombinedFunctionUnderTest,
+            *raw_args
+    ):
+        fut_f, fut_g = combined.funcs
+        # compute g(x...)
+        conv_g = combined.convert_args(1, *raw_args, arg_converter=fut_g.arg_converter)
+        r_g = combined.call(1, *conv_g)
+
+        # insert r_g into f at the identity position
+        f_args = list(raw_args)
+        f_args[self.result_index] = r_g
+        conv_fg = combined.convert_args(0, *f_args, arg_converter=fut_f.arg_converter)
+        r_fg = combined.call(0, *conv_fg)
+
+        return r_g, r_fg, conv_g, conv_fg
+
+    def format_counterexample(
+            self,
+            raw_args,
+            r1,
+            r2,
+            g_name: str,
+            f_name: str,
+            conv_g,
+            conv_f,
+    ) -> str:
+        fg_args = list(conv_f)
+        fg_args[self.result_index] = f"{g_name}{tuple(conv_g)}"
+
+        return (
+            f"{f_name}({', '.join(map(str, fg_args))}): {r2}\n\t"
+            f"{g_name}{tuple(conv_g)}: {r1}\n"
+        )
+
+
+class RightCompositionTest(_CompositionTest):
+    """Test f∘g = f: f(g(x1,...,xn)) == f(x1,...,xn)"""
+
+    def __init__(self, function_arity: int = 1, result_index: int = 0) -> None:
+        """Create a new right composition property test.
+
+        Parameters
+        ----------
+        function_arity : int
+            The number of arguments the functions accept. Defaults to 1.
+        result_index : int
+            The position where the result of g is inserted into f.
+            Defaults to 0.
+        """
+        super().__init__(
+            name="RightComposition",
+            description=f"Checks f(g(x1..x{function_arity})) == f(x1..x{function_arity}) at pos {result_index}",
+            function_arity=function_arity,
+            result_index=result_index
+        )
+
+    def compute_results(
+            self,
+            combined: CombinedFunctionUnderTest,
+            *raw_args
+    ):
+        fut_f, fut_g = combined.funcs
+        # original f(x...)
+        conv_f = combined.convert_args(0, *raw_args, arg_converter=fut_f.arg_converter)
+        r_f = combined.call(0, *conv_f)
+
+        # compute g(x...)
+        conv_g = combined.convert_args(1, *raw_args, arg_converter=fut_g.arg_converter)
+        r_g = combined.call(1, *conv_g)
+
+        # insert r_g into f at result position
+        f_args = list(raw_args)
+        f_args[self.result_index] = r_g
+        conv_fg = combined.convert_args(0, *f_args, arg_converter=fut_f.arg_converter)
+        r_fg = combined.call(0, *conv_fg)
+
+        return r_f, r_fg, conv_g, conv_f
+
+    def format_counterexample(
+            self,
+            raw_args,
+            r1,
+            r2,
+            g_name: str,
+            f_name: str,
+            conv_g,
+            conv_f,
+    ) -> str:
+        fg_args = list(conv_f)
+        fg_args[self.result_index] = f"{g_name}{tuple(conv_g)}"
+
+        return (
+            f"{f_name}({', '.join(map(str, fg_args))}): {r2}\n\t"
+            f"{f_name}{tuple(conv_f)}: {r1}\n"
+        )
 
 
 class _CandidateElementTest(PropertyTest):
@@ -712,11 +846,11 @@ class FixedPointTest(PropertyTest):
         fixed_points = []
         counterexamples = []
 
-        for input in valid_inputs:
+        for valid_input in valid_inputs:
             total_tests += 1
 
-            if self.result_index < len(input):
-                args = list(input)
+            if self.result_index < len(valid_input):
+                args = list(valid_input)
                 # Convert args using the function's argument converter
                 conv_args = function.convert_args(0, *args, arg_converter=fut.arg_converter)
                 # Call the function with converted args

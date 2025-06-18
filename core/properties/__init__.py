@@ -11,7 +11,6 @@ def create_standard_registry() -> PropertyRegistry:
 
     registry.register(CommutativityTest())
     registry.register(AssociativityTest())
-    registry.register(IdempotenceTest())
     registry.register(DistributivityTest())
     registry.register(IdentityElementTest())
     registry.register(AbsorbingElementTest())
@@ -40,17 +39,20 @@ def create_minimal_registry() -> PropertyRegistry:
     # registry.register(CommutativityTest(3))  # new instance
     # registry.register(AssociativityTest())  # new instance
     # registry.register(IdempotenceTest()) # new instance
-    # registry.register(IdempotenceTest(function_arity=2, result_index=0)) # new instance
+    registry.register(LeftCompositionTest(2,0))
+    registry.register(RightCompositionTest(2,0))
+    registry.register(LeftCompositionTest())
+    registry.register(RightCompositionTest())
     # registry.register(LeftDistributivityTest())
     # registry.register(RightDistributivityTest())
     # registry.register(DistributivityTest())
-    registry.register(LeftIdentityElementTest())
-    registry.register(RightIdentityElementTest())
-    registry.register(LeftAbsorbingElementTest())
-    registry.register(RightAbsorbingElementTest())
-    registry.register(AbsorbingElementTest())
+    # registry.register(LeftIdentityElementTest())
+    # registry.register(RightIdentityElementTest())
+    # registry.register(LeftAbsorbingElementTest())
+    # registry.register(RightAbsorbingElementTest())
+    # registry.register(AbsorbingElementTest())
     # registry.register(GeneralAbsorbingElementTest(2,[0,1]))
-    registry.register(IdentityElementTest())
+    # registry.register(IdentityElementTest())
     # registry.register(GeneralIdentityElementTest()) # same as IdentityElementTest
     # registry.register(FixedPointTest())
     # registry.register(FixedPointTest(2,1))
