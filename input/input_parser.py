@@ -74,26 +74,6 @@ class InputParser:
 
         return tuple(values)
 
-    # @staticmethod
-    # def basic_recursion_with_built_in_detector(tree: DerivationTree) -> tuple[str, ...]:
-    #
-    #     elements: list[str] = []
-    #
-    #     def visit(node: DerivationTree):
-    #         if node.is_num():
-    #             # Get the actual value represented by the node
-    #             value = node.value()
-    #             if value is not None:
-    #                 elements.append(str(value))
-    #             return
-    #
-    #         for child in node.children:
-    #             visit(child)
-    #
-    #     visit(tree)
-    #
-    #     return tuple(elements)
-
     # ===== Grammar-Aware Extraction Methods =====
 
     @staticmethod
@@ -148,3 +128,6 @@ class InputParser:
             return tuple(results)
 
         return cls(extract_pattern)
+
+    def __str__(self) -> str:
+        return f"InputParser(extraction_strategy={self.extraction_strategy.__name__})"

@@ -1,4 +1,3 @@
-from input.input_parser import InputParser
 import math
 
 
@@ -38,15 +37,14 @@ converter_remove_from_set = [converter_intset, int]
 converter_union_sets = [converter_intset, converter_intset]
 
 # Grammar and parser overrides
-parser_set_and_number = InputParser.for_grammar_pattern("<set>", "<number_to_add>")
 grammar_add_to_set = "grammars/set_and_element.fan"
-parser_add_to_set = parser_set_and_number
+parser_add_to_set = ["<set>", "<number_to_add>"]
 
 grammar_remove_from_set = ["grammars/set_and_element.fan"]
-parser_remove_from_set = parser_set_and_number
+parser_remove_from_set = ["<set>", "<number_to_add>"]
 
 grammar_union_sets = "grammars/int_sets.fan"
-parser_union_sets = InputParser.for_all_sets()
+parser_union_sets = "<set>"
 
 
 # --- Comparators -----------------------------------------------------------

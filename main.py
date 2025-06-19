@@ -79,7 +79,20 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
 
         elif name.startswith("parser_"):
             func_name = name[len("parser_"):]
-            parser_overrides[func_name] = value
+            try:
+                if isinstance(value, InputParser):
+                    parser_overrides[func_name] = value
+                elif isinstance(value, str):
+                    val = value.strip()
+                    if val.startswith("<") and val.endswith(">"):
+                        parser_overrides[func_name] = InputParser.for_nonterminal(val)
+                elif isinstance(value, list):
+                    if all(isinstance(v, str) for v in value):
+                        parser_overrides[func_name] = InputParser.for_grammar_pattern(*value)
+                else:
+                    raise ValueError(f"Invalid parser spec for {name}: {value}")
+            except Exception as e:
+                raise ValueError(f"Invalid parser spec for {name}: {value}") from e
 
         elif name.startswith("comparator_"):
             func_name = name[len("comparator_"):]
