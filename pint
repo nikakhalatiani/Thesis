@@ -9,6 +9,10 @@ import argparse
 import sys
 import os
 import time
+import json
+import inspect
+import importlib.util
+from typing import Any
 
 from core.properties import create_standard_registry, create_minimal_registry
 from input.input_parser import InputParser
@@ -17,15 +21,141 @@ from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
 
-import inspect
-
 
 def load_user_module(path: str):
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("user_defined_functions", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    """Load a Python module from a file path."""
+    try:
+        spec = importlib.util.spec_from_file_location("user_defined_functions", path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Could not load module from {path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except Exception as e:
+        raise ImportError(f"Failed to load module from {path}: {e}") from e
+
+
+def get_user_classes(module, class_name: str | None = None) -> list[tuple[str, type]]:
+    """Extract relevant classes from user module with proper filtering."""
+    if class_name:
+        if not hasattr(module, class_name):
+            raise ValueError(f"Class '{class_name}' not found in module")
+        return [(class_name, getattr(module, class_name))]
+
+    # Get all classes defined in this module (not imported)
+    classes = []
+    for name, obj in inspect.getmembers(module, inspect.isclass):
+        if obj.__module__ == module.__name__:
+            classes.append((name, obj))
+
+    if not classes:
+        available = [name for name, obj in inspect.getmembers(module, inspect.isclass)]
+        raise ValueError(f"No user-defined classes found in module. Available classes: {available}")
+
+    return classes
+
+
+def extract_overrides(module) -> dict[str, dict[str, Any]]:
+    """Extract all function overrides from module using a unified approach."""
+    overrides = {
+        'converter': {},
+        'grammar': {},
+        'parser': {},
+        'comparator': {}
+    }
+
+    override_patterns = {
+        'converter_': 'converter',
+        'grammar_': 'grammar',
+        'parser_': 'parser',
+        'comparator_': 'comparator'
+    }
+
+    for name, value in vars(module).items():
+        for prefix, override_type in override_patterns.items():
+            if name.startswith(prefix):
+                func_name = name[len(prefix):]
+                overrides[override_type][func_name] = value
+                break
+
+    return overrides
+
+
+def process_grammar_override(func_name: str, value: Any, default_grammar) -> GrammarConfig:
+    """Process grammar override with proper validation."""
+    if isinstance(value, GrammarConfig):
+        return value
+    elif isinstance(value, str):
+        return GrammarConfig(value)
+    elif isinstance(value, (list, tuple)):
+        try:
+            if value and isinstance(value[0], str) and value[0].endswith(".fan"):
+                return GrammarConfig(value[0], extra_constraints=value[1:])
+            else:
+                return GrammarConfig(default_grammar.path, extra_constraints=value)
+        except (IndexError, AttributeError) as e:
+            raise ValueError(f"Invalid grammar spec for {func_name}: {value}") from e
+    else:
+        raise ValueError(f"Unsupported grammar type for {func_name}: {type(value)}")
+
+
+def process_parser_override(func_name: str, value: Any) -> InputParser:
+    """Process parser override with proper validation."""
+    if isinstance(value, InputParser):
+        return value
+    elif isinstance(value, str):
+        val = value.strip()
+        if val.startswith("<") and val.endswith(">"):
+            return InputParser.for_nonterminal(val)
+        else:
+            raise ValueError(f"String parser spec must be nonterminal like '<number>' for {func_name}: {value}")
+    elif isinstance(value, list):
+        if all(isinstance(v, str) for v in value):
+            return InputParser.for_grammar_pattern(*value)
+        else:
+            raise ValueError(f"List parser spec must contain only strings for {func_name}: {value}")
+    else:
+        raise ValueError(f"Invalid parser spec for {func_name}: {value}")
+
+
+def get_override(func, override_dict: dict[str, Any], func_name: str, attr_name: str) -> Any:
+    """Get override value from dict or function attribute."""
+    return override_dict.get(func_name) or getattr(func, attr_name, None)
+
+
+def register_class_functions(class_name: str, cls: type, config: PropertyInferenceConfig,
+                             overrides: dict[str, dict[str, Any]], verbose: bool = False) -> int:
+    """Register all functions from a class with their overrides."""
+    function_count = 0
+
+    for func_name, func in inspect.getmembers(cls, inspect.isfunction):
+        try:
+            # Get overrides for this function
+            converter = get_override(func, overrides['converter'], func_name, '__converter__')
+            comparator = get_override(func, overrides['comparator'], func_name, '__comparator__')
+            grammar = get_override(func, overrides['grammar'], func_name, '__grammar__')
+            parser = get_override(func, overrides['parser'], func_name, '__parser__')
+
+            # Process grammar if needed
+            if grammar and not isinstance(grammar, GrammarConfig):
+                grammar = process_grammar_override(func_name, grammar, config.default_grammar)
+
+            # Process parser if needed
+            if parser and not isinstance(parser, InputParser):
+                parser = process_parser_override(func_name, parser)
+
+            # Create and register function
+            fut = FunctionUnderTest(func, arg_converter=converter, result_comparator=comparator)
+            config.add_function(fut, grammar=grammar, parser=parser)
+            function_count += 1
+
+            if verbose:
+                print(f"  • Registered {class_name}.{func_name}")
+
+        except Exception as e:
+            print(f"Warning: Failed to register {class_name}.{func_name}: {e}", file=sys.stderr)
+
+    return function_count
 
 
 def parse_arguments():
@@ -101,7 +231,6 @@ Examples:
         default='FIRST_COMPATIBLE',
         help='Strategy for comparing results (default: FIRST_COMPATIBLE)'
     )
-
     config_group.add_argument(
         '--no-cache',
         action='store_true',
@@ -164,9 +293,10 @@ def list_available_properties(registry):
     """List all available properties in the registry."""
     print("Available Properties:")
     print("=" * 50)
-    for prop_name in registry.get_all():
+    properties = registry.get_all()
+    for prop_name in properties:
         print(f"  • {prop_name}")
-    print()
+    print(f"\nTotal: {len(properties)} properties")
 
 
 def validate_arguments(args):
@@ -177,8 +307,8 @@ def validate_arguments(args):
     if not os.path.exists(args.functions_file):
         errors.append(f"Functions file not found: {args.functions_file}")
 
-    # Check if grammar file exists
-    if not os.path.exists(args.grammar):
+    # Check if grammar file exists (only if not using list-properties)
+    if not args.list_properties and not os.path.exists(args.grammar):
         errors.append(f"Grammar file not found: {args.grammar}")
 
     # Validate examples count
@@ -218,7 +348,7 @@ def setup_config(args):
         sys.exit(0)
 
     # Build base config
-    default_parser = InputParser.for_nonterminal("<number>")
+    default_parser = InputParser.for_numbers()
 
     # Set comparison strategy
     strategy_map = {
@@ -246,7 +376,7 @@ def setup_config(args):
     return config
 
 
-def load_and_register_functions(config, args):
+def load_and_register_functions(config: PropertyInferenceConfig, args) -> PropertyInferenceConfig:
     """Load user module and register functions."""
     try:
         module = load_user_module(args.functions_file)
@@ -254,110 +384,50 @@ def load_and_register_functions(config, args):
         print(f"Error loading functions file: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Determine which class(es) to pull functions from
-    if args.class_name:
-        # single named class
-        try:
-            classes = [(args.class_name, getattr(module, args.class_name))]
-        except AttributeError:
-            print(f"Error: Class '{args.class_name}' not found in {args.functions_file}", file=sys.stderr)
-            sys.exit(1)
-    else:
-        # all classes defined in the module
-        classes = [
-            (name, cls)
-            for name, cls in inspect.getmembers(module, inspect.isclass)
-            if cls.__module__ == module.__name__
-        ]
-        if not classes:
-            print(f"No classes found in {args.functions_file} to register.", file=sys.stderr)
-            sys.exit(1)
+    try:
+        # Get user classes
+        classes = get_user_classes(module, args.class_name)
 
-    # Extract overrides
-    converter_overrides: dict = {}
-    grammar_overrides: dict = {}
-    parser_overrides: dict = {}
-    comparator_overrides: dict = {}
+        # Extract overrides
+        overrides = extract_overrides(module)
 
-    for name, value in vars(module).items():
-        if name.startswith("converter_"):
-            func_name = name[len("converter_"):]
-            converter_overrides[func_name] = value
+        if args.verbose and any(any(d.values()) for d in overrides.values()):
+            print("Found function overrides:")
+            for override_type, override_dict in overrides.items():
+                if override_dict:
+                    print(f"  • {override_type}: {list(override_dict.keys())}")
 
-        elif name.startswith("grammar_"):
-            func_name = name[len("grammar_"):]
-            if isinstance(value, GrammarConfig):
-                grammar_overrides[func_name] = value
-            elif isinstance(value, str):
-                grammar_overrides[func_name] = GrammarConfig(value)
-            else:
+        # Register functions from classes
+        total_functions = 0
+        for class_name, cls in classes:
+            function_count = register_class_functions(class_name, cls, config, overrides, args.verbose)
+            total_functions += function_count
+
+        if not args.quiet:
+            class_names = [name for name, _ in classes]
+            print(f"Registered {total_functions} functions from {len(classes)} class(es): {', '.join(class_names)}")
+
+        # Add specific properties if requested
+        if args.properties:
+            for prop_name in args.properties:
                 try:
-                    path_candidate = value[0]
-                    if isinstance(path_candidate, str) and path_candidate.endswith(".fan"):
-                        path = path_candidate
-                        constraints = value[1:]
-                    else:
-                        path = config.default_grammar.path
-                        constraints = value
-                    grammar_overrides[func_name] = GrammarConfig(path, extra_constraints=constraints)
+                    config.add_property_by_name(prop_name)
+                    if args.verbose:
+                        print(f"  • Added property: {prop_name}")
                 except Exception as e:
-                    raise ValueError(f"Invalid grammar spec format for {name}: {value}") from e
+                    print(f"Warning: Could not add property '{prop_name}': {e}", file=sys.stderr)
 
-        elif name.startswith("parser_"):
-            func_name = name[len("parser_"):]
-            try:
-                if isinstance(value, InputParser):
-                    parser_overrides[func_name] = value
-                elif isinstance(value, str):
-                    val = value.strip()
-                    if val.startswith("<") and val.endswith(">"):
-                        parser_overrides[func_name] = InputParser.for_nonterminal(val)
-                elif isinstance(value, list):
-                    if all(isinstance(v, str) for v in value):
-                        parser_overrides[func_name] = InputParser.for_grammar_pattern(*value)
-                else:
-                    raise ValueError(f"Invalid parser spec for {name}: {value}")
-            except Exception as e:
-                raise ValueError(f"Invalid parser spec for {name}: {value}") from e
-        elif name.startswith("comparator_"):
-            func_name = name[len("comparator_"):]
-            comparator_overrides[func_name] = value
+        return config
 
-    # Register functions from one or more classes
-    function_count = 0
-    for class_name, cls in classes:
-        for func_name, func in inspect.getmembers(cls, inspect.isfunction):
-            comp = comparator_overrides.get(func_name) or getattr(func, "__comparator__", None)
-            conv = converter_overrides.get(func_name) or getattr(func, "__converter__", None)
-            gram = grammar_overrides.get(func_name) or getattr(func, "__grammar__", None)
-            pars = parser_overrides.get(func_name) or getattr(func, "__parser__", None)
-
-            fut = FunctionUnderTest(func, arg_converter=conv, result_comparator=comp)
-            config.add_function(fut, grammar=gram, parser=pars)
-            function_count += 1
-
-    if not args.quiet:
-        class_list = ", ".join(name for name, _ in classes)
-        print(f"Registered {function_count} functions from class(es): {class_list}")
-
-    # Add specific properties if requested
-    if args.properties:
-        for prop_name in args.properties:
-            try:
-                config.add_property_by_name(prop_name)
-                if args.verbose:
-                    print(f"  • Added property: {prop_name}")
-            except Exception as e:
-                print(f"Warning: Could not add property '{prop_name}': {e}", file=sys.stderr)
-
-    return config
+    except Exception as e:
+        print(f"Error processing functions: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
-def format_results(results, args):
+def format_results(results: dict, args) -> str:
     """Format results for output."""
     if args.json:
-        import json
-        return json.dumps(results, indent=2)
+        return json.dumps(results, indent=2, default=str)
 
     output_lines = []
 
@@ -367,12 +437,13 @@ def format_results(results, args):
         for prop, outcome in result["outcomes"].items():
             holds = outcome["holds"]
             tests_run = outcome["stats"]["total_count"]
-            confidence = (outcome["stats"]["success_count"] / tests_run * 100) if tests_run > 0 else 0.0
+            success_count = outcome["stats"]["success_count"]
+            confidence = (success_count / tests_run * 100) if tests_run > 0 else 0.0
             status = "🟢" if holds else "🔴"
 
             decision = (
                 f"{status} {prop} "
-                f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
+                f"(Confidence: {confidence:.1f}%; Tests run: {tests_run})"
             )
             output_lines.append(decision)
 
@@ -390,13 +461,14 @@ def main():
     validate_arguments(args)
 
     if args.dry_run:
-        print("Dry run mode - showing configuration without executing tests")
+        print("🔍 Dry run mode - showing configuration without executing tests")
         print(f"Functions file: {args.functions_file}")
-        print(f"Class name: {args.class_name}")
+        print(f"Class name: {args.class_name or 'all classes'}")
         print(f"Examples: {args.examples}")
         print(f"Registry: {'standard' if args.standard_registry else 'minimal'}")
         print(f"Grammar file: {args.grammar}")
         print(f"Comparison strategy: {args.comparison_strategy}")
+        print(f"Use cache: {not args.no_cache}")
         if args.properties:
             print(f"Properties to test: {', '.join(args.properties)}")
         else:
@@ -412,7 +484,7 @@ def main():
 
         # Run the analysis
         if not args.quiet:
-            print("\nRunning property inference analysis...")
+            print("\n🚀 Running property inference analysis...")
 
         start_time = time.perf_counter() if args.timing else None
 
@@ -428,7 +500,7 @@ def main():
             with open(args.output, 'w') as f:
                 f.write(formatted_results)
             if not args.quiet:
-                print(f"Results written to {args.output}")
+                print(f"✅ Results written to {args.output}")
         else:
             print(formatted_results)
 
@@ -437,10 +509,10 @@ def main():
             print(f"\n⏱️  Execution time: {end_time - start_time:.4f} seconds")
 
     except KeyboardInterrupt:
-        print("\nOperation cancelled by user", file=sys.stderr)
+        print("\n❌ Operation cancelled by user", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"❌ Error: {e}", file=sys.stderr)
         if args.verbose:
             import traceback
             traceback.print_exc()

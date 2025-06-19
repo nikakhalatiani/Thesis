@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from typing import Any
 
 from core.properties import create_standard_registry, create_minimal_registry
@@ -9,36 +8,92 @@ from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
 
 import inspect
+import importlib.util
 
 
 def load_user_module(path: str):
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("user_defined_functions", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    """Load a Python module from a file path."""
+    try:
+        spec = importlib.util.spec_from_file_location("user_defined_functions", path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"Could not load module from {path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+    except Exception as e:
+        raise ImportError(f"Failed to load module from {path}: {e}") from e
+
+
+def extract_overrides(module) -> dict[str, dict[str, Any]]:
+    overrides = {
+        'converter': {},
+        'grammar': {},
+        'parser': {},
+        'comparator': {}
+    }
+
+    for name, value in vars(module).items():
+        if name.startswith("converter_"):
+            overrides['converter'][name[len("converter_"):]] = value
+        elif name.startswith("grammar_"):
+            overrides['grammar'][name[len("grammar_"):]] = value
+        elif name.startswith("parser_"):
+            overrides['parser'][name[len("parser_"):]] = value
+        elif name.startswith("comparator_"):
+            overrides['comparator'][name[len("comparator_"):]] = value
+
+    return overrides
+
+
+def process_grammar_override(func_name: str, value: Any, default_grammar) -> GrammarConfig:
+    if isinstance(value, GrammarConfig):
+        return value
+    elif isinstance(value, str):
+        return GrammarConfig(value)
+    elif isinstance(value, (list, tuple)):
+        try:
+            if value and isinstance(value[0], str) and value[0].endswith(".fan"):
+                return GrammarConfig(value[0], extra_constraints=value[1:])
+            else:
+                return GrammarConfig(default_grammar.path, extra_constraints=value)
+        except Exception as e:
+            raise ValueError(f"Invalid grammar spec for {func_name}: {value}") from e
+    else:
+        raise ValueError(f"Unsupported grammar type for {func_name}: {type(value)}")
+
+
+def process_parser_override(func_name: str, value: Any) -> InputParser:
+    if isinstance(value, InputParser):
+        return value
+    elif isinstance(value, str):
+        val = value.strip()
+        if val.startswith("<") and val.endswith(">"):
+            return InputParser.for_nonterminal(val)
+        else:
+            raise ValueError(f"String parser spec must be nonterminal like '<number>' for {func_name}: {value}")
+    elif isinstance(value, list):
+        if all(isinstance(v, str) for v in value):
+            return InputParser.for_grammar_pattern(*value)
+        else:
+            raise ValueError(f"List parser spec must contain only strings for {func_name}: {value}")
+    else:
+        raise ValueError(f"Invalid parser spec for {func_name}: {value}")
 
 
 def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None):
-    # 1) build property registry
     registry = create_minimal_registry()
-    # registry = create_standard_registry()
 
-    # 2) build base config
     default_parser = InputParser.for_numbers()
     config = (PropertyInferenceConfig(registry)
               .set_default_grammar("grammars/test.fan")
               .set_default_parser(default_parser)
               .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)
               .set_use_input_cache(True)
-              .set_example_count(100)  # Set the number of examples to generate
-              .set_max_counterexamples(3)
-              )
+              .set_example_count(100)
+              .set_max_counterexamples(3))
 
-    # 3) dynamically load the user’s module
     module = load_user_module(user_funcs_path)
 
-    # Determine which classes to inspect
     if class_name:
         classes = [getattr(module, class_name)]
     else:
@@ -47,88 +102,29 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
             if inspect.isclass(obj) and obj.__module__ == module.__name__
         ]
 
-    # 4) pick up any module-level comparator_*, converter_*, grammar_*, parser_* overrides
-    converter_overrides: dict[str, Any] = {}
-    grammar_overrides: dict[str, GrammarConfig] = {}
-    parser_overrides: dict[str, Any] = {}
-    comparator_overrides: dict[str, Callable] = {}
+    overrides = extract_overrides(module)
 
-    for name, value in vars(module).items():
-        if name.startswith("converter_"):
-            func_name = name[len("converter_"):]
-            converter_overrides[func_name] = value
-
-        elif name.startswith("grammar_"):
-            func_name = name[len("grammar_"):]
-            if isinstance(value, GrammarConfig):
-                grammar_overrides[func_name] = value
-            elif isinstance(value, str):
-                grammar_overrides[func_name] = GrammarConfig(value)
-            else:
-                try:
-                    path_candidate = value[0]
-                    if isinstance(path_candidate, str) and path_candidate.endswith(".fan"):
-                        path = path_candidate
-                        constraints = value[1:]
-                    else:
-                        path = config.default_grammar.path
-                        constraints = value
-                    grammar_overrides[func_name] = GrammarConfig(path, extra_constraints=constraints)
-                except Exception as e:
-                    raise ValueError(f"Invalid grammar spec format for {name}: {value}") from e
-
-        elif name.startswith("parser_"):
-            func_name = name[len("parser_"):]
-            try:
-                if isinstance(value, InputParser):
-                    parser_overrides[func_name] = value
-                elif isinstance(value, str):
-                    val = value.strip()
-                    if val.startswith("<") and val.endswith(">"):
-                        parser_overrides[func_name] = InputParser.for_nonterminal(val)
-                elif isinstance(value, list):
-                    if all(isinstance(v, str) for v in value):
-                        parser_overrides[func_name] = InputParser.for_grammar_pattern(*value)
-                else:
-                    raise ValueError(f"Invalid parser spec for {name}: {value}")
-            except Exception as e:
-                raise ValueError(f"Invalid parser spec for {name}: {value}") from e
-
-        elif name.startswith("comparator_"):
-            func_name = name[len("comparator_"):]
-            comparator_overrides[func_name] = value
-
-    # 5) register every static method under discovered classes, wiring overrides by name
     for cls in classes:
         for func_name, func in inspect.getmembers(cls, inspect.isfunction):
-            comp = comparator_overrides.get(func_name) or getattr(func, "__comparator__", None)
-            conv = converter_overrides.get(func_name) or getattr(func, "__converter__", None)
-            gram = grammar_overrides.get(func_name) or getattr(func, "__grammar__", None)
-            pars = parser_overrides.get(func_name) or getattr(func, "__parser__", None)
+            comp = overrides['comparator'].get(func_name) or getattr(func, "__comparator__", None)
+            conv = overrides['converter'].get(func_name) or getattr(func, "__converter__", None)
+            gram = overrides['grammar'].get(func_name) or getattr(func, "__grammar__", None)
+            pars = overrides['parser'].get(func_name) or getattr(func, "__parser__", None)
+
+            if gram and not isinstance(gram, GrammarConfig):
+                gram = process_grammar_override(func_name, gram, config.default_grammar)
+
+            if pars and not isinstance(pars, InputParser):
+                pars = process_parser_override(func_name, pars)
 
             fut = FunctionUnderTest(func, arg_converter=conv, result_comparator=comp)
             config.add_function(fut, grammar=gram, parser=pars)
-        # config.add_combination(CombinedFunctionUnderTest((fut, fut)), grammar=GrammarConfig("grammars/digits_list.fan", ["int(<term>) == 0"]), parser=pars)
 
-    # specify the properties to test if none are provided all properties are tested
-    # config.add_property_by_name("Commutativity")
-    # config.add_property_by_name("Associativity")
-    # config.add_property_by_name("Distributivity")
-    # config.add_property_by_name("Idempotence")
-
-    # 3) run
-    # import time
-    # start_time = time.perf_counter()
     engine: PropertyInferenceEngine = PropertyInferenceEngine(config)
     results = engine.run()
-    # end_time = time.perf_counter()
-    # print(f"Execution time: {end_time - start_time:.4f} seconds")
 
-    # 4) pretty‑print
     for func_name, result in results.items():
         print(f"\n📊 Inferred Properties for {func_name}:")
-        prop: str
-        holds: bool
         for prop, outcome in result["outcomes"].items():
             holds = outcome["holds"]
             tests_run = outcome["stats"]["total_count"]
@@ -137,8 +133,6 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
             decision = (
                 f"{status} {prop} "
                 f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
-                # if holds
-                # else f"{status} {prop} (Confidence: {100 - confidence:.1f}%; Tests run to infer: {tests_run})"
             )
             print(decision)
             for ex in outcome["counterexamples"]:
