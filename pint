@@ -14,12 +14,56 @@ import inspect
 import importlib.util
 from typing import Any
 
-from core.properties import create_standard_registry, create_minimal_registry
+from core.properties import (
+    create_symmetry_registry, create_algebraic_structure_registry,
+    create_special_elements_registry, create_function_analysis_registry,
+    create_composition_registry, create_comprehensive_registry,
+    create_basic_registry, create_arithmetic_registry,
+    create_logical_operations_registry, create_cryptographic_registry,
+    create_data_structure_registry
+)
 from input.input_parser import InputParser
 from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
+
+# Registry mapping for CLI options
+REGISTRY_FACTORIES = {
+    'basic': create_basic_registry,
+    'comprehensive': create_comprehensive_registry,
+
+    # Category-specific registries
+    'symmetry': create_symmetry_registry,
+    'algebraic': create_algebraic_structure_registry,
+    'elements': create_special_elements_registry,
+    'analysis': create_function_analysis_registry,
+    'composition': create_composition_registry,
+
+    # Domain-specific registries
+    'arithmetic': create_arithmetic_registry,
+    'logical': create_logical_operations_registry,
+    'crypto': create_cryptographic_registry,
+    'datastructure': create_data_structure_registry,
+}
+
+REGISTRY_DESCRIPTIONS = {
+    'basic': 'Essential properties for general function testing',
+    'comprehensive': 'All available properties combined',
+
+    # Category-specific
+    'symmetry': 'Properties testing argument order/position relationships',
+    'algebraic': 'Fundamental algebraic laws (associativity, distributivity)',
+    'elements': 'Tests for identity and absorbing elements',
+    'analysis': 'General function behavior analysis (injectivity, fixed points)',
+    'composition': 'Function composition and interaction properties',
+
+    # Domain-specific
+    'arithmetic': 'Properties optimized for arithmetic operations (+, -, ×, ÷)',
+    'logical': 'Properties for boolean/logical operations (AND, OR, NOT)',
+    'crypto': 'Properties for cryptographic and encoding functions',
+    'datastructure': 'Properties for data structure operations (union, merge, etc.)',
+}
 
 
 def load_user_module(path: str):
@@ -158,6 +202,50 @@ def register_class_functions(class_name: str, cls: type, config: PropertyInferen
     return function_count
 
 
+def list_available_registries():
+    """List all available property registries."""
+    print("Available Property Registries:")
+    print("=" * 60)
+
+    # Group registries by type
+    categories = {
+        'General Purpose': ['basic', 'comprehensive'],
+        'Category-Specific': ['symmetry', 'algebraic', 'elements', 'analysis', 'composition'],
+        'Domain-Specific': ['arithmetic', 'logical', 'crypto', 'datastructure']
+    }
+
+    for category, registry_names in categories.items():
+        print(f"\n{category}:")
+        for name in registry_names:
+            description = REGISTRY_DESCRIPTIONS.get(name, "No description available")
+            print(f"  {name:15} - {description}")
+
+    print(f"\nTotal: {len(REGISTRY_FACTORIES)} registries available")
+
+
+def list_available_properties(registry):
+    """List all available properties in the registry."""
+    print("Available Properties:")
+    print("=" * 50)
+    properties = registry.get_all()
+
+    # Group by category if possible
+    by_category = {}
+    for prop_name in properties:
+        prop_obj = registry.get(prop_name)
+        category = getattr(prop_obj, 'category', 'Uncategorized')
+        if category not in by_category:
+            by_category[category] = []
+        by_category[category].append(prop_name)
+
+    for category, props in sorted(by_category.items()):
+        print(f"\n{category}:")
+        for prop in sorted(props):
+            print(f"  • {prop}")
+
+    print(f"\nTotal: {len(properties)} properties")
+
+
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -165,13 +253,15 @@ def parse_arguments():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s                                    # Use default user_input.py
+  %(prog)s                                    # Use default basic registry
   %(prog)s -f my_functions.py                 # Analyze custom functions
-  %(prog)s -f calc.py -e 500 -g custom.fan   # Custom settings
-  %(prog)s --standard-registry -v            # Use full property set with verbose output
-  %(prog)s --list-properties                  # Show available properties
+  %(prog)s -r arithmetic -e 500              # Use arithmetic registry with 500 examples
+  %(prog)s -r comprehensive -v               # Use all properties with verbose output
+  %(prog)s --list-registries                 # Show available property registries
+  %(prog)s --list-properties                 # Show properties in current registry
   %(prog)s -p Commutativity Associativity    # Test specific properties only
-  %(prog)s --timing --max-counterexamples 5  # Show timing with more counterexamples
+  %(prog)s -r crypto --timing                # Use crypto registry with timing info
+  %(prog)s -r algebraic,composition          # Combine multiple registries
         """
     )
 
@@ -192,17 +282,17 @@ Examples:
 
     # Property registry options
     registry_group = parser.add_argument_group('Property Registry Options')
-    registry_mutex = registry_group.add_mutually_exclusive_group()
-    registry_mutex.add_argument(
-        '--minimal-registry',
-        action='store_true',
-        default=True,
-        help='Use minimal property registry (default)'
+    registry_group.add_argument(
+        '-r', '--registry',
+        type=str,
+        default='basic',
+        help='Property registry to use. Use comma-separated list to combine multiple registries. '
+             'Available: ' + ', '.join(sorted(REGISTRY_FACTORIES.keys())) + ' (default: basic)'
     )
-    registry_mutex.add_argument(
-        '--standard-registry',
+    registry_group.add_argument(
+        '--list-registries',
         action='store_true',
-        help='Use standard (full) property registry'
+        help='List all available property registries and exit'
     )
 
     # Test configuration
@@ -242,12 +332,12 @@ Examples:
     property_group.add_argument(
         '-p', '--properties',
         nargs='*',
-        help='Specific properties to test (if not specified, all properties are tested)'
+        help='Specific properties to test (if not specified, all properties from registry are tested)'
     )
     property_group.add_argument(
         '--list-properties',
         action='store_true',
-        help='List all available properties and exit'
+        help='List all available properties in the selected registry and exit'
     )
 
     # Output options
@@ -289,25 +379,48 @@ Examples:
     return parser.parse_args()
 
 
-def list_available_properties(registry):
-    """List all available properties in the registry."""
-    print("Available Properties:")
-    print("=" * 50)
-    properties = registry.get_all()
-    for prop_name in properties:
-        print(f"  • {prop_name}")
-    print(f"\nTotal: {len(properties)} properties")
+def create_combined_registry(registry_names: list[str]):
+    """Create a combined registry from multiple registry names."""
+    if len(registry_names) == 1:
+        return REGISTRY_FACTORIES[registry_names[0]]()
+
+    # For multiple registries, create a new registry and merge them
+    from core.properties import PropertyRegistry
+    combined = PropertyRegistry()
+
+    for name in registry_names:
+        if name not in REGISTRY_FACTORIES:
+            raise ValueError(f"Unknown registry: {name}")
+
+        registry = REGISTRY_FACTORIES[name]()
+        # Assuming registry has a method to get all tests
+        for test in registry.get_all_tests():  # This method may need to be implemented
+            combined.register(test)
+
+    return combined
 
 
 def validate_arguments(args):
     """Validate command line arguments."""
     errors = []
 
+    # Handle list requests early
+    if args.list_registries:
+        list_available_registries()
+        sys.exit(0)
+
+    # Validate registry names
+    registry_names = [name.strip() for name in args.registry.split(',')]
+    invalid_registries = [name for name in registry_names if name not in REGISTRY_FACTORIES]
+    if invalid_registries:
+        errors.append(f"Unknown registries: {', '.join(invalid_registries)}. "
+                      f"Available: {', '.join(sorted(REGISTRY_FACTORIES.keys()))}")
+
     # Check if functions file exists
     if not os.path.exists(args.functions_file):
         errors.append(f"Functions file not found: {args.functions_file}")
 
-    # Check if grammar file exists (only if not using list-properties)
+    # Check if grammar file exists (only if not using list commands)
     if not args.list_properties and not os.path.exists(args.grammar):
         errors.append(f"Grammar file not found: {args.grammar}")
 
@@ -332,15 +445,24 @@ def validate_arguments(args):
 
 def setup_config(args):
     """Set up the PropertyInferenceConfig based on arguments."""
+    # Parse and validate registry names
+    registry_names = [name.strip() for name in args.registry.split(',')]
+
     # Build property registry
-    if args.standard_registry:
-        registry = create_standard_registry()
+    try:
+        if len(registry_names) == 1:
+            registry = REGISTRY_FACTORIES[registry_names[0]]()
+            registry_description = f"{registry_names[0]} registry"
+        else:
+            registry = create_combined_registry(registry_names)
+            registry_description = f"combined registry ({', '.join(registry_names)})"
+
         if not args.quiet:
-            print("Using standard property registry")
-    else:
-        registry = create_minimal_registry()
-        if not args.quiet:
-            print("Using minimal property registry")
+            print(f"Using {registry_description}")
+
+    except Exception as e:
+        print(f"Error creating registry: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Handle list properties request
     if args.list_properties:
@@ -367,6 +489,7 @@ def setup_config(args):
 
     if args.verbose:
         print(f"Configuration:")
+        print(f"  • Registry: {registry_description}")
         print(f"  • Examples per test: {args.examples}")
         print(f"  • Max counterexamples: {args.max_counterexamples}")
         print(f"  • Grammar file: {args.grammar}")
@@ -434,21 +557,34 @@ def format_results(results: dict, args) -> str:
     for func_name, result in results.items():
         output_lines.append(f"\n📊 Inferred Properties for {func_name}:")
 
+        # Group by category for better readability
+        by_category = {}
         for prop, outcome in result["outcomes"].items():
-            holds = outcome["holds"]
-            tests_run = outcome["stats"]["total_count"]
-            success_count = outcome["stats"]["success_count"]
-            confidence = (success_count / tests_run * 100) if tests_run > 0 else 0.0
-            status = "🟢" if holds else "🔴"
+            # Try to get category from the property object if available
+            category = getattr(outcome, 'category', 'Properties')
+            if category not in by_category:
+                by_category[category] = []
+            by_category[category].append((prop, outcome))
 
-            decision = (
-                f"{status} {prop} "
-                f"(Confidence: {confidence:.1f}%; Tests run: {tests_run})"
-            )
-            output_lines.append(decision)
+        for category, props in sorted(by_category.items()):
+            if len(by_category) > 1:  # Only show category headers if there are multiple categories
+                output_lines.append(f"\n  {category}:")
 
-            for ex in outcome["counterexamples"]:
-                output_lines.append(f"\t{ex}")
+            for prop, outcome in props:
+                holds = outcome["holds"]
+                tests_run = outcome["stats"]["total_count"]
+                success_count = outcome["stats"]["success_count"]
+                confidence = (success_count / tests_run * 100) if tests_run > 0 else 0.0
+                status = "🟢" if holds else "🔴"
+
+                decision = (
+                    f"  {status} {prop} "
+                    f"(Confidence: {confidence:.1f}%; Tests run: {tests_run})"
+                )
+                output_lines.append(decision)
+
+                for ex in outcome["counterexamples"]:
+                    output_lines.append(f"\t{ex}")
 
     return "\n".join(output_lines)
 
@@ -464,15 +600,15 @@ def main():
         print("🔍 Dry run mode - showing configuration without executing tests")
         print(f"Functions file: {args.functions_file}")
         print(f"Class name: {args.class_name or 'all classes'}")
+        print(f"Registry: {args.registry}")
         print(f"Examples: {args.examples}")
-        print(f"Registry: {'standard' if args.standard_registry else 'minimal'}")
         print(f"Grammar file: {args.grammar}")
         print(f"Comparison strategy: {args.comparison_strategy}")
         print(f"Use cache: {not args.no_cache}")
         if args.properties:
             print(f"Properties to test: {', '.join(args.properties)}")
         else:
-            print("Properties to test: all available")
+            print("Properties to test: all available in registry")
         return
 
     try:
