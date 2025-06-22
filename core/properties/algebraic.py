@@ -1,7 +1,7 @@
 from collections.abc import Hashable
 
 from core.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import TestResult, TestStats, PropertyTest
+from core.properties.property_test import TestResult, TestStats, PropertyTest, TestCase
 
 
 class CommutativityTest(PropertyTest):
@@ -52,6 +52,7 @@ class CommutativityTest(PropertyTest):
 
         total_tests = 0
         counterexamples = []
+        cases: list[TestCase] = []
 
         for args in valid_inputs:
             swapped = list(args)
@@ -71,7 +72,14 @@ class CommutativityTest(PropertyTest):
             r2 = function.call(0, *conv_swapped)
             total_tests += 1
 
-            if not function.compare_results(r1, r2):
+            passed = function.compare_results(r1, r2)
+            cases.append({
+                "args": tuple(conv_args),
+                "result": (r1, r2),
+                "passed": passed,
+            })
+
+            if not passed:
                 counterexamples.append(
                     f"{f_name}{tuple(conv_args)}: {r1}\n\t"
                     f"{f_name}{tuple(conv_swapped)}: {r2}\n"
@@ -89,6 +97,7 @@ class CommutativityTest(PropertyTest):
                 "holds": False,
                 "counterexamples": ["No tests were performed due to inapplicable configuration\n"],
                 "stats": test_stats,
+                "cases": cases,
             }
 
         if not counterexamples:
@@ -97,12 +106,14 @@ class CommutativityTest(PropertyTest):
                 "counterexamples": [
                     f"Swapping arguments at positions {self.swap_indices} yields same result for all tested inputs\n"],
                 "stats": test_stats,
+                "cases": cases,
             }
         else:
             return {
                 "holds": False,
                 "counterexamples": counterexamples,
                 "stats": test_stats,
+                "cases": cases,
             }
 
 

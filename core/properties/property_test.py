@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, NotRequired, Any
 from abc import ABC, ABCMeta, abstractmethod
 
 from core.function_under_test import CombinedFunctionUnderTest
@@ -13,7 +13,14 @@ class TestResult(TypedDict):
     holds: bool
     counterexamples: list[str]
     stats: TestStats
+    cases: NotRequired[list["TestCase"]]
 
+
+class TestCase(TypedDict):
+    """Single evaluation of a property."""
+    args: tuple[Any, ...]
+    result: Any | tuple[Any, ...]
+    passed: bool
 
 class MultitonMeta(ABCMeta):
     """

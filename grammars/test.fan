@@ -1,5 +1,7 @@
 <start>   ::= <expr>
-<expr>    ::= <term> ", " <expr> | <term> ", " <term> ", " <term>
+<expr>    ::= <arg0> ", " <arg1>
+<arg0>    ::= <term>
+<arg1>    ::= <term>
 <term>    ::= <number>
 <number>  ::= <integer> := str(produce_gaussian_integer())
 <integer> ::= <positive_integer> | "-" <positive_integer>
@@ -13,3 +15,5 @@ def produce_gaussian_integer():
     sigma = 400
     value = random.gauss(mu, sigma)
     return round(value)
+
+
