@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-
 """
-Property Inference Engine CLI
-A tool for inferring mathematical properties of functions through automated testing.
+Extension to the pint CLI to support adaptive feedback loop testing.
+
+This shows how to integrate adaptive testing into the existing CLI structure.
+Add this to your pint file or create a new pint-adaptive command.
 """
 
 import argparse
@@ -10,10 +11,9 @@ import sys
 import os
 import time
 import json
-import inspect
-import importlib.util
 from typing import Any
 
+# Existing imports from pint
 from core.properties import (
     create_symmetry_registry, create_algebraic_structure_registry,
     create_special_elements_registry, create_function_analysis_registry,
@@ -28,609 +28,254 @@ from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
 
-# Registry mapping for CLI options
-REGISTRY_FACTORIES = {
-    'basic': create_basic_registry,
-    'comprehensive': create_comprehensive_registry,
+# New imports for adaptive testing
+from core.constraint_inference_engine import (
+    RuleBasedModel, PythonScriptModel, LLMAPIModel, MockLLMModel
+)
+from core.adaptive_feedback_loop import AdaptiveFeedbackLoop, run_adaptive_property_test
 
-    # Category-specific registries
-    'symmetry': create_symmetry_registry,
-    'algebraic': create_algebraic_structure_registry,
-    'elements': create_special_elements_registry,
-    'analysis': create_function_analysis_registry,
-    'composition': create_composition_registry,
-
-    # Domain-specific registries
-    'arithmetic': create_arithmetic_registry,
-    'logical': create_logical_operations_registry,
-    'crypto': create_cryptographic_registry,
-    'datastructure': create_data_structure_registry,
-}
-
-REGISTRY_DESCRIPTIONS = {
-    'basic': 'Essential properties for general function testing',
-    'comprehensive': 'All available properties combined',
-
-    # Category-specific
-    'symmetry': 'Properties testing argument order/position relationships',
-    'algebraic': 'Fundamental algebraic laws (associativity, distributivity)',
-    'elements': 'Tests for identity and absorbing elements',
-    'analysis': 'General function behavior analysis (injectivity, fixed points)',
-    'composition': 'Function composition and interaction properties',
-
-    # Domain-specific
-    'arithmetic': 'Properties optimized for arithmetic operations (+, -, ×, ÷)',
-    'logical': 'Properties for boolean/logical operations (AND, OR, NOT)',
-    'crypto': 'Properties for cryptographic and encoding functions',
-    'datastructure': 'Properties for data structure operations (union, merge, etc.)',
+# Add to existing REGISTRY_FACTORIES if integrating into pint
+CONSTRAINT_MODEL_FACTORIES = {
+    'rule': lambda args: RuleBasedModel(),
+    'script': lambda args: PythonScriptModel(args.constraint_script),
+    'llm': lambda args: LLMAPIModel(
+        api_key=args.llm_api_key or os.environ.get('OPENAI_API_KEY', ''),
+        model=args.llm_model
+    ),
+    'mock': lambda args: MockLLMModel(),
 }
 
 
-def load_user_module(path: str):
-    """Load a Python module from a file path."""
+def add_adaptive_arguments(parser: argparse.ArgumentParser):
+    """Add adaptive feedback loop arguments to parser."""
+
+    adaptive_group = parser.add_argument_group('Adaptive Feedback Options')
+
+    adaptive_group.add_argument(
+        '--adaptive',
+        action='store_true',
+        help='Enable adaptive feedback loop for constraint inference'
+    )
+
+    adaptive_group.add_argument(
+        '--constraint-model',
+        choices=list(CONSTRAINT_MODEL_FACTORIES.keys()),
+        default='rule',
+        help='Constraint inference model to use (default: rule)'
+    )
+
+    adaptive_group.add_argument(
+        '--max-feedback-iterations',
+        type=int,
+        default=5,
+        help='Maximum iterations for adaptive feedback (default: 5)'
+    )
+
+    adaptive_group.add_argument(
+        '--min-examples-per-iteration',
+        type=int,
+        default=50,
+        help='Minimum examples per feedback iteration (default: 50)'
+    )
+
+    adaptive_group.add_argument(
+        '--constraint-script',
+        type=str,
+        help='Path to Python script for constraint inference (when using script model)'
+    )
+
+    adaptive_group.add_argument(
+        '--llm-api-key',
+        type=str,
+        help='API key for LLM constraint inference (or set OPENAI_API_KEY env var)'
+    )
+
+    adaptive_group.add_argument(
+        '--llm-model',
+        type=str,
+        default='gpt-4',
+        help='LLM model to use (default: gpt-4)'
+    )
+
+    adaptive_group.add_argument(
+        '--save-constraints',
+        type=str,
+        help='Save inferred constraints to file'
+    )
+
+    return parser
+
+
+def run_adaptive_analysis(config: PropertyInferenceConfig, args) -> dict:
+    """Run adaptive analysis based on CLI arguments."""
+
+    # Create constraint model
     try:
-        spec = importlib.util.spec_from_file_location("user_defined_functions", path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Could not load module from {path}")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+        constraint_model = CONSTRAINT_MODEL_FACTORIES[args.constraint_model](args)
     except Exception as e:
-        raise ImportError(f"Failed to load module from {path}: {e}") from e
+        print(f"Error creating constraint model: {e}", file=sys.stderr)
+        sys.exit(1)
 
+    # Create adaptive loop
+    loop = AdaptiveFeedbackLoop(
+        config,
+        constraint_model=constraint_model,
+        max_iterations=args.max_feedback_iterations,
+        min_examples_per_iteration=args.min_examples_per_iteration,
+        verbose=args.verbose
+    )
 
-def get_user_classes(module, class_name: str | None = None) -> list[tuple[str, type]]:
-    """Extract relevant classes from user module with proper filtering."""
-    if class_name:
-        if not hasattr(module, class_name):
-            raise ValueError(f"Class '{class_name}' not found in module")
-        return [(class_name, getattr(module, class_name))]
+    # Collect results for all property/function combinations
+    all_results = {}
+    all_constraints = {}
 
-    # Get all classes defined in this module (not imported)
-    classes = []
-    for name, obj in inspect.getmembers(module, inspect.isclass):
-        if obj.__module__ == module.__name__:
-            classes.append((name, obj))
+    # Get properties to test
+    properties_to_test = config.properties_to_test or config.registry.get_all()
 
-    if not classes:
-        available = [name for name, obj in inspect.getmembers(module, inspect.isclass)]
-        raise ValueError(f"No user-defined classes found in module. Available classes: {available}")
+    from itertools import product
+    from core.function_under_test import CombinedFunctionUnderTest
 
-    return classes
+    for prop in properties_to_test:
+        n = prop.num_functions
 
+        for funcs in product(config.functions_under_test, repeat=n):
+            combined = CombinedFunctionUnderTest(funcs, config.comparison_strategy)
 
-def extract_overrides(module) -> dict[str, dict[str, Any]]:
-    """Extract all function overrides from module using a unified approach."""
-    overrides = {
-        'converter': {},
-        'grammar': {},
-        'parser': {},
-        'comparator': {}
-    }
+            if not prop.is_applicable(combined):
+                continue
 
-    override_patterns = {
-        'converter_': 'converter',
-        'grammar_': 'grammar',
-        'parser_': 'parser',
-        'comparator_': 'comparator'
-    }
+            key = f"{combined.names()} - {prop.name}"
 
-    for name, value in vars(module).items():
-        for prefix, override_type in override_patterns.items():
-            if name.startswith(prefix):
-                func_name = name[len(prefix):]
-                overrides[override_type][func_name] = value
-                break
+            if args.verbose:
+                print(f"\n{'=' * 60}")
+                print(f"Adaptive testing: {key}")
+                print(f"{'=' * 60}")
 
-    return overrides
+            # Run adaptive test
+            result = loop.run_adaptive_test(prop, combined)
 
+            all_results[key] = result
 
-def process_grammar_override(func_name: str, value: Any, default_grammar) -> GrammarConfig:
-    """Process grammar override with proper validation."""
-    if isinstance(value, GrammarConfig):
-        return value
-    elif isinstance(value, str):
-        return GrammarConfig(value)
-    elif isinstance(value, (list, tuple)):
+            if result.final_constraints:
+                func_key = combined.names()
+                if func_key not in all_constraints:
+                    all_constraints[func_key] = {}
+                all_constraints[func_key][prop.name] = result.final_constraints
+
+    # Save constraints if requested
+    if args.save_constraints and all_constraints:
         try:
-            if value and isinstance(value[0], str) and value[0].endswith(".fan"):
-                return GrammarConfig(value[0], extra_constraints=value[1:])
-            else:
-                return GrammarConfig(default_grammar.path, extra_constraints=value)
-        except (IndexError, AttributeError) as e:
-            raise ValueError(f"Invalid grammar spec for {func_name}: {value}") from e
-    else:
-        raise ValueError(f"Unsupported grammar type for {func_name}: {type(value)}")
-
-
-def process_parser_override(func_name: str, value: Any) -> InputParser:
-    """Process parser override with proper validation."""
-    if isinstance(value, InputParser):
-        return value
-    elif isinstance(value, str):
-        val = value.strip()
-        if val.startswith("<") and val.endswith(">"):
-            return InputParser.for_nonterminal(val)
-        else:
-            raise ValueError(f"String parser spec must be nonterminal like '<number>' for {func_name}: {value}")
-    elif isinstance(value, list):
-        if all(isinstance(v, str) for v in value):
-            return InputParser.for_grammar_pattern(*value)
-        else:
-            raise ValueError(f"List parser spec must contain only strings for {func_name}: {value}")
-    else:
-        raise ValueError(f"Invalid parser spec for {func_name}: {value}")
-
-
-def get_override(func, override_dict: dict[str, Any], func_name: str, attr_name: str) -> Any:
-    """Get override value from dict or function attribute."""
-    return override_dict.get(func_name) or getattr(func, attr_name, None)
-
-
-def register_class_functions(class_name: str, cls: type, config: PropertyInferenceConfig,
-                             overrides: dict[str, dict[str, Any]], verbose: bool = False) -> int:
-    """Register all functions from a class with their overrides."""
-    function_count = 0
-
-    for func_name, func in inspect.getmembers(cls, inspect.isfunction):
-        try:
-            # Get overrides for this function
-            converter = get_override(func, overrides['converter'], func_name, '__converter__')
-            comparator = get_override(func, overrides['comparator'], func_name, '__comparator__')
-            grammar = get_override(func, overrides['grammar'], func_name, '__grammar__')
-            parser = get_override(func, overrides['parser'], func_name, '__parser__')
-
-            # Process grammar if needed
-            if grammar and not isinstance(grammar, GrammarConfig):
-                grammar = process_grammar_override(func_name, grammar, config.default_grammar)
-
-            # Process parser if needed
-            if parser and not isinstance(parser, InputParser):
-                parser = process_parser_override(func_name, parser)
-
-            # Create and register function
-            fut = FunctionUnderTest(func, arg_converter=converter, result_comparator=comparator)
-            config.add_function(fut, grammar=grammar, parser=parser)
-            function_count += 1
-
-            if verbose:
-                print(f"  • Registered {class_name}.{func_name}")
-
+            with open(args.save_constraints, 'w') as f:
+                json.dump(all_constraints, f, indent=2)
+            if not args.quiet:
+                print(f"\n✅ Constraints saved to {args.save_constraints}")
         except Exception as e:
-            print(f"Warning: Failed to register {class_name}.{func_name}: {e}", file=sys.stderr)
+            print(f"Error saving constraints: {e}", file=sys.stderr)
 
-    return function_count
-
-
-def list_available_registries():
-    """List all available property registries."""
-    print("Available Property Registries:")
-    print("=" * 60)
-
-    # Group registries by type
-    categories = {
-        'General Purpose': ['basic', 'comprehensive'],
-        'Category-Specific': ['symmetry', 'algebraic', 'elements', 'analysis', 'composition'],
-        'Domain-Specific': ['arithmetic', 'logical', 'crypto', 'datastructure']
-    }
-
-    for category, registry_names in categories.items():
-        print(f"\n{category}:")
-        for name in registry_names:
-            description = REGISTRY_DESCRIPTIONS.get(name, "No description available")
-            print(f"  {name:15} - {description}")
-
-    print(f"\nTotal: {len(REGISTRY_FACTORIES)} registries available")
+    return all_results
 
 
-def list_available_properties(registry):
-    """List all available properties in the registry."""
-    print("Available Properties:")
-    print("=" * 50)
-    properties = registry.get_all()
+def format_adaptive_results(results: dict, args) -> str:
+    """Format adaptive results for output."""
 
-    # Group by category if possible
-    by_category = {}
-    for prop_name in properties:
-        prop_obj = registry.get(prop_name)
-        category = getattr(prop_obj, 'category', 'Uncategorized')
-        if category not in by_category:
-            by_category[category] = []
-        by_category[category].append(prop_name)
-
-    for category, props in sorted(by_category.items()):
-        print(f"\n{category}:")
-        for prop in sorted(props):
-            print(f"  • {prop}")
-
-    print(f"\nTotal: {len(properties)} properties")
-
-
-def parse_arguments():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Property Inference Engine - Analyze mathematical properties of functions",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  %(prog)s                                    # Use default basic registry
-  %(prog)s -f my_functions.py                 # Analyze custom functions
-  %(prog)s -r arithmetic -e 500              # Use arithmetic registry with 500 examples
-  %(prog)s -r comprehensive -v               # Use all properties with verbose output
-  %(prog)s --list-registries                 # Show available property registries
-  %(prog)s --list-properties                 # Show properties in current registry
-  %(prog)s -p Commutativity Associativity    # Test specific properties only
-  %(prog)s -r crypto --timing                # Use crypto registry with timing info
-  %(prog)s -r algebraic,composition          # Combine multiple registries
-        """
-    )
-
-    # Input options
-    input_group = parser.add_argument_group('Input Options')
-    input_group.add_argument(
-        '-f', '--functions-file',
-        type=str,
-        default="input/user_input.py",
-        help='Path to Python file containing functions to analyze (default: input/user_input.py)'
-    )
-    input_group.add_argument(
-        '-c', '--class-name',
-        type=str,
-        default=None,
-        help='Name of the class containing functions to analyze (default: all classes)'
-    )
-
-    # Property registry options
-    registry_group = parser.add_argument_group('Property Registry Options')
-    registry_group.add_argument(
-        '-r', '--registry',
-        type=str,
-        default='basic',
-        help='Property registry to use. Use comma-separated list to combine multiple registries. '
-             'Available: ' + ', '.join(sorted(REGISTRY_FACTORIES.keys())) + ' (default: basic)'
-    )
-    registry_group.add_argument(
-        '--list-registries',
-        action='store_true',
-        help='List all available property registries and exit'
-    )
-
-    # Test configuration
-    config_group = parser.add_argument_group('Test Configuration')
-    config_group.add_argument(
-        '-e', '--examples',
-        type=int,
-        default=100,
-        help='Number of test examples to generate (default: 100)'
-    )
-    config_group.add_argument(
-        '--max-counterexamples',
-        type=int,
-        default=3,
-        help='Maximum number of counterexamples to show (default: 3)'
-    )
-    config_group.add_argument(
-        '-g', '--grammar',
-        type=str,
-        default="grammars/test.fan",
-        help='Default grammar file to use (default: grammars/test.fan)'
-    )
-    config_group.add_argument(
-        '--comparison-strategy',
-        choices=['FIRST_COMPATIBLE', 'CONSENSUS', 'MOST_RESTRICTIVE'],
-        default='FIRST_COMPATIBLE',
-        help='Strategy for comparing results (default: FIRST_COMPATIBLE)'
-    )
-    config_group.add_argument(
-        '--no-cache',
-        action='store_true',
-        help='Disable caching of generated inputs'
-    )
-
-    # Property selection
-    property_group = parser.add_argument_group('Property Selection')
-    property_group.add_argument(
-        '-p', '--properties',
-        nargs='*',
-        help='Specific properties to test (if not specified, all properties from registry are tested)'
-    )
-    property_group.add_argument(
-        '--list-properties',
-        action='store_true',
-        help='List all available properties in the selected registry and exit'
-    )
-
-    # Output options
-    output_group = parser.add_argument_group('Output Options')
-    output_group.add_argument(
-        '-v', '--verbose',
-        action='store_true',
-        help='Enable verbose output'
-    )
-    output_group.add_argument(
-        '-q', '--quiet',
-        action='store_true',
-        help='Suppress all output except results'
-    )
-    output_group.add_argument(
-        '--timing',
-        action='store_true',
-        help='Show execution timing information'
-    )
-    output_group.add_argument(
-        '--json',
-        action='store_true',
-        help='Output results in JSON format'
-    )
-    output_group.add_argument(
-        '-o', '--output',
-        type=str,
-        help='Write results to file instead of stdout'
-    )
-
-    # Advanced options
-    advanced_group = parser.add_argument_group('Advanced Options')
-    advanced_group.add_argument(
-        '--dry-run',
-        action='store_true',
-        help='Show configuration without running tests'
-    )
-
-    return parser.parse_args()
-
-
-def create_combined_registry(registry_names: list[str]):
-    """Create a combined registry from multiple registry names."""
-    if len(registry_names) == 1:
-        return REGISTRY_FACTORIES[registry_names[0]]()
-
-    # For multiple registries, create a new registry and merge them
-    from core.properties import PropertyRegistry
-    combined = PropertyRegistry()
-
-    for name in registry_names:
-        if name not in REGISTRY_FACTORIES:
-            raise ValueError(f"Unknown registry: {name}")
-
-        registry = REGISTRY_FACTORIES[name]()
-        # Assuming registry has a method to get all tests
-        for test in registry.get_all_tests():  # This method may need to be implemented
-            combined.register(test)
-
-    return combined
-
-
-def validate_arguments(args):
-    """Validate command line arguments."""
-    errors = []
-
-    # Handle list requests early
-    if args.list_registries:
-        list_available_registries()
-        sys.exit(0)
-
-    # Validate registry names
-    registry_names = [name.strip() for name in args.registry.split(',')]
-    invalid_registries = [name for name in registry_names if name not in REGISTRY_FACTORIES]
-    if invalid_registries:
-        errors.append(f"Unknown registries: {', '.join(invalid_registries)}. "
-                      f"Available: {', '.join(sorted(REGISTRY_FACTORIES.keys()))}")
-
-    # Check if functions file exists
-    if not os.path.exists(args.functions_file):
-        errors.append(f"Functions file not found: {args.functions_file}")
-
-    # Check if grammar file exists (only if not using list commands)
-    if not args.list_properties and not os.path.exists(args.grammar):
-        errors.append(f"Grammar file not found: {args.grammar}")
-
-    # Validate examples count
-    if args.examples <= 0:
-        errors.append("Number of examples must be positive")
-
-    # Validate max counterexamples
-    if args.max_counterexamples < 0:
-        errors.append("Max counterexamples must be non-negative")
-
-    # Check for conflicting quiet/verbose flags
-    if args.quiet and args.verbose:
-        errors.append("Cannot use both --quiet and --verbose flags")
-
-    if errors:
-        print("Error: Invalid arguments:", file=sys.stderr)
-        for error in errors:
-            print(f"  • {error}", file=sys.stderr)
-        sys.exit(1)
-
-
-def setup_config(args):
-    """Set up the PropertyInferenceConfig based on arguments."""
-    # Parse and validate registry names
-    registry_names = [name.strip() for name in args.registry.split(',')]
-
-    # Build property registry
-    try:
-        if len(registry_names) == 1:
-            registry = REGISTRY_FACTORIES[registry_names[0]]()
-            registry_description = f"{registry_names[0]} registry"
-        else:
-            registry = create_combined_registry(registry_names)
-            registry_description = f"combined registry ({', '.join(registry_names)})"
-
-        if not args.quiet:
-            print(f"Using {registry_description}")
-
-    except Exception as e:
-        print(f"Error creating registry: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    # Handle list properties request
-    if args.list_properties:
-        list_available_properties(registry)
-        sys.exit(0)
-
-    # Build base config
-    default_parser = InputParser.for_numbers()
-
-    # Set comparison strategy
-    strategy_map = {
-        'FIRST_COMPATIBLE': ComparisonStrategy.FIRST_COMPATIBLE,
-        'CONSENSUS': ComparisonStrategy.CONSENSUS,
-        'MOST_RESTRICTIVE': ComparisonStrategy.MOST_RESTRICTIVE
-    }
-
-    config = (PropertyInferenceConfig(registry)
-              .set_default_grammar(args.grammar)
-              .set_default_parser(default_parser)
-              .set_max_counterexamples(args.max_counterexamples)
-              .set_example_count(args.examples)
-              .set_comparison_strategy(strategy_map[args.comparison_strategy])
-              .set_use_input_cache(not args.no_cache))
-
-    if args.verbose:
-        print(f"Configuration:")
-        print(f"  • Registry: {registry_description}")
-        print(f"  • Examples per test: {args.examples}")
-        print(f"  • Max counterexamples: {args.max_counterexamples}")
-        print(f"  • Grammar file: {args.grammar}")
-        print(f"  • Comparison strategy: {args.comparison_strategy}")
-        print(f"  • Use input cache: {not args.no_cache}")
-
-    return config
-
-
-def load_and_register_functions(config: PropertyInferenceConfig, args) -> PropertyInferenceConfig:
-    """Load user module and register functions."""
-    try:
-        module = load_user_module(args.functions_file)
-    except Exception as e:
-        print(f"Error loading functions file: {e}", file=sys.stderr)
-        sys.exit(1)
-
-    try:
-        # Get user classes
-        classes = get_user_classes(module, args.class_name)
-
-        # Extract overrides
-        overrides = extract_overrides(module)
-
-        if args.verbose and any(any(d.values()) for d in overrides.values()):
-            print("Found function overrides:")
-            for override_type, override_dict in overrides.items():
-                if override_dict:
-                    print(f"  • {override_type}: {list(override_dict.keys())}")
-
-        # Register functions from classes
-        total_functions = 0
-        for class_name, cls in classes:
-            function_count = register_class_functions(class_name, cls, config, overrides, args.verbose)
-            total_functions += function_count
-
-        if not args.quiet:
-            class_names = [name for name, _ in classes]
-            print(f"Registered {total_functions} functions from {len(classes)} class(es): {', '.join(class_names)}")
-
-        # Add specific properties if requested
-        if args.properties:
-            for prop_name in args.properties:
-                try:
-                    config.add_property_by_name(prop_name)
-                    if args.verbose:
-                        print(f"  • Added property: {prop_name}")
-                except Exception as e:
-                    print(f"Warning: Could not add property '{prop_name}': {e}", file=sys.stderr)
-
-        return config
-
-    except Exception as e:
-        print(f"Error processing functions: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
-def format_results(results: dict, args) -> str:
-    """Format results for output."""
     if args.json:
-        return json.dumps(results, indent=2, default=str)
+        # Convert to JSON-serializable format
+        json_results = {}
+        for key, result in results.items():
+            json_results[key] = {
+                'success': result.success,
+                'iterations': len(result.iterations),
+                'final_constraints': result.final_constraints,
+                'total_time': result.total_time,
+                'termination_reason': result.termination_reason
+            }
+        return json.dumps(json_results, indent=2)
 
-    output_lines = []
+    # Human-readable format
+    output_lines = ["📊 Adaptive Feedback Loop Results", "=" * 60]
 
-    for func_name, result in results.items():
-        output_lines.append(f"\n📊 Inferred Properties for {func_name}:")
+    # Summary statistics
+    total = len(results)
+    successful = sum(1 for r in results.values() if r.success)
 
-        # Group by category for better readability
-        by_category = {}
-        for prop, outcome in result["outcomes"].items():
-            # Try to get category from the property object if available
-            category = getattr(outcome, 'category', 'Properties')
-            if category not in by_category:
-                by_category[category] = []
-            by_category[category].append((prop, outcome))
+    output_lines.extend([
+        f"\nSummary:",
+        f"  Total tests: {total}",
+        f"  Successful: {successful} ({successful / total * 100:.1f}%)",
+        ""
+    ])
 
-        for category, props in sorted(by_category.items()):
-            if len(by_category) > 1:  # Only show category headers if there are multiple categories
-                output_lines.append(f"\n  {category}:")
+    # Detailed results
+    for key, result in results.items():
+        output_lines.extend([
+            f"\n{key}:",
+            f"  Status: {'✅ PASS' if result.success else '❌ FAIL'}",
+            f"  Iterations: {len(result.iterations)}",
+            f"  Time: {result.total_time:.2f}s",
+            f"  Reason: {result.termination_reason}"
+        ])
 
-            for prop, outcome in props:
-                holds = outcome["holds"]
-                tests_run = outcome["stats"]["total_count"]
-                success_count = outcome["stats"]["success_count"]
-                confidence = (success_count / tests_run * 100) if tests_run > 0 else 0.0
-                status = "🟢" if holds else "🔴"
+        if result.final_constraints:
+            output_lines.append("  Final constraints:")
+            for constraint in result.final_constraints:
+                output_lines.append(f"    - {constraint}")
+        else:
+            output_lines.append("  Final constraints: None")
 
-                decision = (
-                    f"  {status} {prop} "
-                    f"(Confidence: {confidence:.1f}%; Tests run: {tests_run})"
-                )
-                output_lines.append(decision)
-
-                for ex in outcome["counterexamples"]:
-                    output_lines.append(f"\t{ex}")
+        if args.verbose and result.iterations:
+            output_lines.append("  Iteration details:")
+            for it in result.iterations:
+                output_lines.extend([
+                    f"    Iteration {it.iteration}:",
+                    f"      Tests: {it.test_result['stats']['total_count']}",
+                    f"      Success rate: {it.test_result['stats']['success_count'] / it.test_result['stats']['total_count'] * 100:.1f}%",
+                    f"      New constraints: {it.inferred_constraints or 'None'}"
+                ])
 
     return "\n".join(output_lines)
 
 
-def main():
-    """Main CLI entry point."""
-    args = parse_arguments()
+def main_with_adaptive(args):
+    """Extended main function with adaptive feedback support."""
 
-    # Validate arguments
-    validate_arguments(args)
+    # Validate adaptive-specific arguments
+    if args.adaptive:
+        if args.constraint_model == 'script' and not args.constraint_script:
+            print("Error: --constraint-script required when using script model", file=sys.stderr)
+            sys.exit(1)
 
-    if args.dry_run:
-        print("🔍 Dry run mode - showing configuration without executing tests")
-        print(f"Functions file: {args.functions_file}")
-        print(f"Class name: {args.class_name or 'all classes'}")
-        print(f"Registry: {args.registry}")
-        print(f"Examples: {args.examples}")
-        print(f"Grammar file: {args.grammar}")
-        print(f"Comparison strategy: {args.comparison_strategy}")
-        print(f"Use cache: {not args.no_cache}")
-        if args.properties:
-            print(f"Properties to test: {', '.join(args.properties)}")
-        else:
-            print("Properties to test: all available in registry")
-        return
+        if args.constraint_model == 'llm':
+            api_key = args.llm_api_key or os.environ.get('OPENAI_API_KEY')
+            if not api_key:
+                print("Warning: No API key provided for LLM model, using mock instead", file=sys.stderr)
+                args.constraint_model = 'mock'
 
-    try:
-        # Setup configuration
-        config = setup_config(args)
+    # Build configuration (same as original pint)
+    registry_names = [name.strip() for name in args.registry.split(',')]
+    # ... (rest of config setup as in original pint)
 
-        # Load and register functions
-        config = load_and_register_functions(config, args)
+    # For demonstration, using simplified setup
+    registry = create_basic_registry()
+    config = (PropertyInferenceConfig(registry)
+              .set_default_grammar(args.grammar)
+              .set_default_parser(InputParser.for_numbers())
+              .set_max_counterexamples(args.max_counterexamples)
+              .set_example_count(args.examples))
 
-        # Run the analysis
+    # Load and register functions (simplified for demo)
+    # ... (load functions as in original pint)
+
+    if args.adaptive:
+        # Run adaptive analysis
         if not args.quiet:
-            print("\n🚀 Running property inference analysis...")
+            print("🔄 Running adaptive feedback loop analysis...")
 
-        start_time = time.perf_counter() if args.timing else None
-
-        engine = PropertyInferenceEngine(config)
-        results = engine.run()
-
-        end_time = time.perf_counter() if args.timing else None
+        start_time = time.perf_counter()
+        results = run_adaptive_analysis(config, args)
+        end_time = time.perf_counter()
 
         # Format and output results
-        formatted_results = format_results(results, args)
+        formatted_results = format_adaptive_results(results, args)
 
         if args.output:
             with open(args.output, 'w') as f:
@@ -640,20 +285,61 @@ def main():
         else:
             print(formatted_results)
 
-        # Show timing if requested
-        if args.timing and start_time and end_time:
-            print(f"\n⏱️  Execution time: {end_time - start_time:.4f} seconds")
+        if args.timing:
+            print(f"\n⏱️  Total execution time: {end_time - start_time:.4f} seconds")
 
-    except KeyboardInterrupt:
-        print("\n❌ Operation cancelled by user", file=sys.stderr)
-        sys.exit(1)
-    except Exception as e:
-        print(f"❌ Error: {e}", file=sys.stderr)
-        if args.verbose:
-            import traceback
-            traceback.print_exc()
-        sys.exit(1)
+    else:
+        # Run standard analysis (original pint behavior)
+        engine = PropertyInferenceEngine(config)
+        results = engine.run()
+        # ... (format and output as in original pint)
 
 
+# Example of how to integrate into existing pint CLI
 if __name__ == "__main__":
-    main()
+    # Create parser (would extend existing pint parser)
+    parser = argparse.ArgumentParser(
+        description="Property Inference with Adaptive Feedback"
+    )
+
+    # Add standard pint arguments
+    parser.add_argument('-f', '--functions-file', default="input/user_input.py")
+    parser.add_argument('-r', '--registry', default='basic')
+    parser.add_argument('-e', '--examples', type=int, default=100)
+    parser.add_argument('-g', '--grammar', default="grammars/test.fan")
+    parser.add_argument('--max-counterexamples', type=int, default=3)
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-q', '--quiet', action='store_true')
+    parser.add_argument('--timing', action='store_true')
+    parser.add_argument('--json', action='store_true')
+    parser.add_argument('-o', '--output', type=str)
+
+    # Add adaptive arguments
+    parser = add_adaptive_arguments(parser)
+
+    # Parse and run
+    args = parser.parse_args()
+
+    # Example usage message
+    if len(sys.argv) == 1:
+        print("Example usage:")
+        print("  # Standard property inference")
+        print("  python pint-adaptive.py -f my_functions.py")
+        print()
+        print("  # With adaptive feedback loop")
+        print("  python pint-adaptive.py -f my_functions.py --adaptive")
+        print()
+        print("  # Using LLM for constraint inference")
+        print("  python pint-adaptive.py -f my_functions.py --adaptive --constraint-model llm")
+        print()
+        print("  # Using custom script")
+        print("  python pint-adaptive.py -f my_functions.py --adaptive \\")
+        print("    --constraint-model script --constraint-script my_inference.py")
+        print()
+        print("  # Save inferred constraints")
+        print("  python pint-adaptive.py -f my_functions.py --adaptive \\")
+        print("    --save-constraints constraints.json")
+        parser.print_help()
+        sys.exit(0)
+
+    main_with_adaptive(args)
