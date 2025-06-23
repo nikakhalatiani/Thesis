@@ -1,6 +1,8 @@
-<start>   ::= <expr>
-<expr>    ::= <term> ", " <term>
+import random
 
-<term>    ::= <number>
-<number>  ::= <digit>+
-<digit>   ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"
+<start>   ::= <expr>
+<expr>    ::= <term1> ", " <term2> ", " <term3>
+<term1>    ::= <number>
+<term2>    ::= <number>
+<term3>    ::= <number>
+<number>  ::= "-"?<digit>+ := random.randint(-1000, 1000)

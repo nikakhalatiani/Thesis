@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict, Any
 from abc import ABC, ABCMeta, abstractmethod
 
 from core.function_under_test import CombinedFunctionUnderTest
@@ -13,6 +13,7 @@ class TestResult(TypedDict):
     holds: bool
     counterexamples: list[str]
     stats: TestStats
+    cases: list[Any]  # Added to support constraint inference feedback
 
 
 class MultitonMeta(ABCMeta):
@@ -69,8 +70,18 @@ class PropertyTest(ABC, metaclass=MultitonMeta):
         self.identity_positions = None
 
     @abstractmethod
-    def test(self, candidate: CombinedFunctionUnderTest, inputs: list[tuple], max_counterexamples) -> TestResult:
-        """Execute the property test."""
+    def test(self, candidate: CombinedFunctionUnderTest, inputs: list[tuple], max_counterexamples: int) -> TestResult:
+        """
+        Execute the property test.
+
+        Args:
+            candidate: The combined function under test
+            inputs: List of input tuples to test
+            max_counterexamples: Maximum number of counterexamples to collect
+
+        Returns:
+            TestResult with holds, counterexamples, stats, and cases fields
+        """
         pass
 
     def is_applicable(self, candidate: CombinedFunctionUnderTest) -> bool:
@@ -97,3 +108,35 @@ class PropertyTest(ABC, metaclass=MultitonMeta):
                 parts.append(f"{key}: {value}")
 
         return ", ".join(parts)
+
+    def __hash__(self) -> int:
+        """Make PropertyTest hashable for use as dictionary keys."""
+        return hash((
+            self.name,
+            self.input_arity,
+            self.function_arity,
+            self.description,
+            self.category,
+            self.num_functions,
+            tuple(self.swap_indices) if self.swap_indices else None,
+            self.result_index,
+            self.distribute_over_index,
+            tuple(self.identity_positions) if self.identity_positions else None,
+        ))
+
+    def __eq__(self, other) -> bool:
+        """Enable equality comparison for PropertyTest instances."""
+        if not isinstance(other, PropertyTest):
+            return False
+        return (
+                self.name == other.name and
+                self.input_arity == other.input_arity and
+                self.function_arity == other.function_arity and
+                self.description == other.description and
+                self.category == other.category and
+                self.num_functions == other.num_functions and
+                self.swap_indices == other.swap_indices and
+                self.result_index == other.result_index and
+                self.distribute_over_index == other.distribute_over_index and
+                self.identity_positions == other.identity_positions
+        )

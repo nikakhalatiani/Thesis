@@ -19,6 +19,7 @@ class PropertyInferenceConfig:
         function_to_parser: Mapping of function names to parsers.
         example_count: Number of examples to generate for testing.
         use_input_cache: Whether to reuse generated inputs across properties.
+        max_feedback_attempts: Maximum number of constraint inference iterations.
     """
 
     def __init__(self, registry: PropertyRegistry) -> None:
@@ -33,6 +34,7 @@ class PropertyInferenceConfig:
         self.max_counterexamples: int = 100
         self.comparison_strategy = ComparisonStrategy.CONSENSUS
         self.use_input_cache = True
+        self.max_feedback_attempts: int = 5  # New: Maximum constraint inference iterations
 
     def add_function(
             self,
@@ -136,4 +138,9 @@ class PropertyInferenceConfig:
     def set_example_count(self, count: int) -> 'PropertyInferenceConfig':
         """Set the number of examples to generate for testing."""
         self.example_count = count
+        return self
+
+    def set_max_feedback_attempts(self, attempts: int) -> 'PropertyInferenceConfig':
+        """Set the maximum number of constraint inference iterations."""
+        self.max_feedback_attempts = attempts
         return self

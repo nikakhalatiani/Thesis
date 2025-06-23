@@ -34,7 +34,7 @@ class CommutativityTest(PropertyTest):
         )
         self.swap_indices = swap_indices
 
-    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs: list[tuple], max_counterexamples: int) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
 
@@ -48,10 +48,12 @@ class CommutativityTest(PropertyTest):
                 "holds": False,
                 "counterexamples": ["No valid inputs found\n"],
                 "stats": {"total_count": 0, "success_count": 0},
+                "cases": [],
             }
 
         total_tests = 0
         counterexamples = []
+        test_cases = []  # Collect cases for constraint inference
 
         for args in valid_inputs:
             swapped = list(args)
@@ -71,6 +73,20 @@ class CommutativityTest(PropertyTest):
             r2 = function.call(0, *conv_swapped)
             total_tests += 1
 
+            # Record test case for constraint inference
+            test_case = {
+                "property": "commutativity",
+                "original_args": args,
+                "swapped_args": tuple(swapped),
+                "converted_args": conv_args,
+                "converted_swapped": conv_swapped,
+                "result1": r1,
+                "result2": r2,
+                "passed": function.compare_results(r1, r2),
+                "swap_indices": self.swap_indices,
+            }
+            test_cases.append(test_case)
+
             if not function.compare_results(r1, r2):
                 counterexamples.append(
                     f"{f_name}{tuple(conv_args)}: {r1}\n\t"
@@ -89,6 +105,7 @@ class CommutativityTest(PropertyTest):
                 "holds": False,
                 "counterexamples": ["No tests were performed due to inapplicable configuration\n"],
                 "stats": test_stats,
+                "cases": test_cases,
             }
 
         if not counterexamples:
@@ -97,14 +114,15 @@ class CommutativityTest(PropertyTest):
                 "counterexamples": [
                     f"Swapping arguments at positions {self.swap_indices} yields same result for all tested inputs\n"],
                 "stats": test_stats,
+                "cases": test_cases,
             }
         else:
             return {
                 "holds": False,
                 "counterexamples": counterexamples,
                 "stats": test_stats,
+                "cases": test_cases,
             }
-
 
 class AssociativityTest(PropertyTest):
     """Test if ``f(a, f(b, c))`` equals ``f(f(a, b), c)``."""

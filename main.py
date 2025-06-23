@@ -1,6 +1,6 @@
 from typing import Any
 
-from core.properties import create_standard_registry, create_minimal_registry
+from core.properties import create_minimal_registry
 from input.input_parser import InputParser
 from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import FunctionUnderTest, ComparisonStrategy
@@ -80,6 +80,20 @@ def process_parser_override(func_name: str, value: Any) -> InputParser:
         raise ValueError(f"Invalid parser spec for {func_name}: {value}")
 
 
+def print_constraints_evolution(prop, constraints_history):
+    """Print how constraints evolved during testing."""
+    if not constraints_history:
+        print("\t\t🔄 No constraint evolution (property held on first attempt)")
+        return
+
+    print(f"\t\t🔄 Constraint evolution ({len(constraints_history)} iterations):")
+    for i, constraints in enumerate(constraints_history, 1):
+        if constraints:
+            print(f"\t\t\t  Iteration {i}: {', '.join(constraints)}")
+        else:
+            print(f"\t\t\t  Iteration {i}: No new constraints inferred")
+
+
 def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None):
     registry = create_minimal_registry()
 
@@ -90,7 +104,9 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
               .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)
               .set_use_input_cache(True)
               .set_example_count(100)
-              .set_max_counterexamples(3))
+              .set_max_counterexamples(100)
+              .set_max_feedback_attempts(5))  # Configure feedback iterations
+
 
     module = load_user_module(user_funcs_path)
 
@@ -125,16 +141,30 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
 
     for func_name, result in results.items():
         print(f"\n📊 Inferred Properties for {func_name}:")
+
         for prop, outcome in result["outcomes"].items():
             holds = outcome["holds"]
             tests_run = outcome["stats"]["total_count"]
             confidence = (outcome["stats"]["success_count"] / tests_run * 100) if tests_run > 0 else 0.0
             status = "🟢" if holds else "🔴"
+
+            # Check if constraint evolution information is available
+            constraints_history = result.get("constraints_history", {}).get(prop, [])
+            feedback_info = ""
+            if constraints_history:
+                feedback_info = f" (with {len(constraints_history)} constraint iterations)"
+
             decision = (
                 f"{status} {prop} "
-                f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
+                f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run}{feedback_info})"
             )
             print(decision)
+
+            # Show constraint evolution details
+            if constraints_history:
+                print_constraints_evolution(prop, constraints_history)
+
+            # Show counterexamples
             for ex in outcome["counterexamples"]:
                 print(f"\t{ex}")
 

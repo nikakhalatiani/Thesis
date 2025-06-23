@@ -16,7 +16,7 @@ def test_constraints(max_attempts=100):
 
         examples = fan.fuzz(
             desired_solutions=200,
-            population_size=220
+            population_size=200
         )
 
         for i, example in enumerate(examples, 1):

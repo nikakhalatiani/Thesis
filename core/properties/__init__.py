@@ -241,3 +241,13 @@ def create_data_structure_registry() -> PropertyRegistry:
     registry.register(InjectivityTest())
 
     return registry
+
+
+def create_minimal_registry() -> PropertyRegistry:
+    """Create a minimal registry with essential properties."""
+    registry = PropertyRegistry()
+
+    # Register basic properties
+    registry.register(CommutativityTest())
+
+    return registry
