@@ -1,5 +1,5 @@
 from .algebraic import *
-from .composition import *
+from .compositional import *
 from .behavioral import *
 from .structural import *
 from core.property_registry import PropertyRegistry
@@ -45,23 +45,16 @@ def create_special_elements_registry() -> PropertyRegistry:
     registry.register(LeftIdentityElementTest())  # f(e, a) == a
     registry.register(RightIdentityElementTest())  # f(a, e) == a
     registry.register(IdentityElementTest())  # two-sided identity
-    registry.register(GeneralIdentityElementTest())  # same as IdentityElementTest for arity 2
 
     # Identity for higher arity functions
     registry.register(LeftIdentityElementTest(3, 0, 1))  # f(e, a, b) == a
     registry.register(LeftIdentityElementTest(3, 0, 2))  # f(e, a, b) == b
     registry.register(RightIdentityElementTest(3, 2, 0))  # f(a, b, e) == a
-    registry.register(GeneralIdentityElementTest(3))  # tests all positions
 
     # Absorbing elements - dominating elements
     registry.register(LeftAbsorbingElementTest())  # f(z, a) == z
     registry.register(RightAbsorbingElementTest())  # f(a, z) == z
     registry.register(AbsorbingElementTest())  # two-sided absorbing
-    registry.register(GeneralAbsorbingElementTest(2, [0, 1]))  # same as AbsorbingElementTest
-
-    # Absorbing for higher arity
-    registry.register(GeneralAbsorbingElementTest(3, [0]))  # only test position 0
-    registry.register(GeneralAbsorbingElementTest(3, [0, 1, 2]))  # test all positions
 
     return registry
 
@@ -239,5 +232,41 @@ def create_data_structure_registry() -> PropertyRegistry:
 
     # Test uniqueness properties for keys, IDs
     registry.register(InjectivityTest())
+
+    return registry
+
+def minimal_registry() -> PropertyRegistry:
+    """Registry for testing data structure operations."""
+    registry = PropertyRegistry()
+
+    # Many data structure operations are commutative (set union, intersection)
+    # registry.register(CommutativityTest())
+    # registry.register(DistributivityTest())
+    # registry.register(LeftDistributivityTest())
+    # registry.register(RightDistributivityTest())
+    # registry.register(LeftIdentityElementTest())  # f(e, a) == a
+    # registry.register(RightIdentityElementTest())  # f(a, e) == a
+    # registry.register(IdentityElementTest())  # two-sided identity
+    #
+    # registry.register(LeftAbsorbingElementTest())  # f(z, a) == z
+    # registry.register(RightAbsorbingElementTest())  # f(a, z) == z
+    # registry.register(AbsorbingElementTest())  # two-sided absorbing
+
+    # registry.register(InvolutionTest(2))
+    # registry.register(LeftCompositionTest(2))
+    # registry.register(RightCompositionTest(2))
+
+    # registry.register(InjectivityTest(2))
+    # registry.register(FixedPointTest(2))
+
+    # registry.register(DeterminismTest(2))
+    # registry.register(MonotonicallyIncreasingTest(2))
+    # registry.register(MonotonicallyDecreasingTest(2))
+
+    # registry.register(DeterminismTest())
+    # registry.register(MonotonicallyIncreasingTest())
+    # registry.register(MonotonicallyDecreasingTest())
+    #
+
 
     return registry

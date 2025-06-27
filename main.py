@@ -1,6 +1,6 @@
 from typing import Any
 
-from core.properties import create_standard_registry, create_minimal_registry
+from core.properties import minimal_registry
 from input.input_parser import InputParser
 from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import FunctionUnderTest, ComparisonStrategy
@@ -81,7 +81,7 @@ def process_parser_override(func_name: str, value: Any) -> InputParser:
 
 
 def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None):
-    registry = create_minimal_registry()
+    registry = minimal_registry()
 
     default_parser = InputParser.for_numbers()
     config = (PropertyInferenceConfig(registry)
