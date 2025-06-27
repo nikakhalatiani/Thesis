@@ -31,6 +31,7 @@ class PropertyInferenceConfig:
         self.function_to_parser: dict[str, InputParser] = {}
         self.example_count: int = 100
         self.max_counterexamples: int = 100
+        self.max_feedback_attempts: int = 3
         self.comparison_strategy = ComparisonStrategy.CONSENSUS
         self.use_input_cache = True
 
@@ -121,6 +122,11 @@ class PropertyInferenceConfig:
     def set_max_counterexamples(self, n: int) -> "PropertyInferenceConfig":
         """How many failing examples to store for each property."""
         self.max_counterexamples = n
+        return self
+
+    def set_max_feedback_attempts(self, n: int) -> "PropertyInferenceConfig":
+        """Set maximum attempts in feedback loop."""
+        self.max_feedback_attempts = n
         return self
 
     def set_comparison_strategy(self, strategy: ComparisonStrategy) -> 'PropertyInferenceConfig':

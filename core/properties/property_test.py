@@ -9,12 +9,13 @@ class TestStats(TypedDict):
     success_count: int
 
 
-class TestResult(TypedDict):
+class TestResult(TypedDict, total=False):
     holds: bool
     counterexamples: list[str]
     successes: list[str]
     stats: TestStats
     execution_traces: list[dict]
+    cases: list[dict]
 
 
 class MultitonMeta(ABCMeta):

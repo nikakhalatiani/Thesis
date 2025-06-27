@@ -8,6 +8,7 @@ from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest, TestResult
+from core.constraint_inference_engine import ConstraintInferenceEngine, GeminiModel, TestCase
 
 
 class InferenceResult(TypedDict):
@@ -24,6 +25,9 @@ class PropertyInferenceEngine:
         # a combination cannot be processed (e.g. grammar mismatch) we store
         # ``None`` to avoid repeating work.
         self._input_cache: dict[tuple[str, ...], list[tuple] | None] = {}
+
+        # Initialize constraint inference engine
+        self.constraint_engine = ConstraintInferenceEngine(GeminiModel())
 
     def _get_inputs_for_combination(self, funcs: tuple) -> list[tuple] | None:
         """Return cached inputs for ``funcs`` or generate and cache them."""
@@ -115,12 +119,97 @@ class PropertyInferenceEngine:
                        max_counterexamples: int) -> TestResult:
         result = property_test.test(function, input_sets, max_counterexamples)
 
+        traces = result.get('execution_traces', [])
+        cases: list[TestCase] = []
+        for tr in traces:
+            cases.append(
+                TestCase(
+                    property=tr.get('property_name', property_test.name),
+                    original_args=tuple(tr.get('input', ())),
+                    passed=bool(tr.get('comparison_result')),
+                    result1=tr.get('output'),
+                    result2=tr.get('expected_output', tr.get('swapped_output')),
+                )
+            )
+
         return TestResult(
             holds=result['holds'],
             counterexamples=result['counterexamples'][:max_counterexamples],
             successes=result['successes'][:max_counterexamples],
             stats=result['stats'],
+            execution_traces=traces,
+            cases=cases,
         )
+
+    def _test_property_with_feedback(
+            self,
+            prop: PropertyTest,
+            fut: CombinedFunctionUnderTest,
+            max_attempts: int = 5,
+    ) -> tuple[TestResult, list[list[str]]]:
+        """Test a property with adaptive constraint feedback."""
+        constraints_history: list[list[str]] = []
+
+        base_grammar = None
+        combined_constraints: set[str] = set()
+
+        for f in fut.funcs:
+            fg = self.config.function_to_grammar.get(
+                f.func.__name__, self.config.default_grammar
+            )
+            if base_grammar is None:
+                base_grammar = fg
+            if fg.extra_constraints:
+                combined_constraints.update(fg.extra_constraints)
+
+        current_grammar = GrammarConfig(
+            base_grammar.path,
+            list(combined_constraints) if combined_constraints else None, )
+
+        attempts = 0
+        last_result: TestResult | None = None
+
+        while attempts < max_attempts:
+            parser = self.config.function_to_parser.get(
+                fut.funcs[0].func.__name__, self.config.default_parser
+            )
+            fan, examples = self._generate_examples(current_grammar, self.config.example_count)
+            input_sets = [parser.parse(fan, t) for t in examples]
+            input_sets = [i for i in input_sets if i is not None]
+
+            result = self._test_property(
+                prop,
+                fut,
+                input_sets,
+                self.config.max_counterexamples
+            )
+            last_result = result
+
+            if result["holds"]:
+                return result, constraints_history
+
+            new_constraints = self.constraint_engine.infer(result.get("cases", []), current_grammar)
+            constraints_history.append(new_constraints)
+
+            print(f"Function: {fut.names()}")
+            print(f"Input sets: {input_sets}")
+            print(f"[Feedback Iteration {attempts + 1}] New inferred constraints: {new_constraints}")
+
+            for constraint in new_constraints:
+                if (
+                        ("==" in constraint or "!=" in constraint)
+                        and any(char.isdigit() for char in constraint)
+                ):
+                    print(
+                        f"[Warning] The constraint '{constraint}' may be overfitting to a small set of passing examples. Consider providing more diverse passing cases or increasing input diversity.")
+
+            if not new_constraints:
+                return result, constraints_history
+
+            current_grammar = self.constraint_engine.apply_constraints(current_grammar, new_constraints)
+            attempts += 1
+
+        return last_result if last_result is not None else result, constraints_history
 
     def run(self) -> dict[str, InferenceResult]:
         results: dict[str, InferenceResult] = {}
@@ -140,19 +229,31 @@ class PropertyInferenceEngine:
                     # print(f"⚠️ Property '{str(prop)}' is not applicable to combination: {combined.names()}. Skipping.")
                     continue
 
-                input_sets = self._get_inputs_for_combination(funcs)
-                if not input_sets:
-                    continue
-
-                outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
+                outcome, constraints_history = self._test_property_with_feedback(
+                    prop,
+                    combined,
+                    max_attempts=getattr(self.config, 'max_feedback_attempts', 5)
+                )
 
                 key = f"combination ({combined.names()})"
 
                 if key not in results:
-                    results[key] = InferenceResult(outcomes={})
+                    results[key] = InferenceResult(outcomes={}, constraints_history={})
 
                 results[key]["outcomes"][prop] = outcome
+                results[key]["constraints_history"][prop] = constraints_history
         # print(f"🔍 Tested {len(results)} combinations with {len(properties_to_test)} properties.")
         # print(f"📦 Cached {len(self._input_cache)} unique input sets for function combinations.")
 
         return results
+
+    def run_with_feedback(
+            self,
+            prop: PropertyTest,
+            fut: CombinedFunctionUnderTest,
+            grammar: GrammarConfig,
+            engine: ConstraintInferenceEngine,
+            max_attempts: int = 5,
+    ) -> tuple[TestResult, list[list[str]]]:
+        """Legacy method - consider using the integrated feedback in run() instead."""
+        return self._test_property_with_feedback(prop, fut, max_attempts)
