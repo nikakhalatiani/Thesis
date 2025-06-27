@@ -67,16 +67,31 @@ class _CompositionTest(PropertyTest):
                 "counterexamples": ["No valid inputs found\n"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
+                "execution_traces": [],
             }
 
         total_tests = 0
         counterexamples = []
+        execution_traces: list[dict] = []
 
         for args in valid_inputs:
             total_tests += 1
             r1, r2, conv_1, conv_2 = self.compute_results(combined, *args)
 
-            if not combined.compare_results(r1, r2):
+            comparison = combined.compare_results(r1, r2)
+            execution_traces.append(
+                {
+                    "input": tuple(args),
+                    "converted_input": {"composition": conv_1, "baseline": conv_2},
+                    "output": r1,
+                    "expected_output": r2,
+                    "comparison_result": comparison,
+                    "function_name": f"{f_name},{g_name}",
+                    "property_name": self.name,
+                }
+            )
+
+            if not comparison:
                 counterexamples.append(
                     self.format_counterexample(
                         args, r1, r2, f_name, g_name, conv_1, conv_2
@@ -96,6 +111,8 @@ class _CompositionTest(PropertyTest):
             "counterexamples": counterexamples,
             "successes": [self.success_message(f_name, g_name)],
             "stats": test_stats,
+            "execution_traces": execution_traces,
+
         }
 
 
@@ -294,14 +311,28 @@ class _DistributivityTest(PropertyTest):
                 "counterexamples": ["No valid inputs found"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
+                "execution_traces": [],
             }
 
         total_tests = 0
         counterexamples = []
+        execution_traces: list[dict] = []
+
         for a, b, c in valid_inputs:
             total_tests += 1
             r1, r2 = self.compute_results(combined, a, b, c)
-            if not combined.compare_results(r1, r2):
+            comparison = combined.compare_results(r1, r2)
+            execution_traces.append(
+                {
+                    "input": (a, b, c),
+                    "output": r1,
+                    "expected_output": r2,
+                    "comparison_result": comparison,
+                    "function_name": f"{f_name},{g_name}",
+                    "property_name": self.name,
+                }
+            )
+            if not comparison:
                 counterexamples.append(
                     self.format_counterexample(a, b, c, r1, r2, f_name, g_name)
                 )
@@ -318,6 +349,7 @@ class _DistributivityTest(PropertyTest):
             "counterexamples": counterexamples,
             "successes": [self.success_message(f_name, g_name)],
             "stats": stats,
+            "execution_traces": execution_traces,
         }
 
 
@@ -413,11 +445,14 @@ class DistributivityTest(PropertyTest):
             all_ce = all_ce[:max_counterexamples]
 
         stats: TestStats = {"total_count": total_tests, "success_count": successes}
+        execution_traces = left_res["execution_traces"] + right_res["execution_traces"]
+
         return {
             "holds": both_hold,
             "counterexamples": all_ce,
             "successes": left_res["successes"] + right_res["successes"] if both_hold else [],
             "stats": stats,
+            "execution_traces": execution_traces,
         }
 
 
@@ -457,23 +492,42 @@ class AssociativityTest(PropertyTest):
                 "counterexamples": ["Not enough elements provided\n"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
+                "execution_traces": [],
             }
 
         # Test associativity for each valid input
         total_tests = 0
         counterexamples = []
+        execution_traces: list[dict] = []
 
         for args in valid_inputs:
             a, b, c = args
             total_tests += 1
 
-            g_bc = combined.call(1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter))
-            r1 = combined.call(0, *combined.convert_args(0, a, g_bc, arg_converter=fut_f.arg_converter))
+            conv_g_bc = combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter)
+            g_bc = combined.call(1, *conv_g_bc)
+            conv_r1 = combined.convert_args(0, a, g_bc, arg_converter=fut_f.arg_converter)
+            r1 = combined.call(0, *conv_r1)
 
-            g_ab = combined.call(1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter))
-            r2 = combined.call(0, *combined.convert_args(0, g_ab, c, arg_converter=fut_f.arg_converter))
+            conv_g_ab = combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter)
+            g_ab = combined.call(1, *conv_g_ab)
+            conv_r2 = combined.convert_args(0, g_ab, c, arg_converter=fut_f.arg_converter)
+            r2 = combined.call(0, *conv_r2)
 
-            if not combined.compare_results(r1, r2):
+            comparison = combined.compare_results(r1, r2)
+            execution_traces.append(
+                {
+                    "input": (a, b, c),
+                    "converted_input": {"r1": conv_r1, "r2": conv_r2},
+                    "output": r1,
+                    "expected_output": r2,
+                    "comparison_result": comparison,
+                    "function_name": f"{f_name},{g_name}",
+                    "property_name": self.name,
+                }
+            )
+
+            if not comparison:
                 counterexamples.append(
                     f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
                     f"{f_name}({g_name}({a}, {b}), {c}): {r2}\n"
@@ -495,6 +549,7 @@ class AssociativityTest(PropertyTest):
                 f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c) for all tested inputs\n"
             ],
             "stats": test_stats,
+            "execution_traces": execution_traces,
         }
 
 # class ScalarHomomorphismTest(PropertyTest):

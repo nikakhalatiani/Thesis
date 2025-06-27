@@ -60,11 +60,13 @@ class InjectivityTest(PropertyTest):
                 "counterexamples": ["No valid inputs found\n"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
+                "execution_traces": [],
             }
 
         counterexamples = []
         total_tests = 0
         result_map = {}  # Maps projected results to the input that produced them
+        execution_traces: list[dict] = []
 
         for args in valid_inputs:
             total_tests += 1
@@ -78,7 +80,8 @@ class InjectivityTest(PropertyTest):
             projected_result = self._make_hashable(projected_result)
 
             # Check if we've seen this projected result before
-            if projected_result in result_map:
+            is_unique = projected_result not in result_map
+            if not is_unique:
                 prev_args, prev_result = result_map[projected_result]
                 counterexamples.append(
                     f"{f_name}{tuple(conv_args)} = {result}\n\t"
@@ -90,6 +93,17 @@ class InjectivityTest(PropertyTest):
             else:
                 result_map[projected_result] = (conv_args, result)
 
+            execution_traces.append(
+                {
+                    "input": tuple(args),
+                    "converted_input": tuple(conv_args),
+                    "output": result,
+                    "comparison_result": is_unique,
+                    "function_name": f_name,
+                    "property_name": self.name,
+                }
+            )
+
         test_stats: TestStats = {
             "total_count": total_tests,
             "success_count": total_tests - len(counterexamples),
@@ -100,6 +114,7 @@ class InjectivityTest(PropertyTest):
             "counterexamples": counterexamples,
             "successes": [f"{f_name} is injective on the tested inputs\n"],
             "stats": test_stats,
+            "execution_traces": execution_traces,
         }
 
 
@@ -146,11 +161,13 @@ class FixedPointTest(PropertyTest):
                 "counterexamples": ["No valid inputs found\n"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
+                "execution_traces": [],
             }
 
         total_tests = 0
         fixed_points = []
         counterexamples = []
+        execution_traces: list[dict] = []
 
         for valid_input in valid_inputs:
             total_tests += 1
@@ -168,9 +185,22 @@ class FixedPointTest(PropertyTest):
                 # Double-check if result really matches expected
                 result2 = function.call(0, *conv_args)
 
-                if function.compare_results(
-                        result1, expected
-                ) and function.compare_results(result2, expected):
+                comparison1 = function.compare_results(result1, expected)
+                comparison2 = function.compare_results(result2, expected)
+                comparison = comparison1 and comparison2
+                execution_traces.append(
+                    {
+                        "input": tuple(args),
+                        "converted_input": tuple(conv_args),
+                        "output": result1,
+                        "expected_output": expected,
+                        "comparison_result": comparison,
+                        "function_name": f_name,
+                        "property_name": self.name,
+                    }
+                )
+
+                if comparison:
                     fixed_points.append(
                         f"{f_name}{tuple(conv_args)}: {result1} == {conv_args[self.result_index]}\n"
                     )
@@ -190,6 +220,7 @@ class FixedPointTest(PropertyTest):
             "counterexamples": counterexamples,
             "successes": fixed_points,
             "stats": test_stats,
+            "execution_traces": execution_traces,
         }
 
 
@@ -231,11 +262,13 @@ class DeterminismTest(PropertyTest):
                 "counterexamples": ["No valid inputs found\n"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
+                "execution_traces": [],
             }
 
         # Test determinism for each valid input
         total_tests = 0
         counterexamples = []
+        execution_traces: list[dict] = []
 
         for args in valid_inputs:
             total_tests += 1
@@ -254,7 +287,20 @@ class DeterminismTest(PropertyTest):
                     first_different_result = (idx, r)
                     break
 
-            if first_different_result is not None:
+            deterministic = first_different_result is None
+            execution_traces.append(
+                {
+                    "input": tuple(args),
+                    "converted_input": tuple(conv_args),
+                    "output": first_result,
+                    "expected_output": first_result,
+                    "comparison_result": deterministic,
+                    "function_name": f_name,
+                    "property_name": self.name,
+                }
+            )
+
+            if not deterministic:
                 # If results differ, record the counterexample
                 idx_diff, diff_val = first_different_result
                 counterexamples.append(
@@ -278,8 +324,8 @@ class DeterminismTest(PropertyTest):
                 f"{f_name} is deterministic for all tested inputs\n"
             ],
             "stats": test_stats,
+            "execution_traces": execution_traces,
         }
-
 
 #
 # class MonotonicallyIncreasingTest(PropertyTest):

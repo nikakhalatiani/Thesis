@@ -14,6 +14,7 @@ class TestResult(TypedDict):
     counterexamples: list[str]
     successes: list[str]
     stats: TestStats
+    execution_traces: list[dict]
 
 
 class MultitonMeta(ABCMeta):
