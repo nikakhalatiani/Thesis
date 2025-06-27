@@ -14,7 +14,7 @@ class _CompositionTest(PropertyTest):
             input_arity=function_arity,
             function_arity=function_arity,
             description=description,
-            category="Composition",
+            category="Compositional",
         )
 
         self.num_functions = 2
@@ -65,6 +65,7 @@ class _CompositionTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid inputs found\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -90,18 +91,12 @@ class _CompositionTest(PropertyTest):
             "success_count": total_tests - len(counterexamples),
         }
 
-        if not counterexamples:
-            return {
-                "holds": True,
-                "counterexamples": [self.success_message(f_name, g_name)],
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
+        return {
+            "holds": not counterexamples,
+            "counterexamples": counterexamples,
+            "successes": [self.success_message(f_name, g_name)],
+            "stats": test_stats,
+        }
 
 
 class LeftCompositionTest(_CompositionTest):
@@ -183,9 +178,6 @@ class RightCompositionTest(_CompositionTest):
 
         return r_fg, r_f, conv_f, conv_g
 
-    def success_message(self, f_name, g_name):
-        return f"{f_name}∘{g_name} always equals {f_name} for tested inputs."
-
     def format_counterexample(
             self,
             raw_args,
@@ -203,6 +195,9 @@ class RightCompositionTest(_CompositionTest):
             f"{f_name}({', '.join(map(str, fg_args))}): {r1}\n\t"
             f"{f_name}{tuple(conv_f)}: {r2}\n"
         )
+
+    def success_message(self, f_name, g_name):
+        return f"{f_name}∘{g_name} always equals {f_name} for tested inputs."
 
 
 class InvolutionTest(_CompositionTest):
@@ -297,6 +292,7 @@ class _DistributivityTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid inputs found"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -317,12 +313,10 @@ class _DistributivityTest(PropertyTest):
             "success_count": total_tests - len(counterexamples),
         }
 
-        if counterexamples:
-            return {"holds": False, "counterexamples": counterexamples, "stats": stats}
-
         return {
-            "holds": True,
-            "counterexamples": [self.success_message(f_name, g_name)],
+            "holds": not counterexamples,
+            "counterexamples": counterexamples,
+            "successes": [self.success_message(f_name, g_name)],
             "stats": stats,
         }
 
@@ -339,23 +333,13 @@ class LeftDistributivityTest(_DistributivityTest):
     def compute_results(self, combined, a, b, c):
         fut_f, fut_g = combined.funcs
         # f(a, g(b, c))
-        inner_bc = combined.call(
-            1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter)
-        )
-        r1 = combined.call(
-            0, *combined.convert_args(0, a, inner_bc, arg_converter=fut_f.arg_converter)
-        )
+        inner_bc = combined.call(1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter))
+        r1 = combined.call(0, *combined.convert_args(0, a, inner_bc, arg_converter=fut_f.arg_converter))
 
         # g(f(a, b), f(a, c))
-        left = combined.call(
-            0, *combined.convert_args(0, a, b, arg_converter=fut_f.arg_converter)
-        )
-        right = combined.call(
-            0, *combined.convert_args(0, a, c, arg_converter=fut_f.arg_converter)
-        )
-        r2 = combined.call(
-            1, *combined.convert_args(1, left, right, arg_converter=fut_g.arg_converter)
-        )
+        left = combined.call(0, *combined.convert_args(0, a, b, arg_converter=fut_f.arg_converter))
+        right = combined.call(0, *combined.convert_args(0, a, c, arg_converter=fut_f.arg_converter))
+        r2 = combined.call(1, *combined.convert_args(1, left, right, arg_converter=fut_g.arg_converter))
         return r1, r2
 
     def format_counterexample(self, a, b, c, r1, r2, f_name, g_name):
@@ -380,23 +364,13 @@ class RightDistributivityTest(_DistributivityTest):
     def compute_results(self, combined, a, b, c):
         fut_f, fut_g = combined.funcs
         # f(g(a, b), c)
-        inner_ab = combined.call(
-            1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter)
-        )
-        r1 = combined.call(
-            0, *combined.convert_args(0, inner_ab, c, arg_converter=fut_f.arg_converter)
-        )
+        inner_ab = combined.call(1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter))
+        r1 = combined.call(0, *combined.convert_args(0, inner_ab, c, arg_converter=fut_f.arg_converter))
 
         # g(f(a, c), f(b, c))
-        left = combined.call(
-            0, *combined.convert_args(0, a, c, arg_converter=fut_f.arg_converter)
-        )
-        right = combined.call(
-            0, *combined.convert_args(0, b, c, arg_converter=fut_f.arg_converter)
-        )
-        r2 = combined.call(
-            1, *combined.convert_args(1, left, right, arg_converter=fut_g.arg_converter)
-        )
+        left = combined.call(0, *combined.convert_args(0, a, c, arg_converter=fut_f.arg_converter))
+        right = combined.call(0, *combined.convert_args(0, b, c, arg_converter=fut_f.arg_converter))
+        r2 = combined.call(1, *combined.convert_args(1, left, right, arg_converter=fut_g.arg_converter))
         return r1, r2
 
     def format_counterexample(self, a, b, c, r1, r2, f_name, g_name):
@@ -439,7 +413,12 @@ class DistributivityTest(PropertyTest):
             all_ce = all_ce[:max_counterexamples]
 
         stats: TestStats = {"total_count": total_tests, "success_count": successes}
-        return {"holds": both_hold, "counterexamples": all_ce, "stats": stats}
+        return {
+            "holds": both_hold,
+            "counterexamples": all_ce,
+            "successes": left_res["successes"] + right_res["successes"] if both_hold else [],
+            "stats": stats,
+        }
 
 
 class AssociativityTest(PropertyTest):
@@ -476,6 +455,7 @@ class AssociativityTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["Not enough elements provided\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -487,21 +467,12 @@ class AssociativityTest(PropertyTest):
             a, b, c = args
             total_tests += 1
 
-            g_bc = combined.call(
-                1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter)
-            )
-            r1 = combined.call(
-                0, *combined.convert_args(0, a, g_bc, arg_converter=fut_f.arg_converter)
-            )
+            g_bc = combined.call(1, *combined.convert_args(1, b, c, arg_converter=fut_g.arg_converter))
+            r1 = combined.call(0, *combined.convert_args(0, a, g_bc, arg_converter=fut_f.arg_converter))
 
-            g_ab = combined.call(
-                1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter)
-            )
-            r2 = combined.call(
-                0, *combined.convert_args(0, g_ab, c, arg_converter=fut_f.arg_converter)
-            )
+            g_ab = combined.call(1, *combined.convert_args(1, a, b, arg_converter=fut_g.arg_converter))
+            r2 = combined.call(0, *combined.convert_args(0, g_ab, c, arg_converter=fut_f.arg_converter))
 
-            # 5) compare
             if not combined.compare_results(r1, r2):
                 counterexamples.append(
                     f"{f_name}({a}, {g_name}({b}, {c})): {r1}\n\t"
@@ -517,20 +488,14 @@ class AssociativityTest(PropertyTest):
             "success_count": total_tests - len(counterexamples),
         }
 
-        if not counterexamples:
-            return {
-                "holds": True,
-                "counterexamples": [
-                    f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c) for all tested inputs\n"
-                ],
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
+        return {
+            "holds": not counterexamples,
+            "counterexamples": counterexamples,
+            "successes": [
+                f"{f_name}(a, {g_name}(b, c)) == {f_name}({g_name}(a, b), c) for all tested inputs\n"
+            ],
+            "stats": test_stats,
+        }
 
 # class ScalarHomomorphismTest(PropertyTest):
 #     """

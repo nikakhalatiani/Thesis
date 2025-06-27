@@ -12,6 +12,7 @@ class TestStats(TypedDict):
 class TestResult(TypedDict):
     holds: bool
     counterexamples: list[str]
+    successes: list[str]
     stats: TestStats
 
 

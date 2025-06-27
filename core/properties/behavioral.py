@@ -58,6 +58,7 @@ class InjectivityTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid inputs found\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -94,18 +95,12 @@ class InjectivityTest(PropertyTest):
             "success_count": total_tests - len(counterexamples),
         }
 
-        if counterexamples:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": True,
-                "counterexamples": [f"{f_name} is injective on the tested inputs\n"],
-                "stats": test_stats,
-            }
+        return {
+            "holds": not counterexamples,
+            "counterexamples": counterexamples,
+            "successes": [f"{f_name} is injective on the tested inputs\n"],
+            "stats": test_stats,
+        }
 
 
 class FixedPointTest(PropertyTest):
@@ -149,6 +144,7 @@ class FixedPointTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid inputs found\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -189,18 +185,12 @@ class FixedPointTest(PropertyTest):
             "success_count": len(fixed_points),
         }
 
-        if fixed_points:
-            return {
-                "holds": True,
-                "counterexamples": fixed_points,
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
+        return {
+            "holds": bool(fixed_points),
+            "counterexamples": counterexamples,
+            "successes": fixed_points,
+            "stats": test_stats,
+        }
 
 
 class DeterminismTest(PropertyTest):
@@ -239,6 +229,7 @@ class DeterminismTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid inputs found\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -280,20 +271,15 @@ class DeterminismTest(PropertyTest):
             "success_count": total_tests - len(counterexamples),
         }
 
-        if not counterexamples:
-            return {
-                "holds": True,
-                "counterexamples": [
-                    f"{f_name} is deterministic for all tested inputs\n"
-                ],
-                "stats": test_stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": test_stats,
-            }
+        return {
+            "holds": not counterexamples,
+            "counterexamples": counterexamples,
+            "successes": [
+                f"{f_name} is deterministic for all tested inputs\n"
+            ],
+            "stats": test_stats,
+        }
+
 
 #
 # class MonotonicallyIncreasingTest(PropertyTest):

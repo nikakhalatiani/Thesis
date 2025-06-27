@@ -118,6 +118,7 @@ class PropertyInferenceEngine:
         return TestResult(
             holds=result['holds'],
             counterexamples=result['counterexamples'][:max_counterexamples],
+            successes=result['successes'][:max_counterexamples],
             stats=result['stats'],
         )
 

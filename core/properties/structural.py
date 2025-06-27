@@ -8,11 +8,11 @@ class _SwapArgumentsTest(PropertyTest):
     """Generic base class for tests that check the effect of swapping two arguments of a function. Used for commutativity and similar properties."""
 
     def __init__(
-        self,
-        name: str,
-        description: str,
-        function_arity: int,
-        swap_indices: tuple[int, int],
+            self,
+            name: str,
+            description: str,
+            function_arity: int,
+            swap_indices: tuple[int, int],
     ) -> None:
         # Validate swap_indices
         if not isinstance(swap_indices, (tuple, list)) or len(swap_indices) != 2:
@@ -36,7 +36,7 @@ class _SwapArgumentsTest(PropertyTest):
         self.swap_indices = swap_indices
 
     def test(
-        self, function: CombinedFunctionUnderTest, inputs, max_counterexamples: int
+            self, function: CombinedFunctionUnderTest, inputs, max_counterexamples: int
     ) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
@@ -49,6 +49,7 @@ class _SwapArgumentsTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid inputs found\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -88,27 +89,21 @@ class _SwapArgumentsTest(PropertyTest):
             "success_count": total_tests - len(counterexamples),
         }
 
-        if not counterexamples:
-            return {
-                "holds": True,
-                "counterexamples": [
-                    f"Swapping arguments at positions {self.swap_indices} yields same result for all tested inputs\n"
-                ],
-                "stats": stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": counterexamples,
-                "stats": stats,
-            }
+        return {
+            "holds": not counterexamples,
+            "counterexamples": counterexamples,
+            "successes": [
+                f"Swapping arguments at positions {self.swap_indices} yields same result for all tested inputs\n"
+            ] if not counterexamples else [],
+            "stats": stats,
+        }
 
 
 class CommutativityTest(_SwapArgumentsTest):
     """Test whether swapping two arguments of a function yields the same result (commutativity)."""
 
     def __init__(
-        self, function_arity: int = 2, swap_indices: tuple[int, int] = (0, 1)
+            self, function_arity: int = 2, swap_indices: tuple[int, int] = (0, 1)
     ) -> None:
         # Ensure basic validity preconditions
         if function_arity < 2:
@@ -125,12 +120,12 @@ class _CandidateElementTest(PropertyTest):
     """Base class for tests that check for special elements (identity or absorbing) at specific argument positions in a function."""
 
     def __init__(
-        self,
-        name: str,
-        description: str,
-        function_arity: int,
-        element_positions: list[int],
-        target_positions: list[int],
+            self,
+            name: str,
+            description: str,
+            function_arity: int,
+            element_positions: list[int],
+            target_positions: list[int],
     ):
         super().__init__(
             name=name,
@@ -170,22 +165,22 @@ class _CandidateElementTest(PropertyTest):
         """Build a converter list with the candidate converter at the specified position."""
         if pos < len(orig_conv):
             # Replace converter at existing position
-            return orig_conv[:pos] + [candidate_conv] + orig_conv[pos + 1 :]
+            return orig_conv[:pos] + [candidate_conv] + orig_conv[pos + 1:]
         else:
             # Extend converter list to reach the position
             padding_needed = pos - len(orig_conv)
             return orig_conv + [default_conv] * padding_needed + [candidate_conv]
 
     def _test_single_case(
-        self,
-        combined,
-        raw_args,
-        candidate,
-        pos,
-        target,
-        candidate_conv,
-        orig_conv,
-        default_conv,
+            self,
+            combined,
+            raw_args,
+            candidate,
+            pos,
+            target,
+            candidate_conv,
+            orig_conv,
+            default_conv,
     ):
         """Test a single candidate-position-input combination."""
         # Create test arguments with candidate at specified position
@@ -207,14 +202,14 @@ class _CandidateElementTest(PropertyTest):
         return result, expected, conv_args
 
     def _validate_candidate(
-        self,
-        combined,
-        candidate,
-        valid_inputs,
-        converter_map,
-        orig_conv,
-        default_conv,
-        fut,
+            self,
+            combined,
+            candidate,
+            valid_inputs,
+            converter_map,
+            orig_conv,
+            default_conv,
+            fut,
     ):
         """Validate a single candidate across all inputs and positions."""
         candidate_conv = converter_map[candidate]
@@ -246,7 +241,7 @@ class _CandidateElementTest(PropertyTest):
         return True, [], test_count
 
     def test(
-        self, combined: CombinedFunctionUnderTest, inputs, max_counterexamples: int
+            self, combined: CombinedFunctionUnderTest, inputs, max_counterexamples: int
     ) -> TestResult:
         fut = combined.funcs[0]
         orig_conv = list(fut.arg_converter)
@@ -259,6 +254,7 @@ class _CandidateElementTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid inputs found\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -270,6 +266,7 @@ class _CandidateElementTest(PropertyTest):
             return {
                 "holds": False,
                 "counterexamples": ["No valid candidates found\n"],
+                "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
             }
 
@@ -301,33 +298,27 @@ class _CandidateElementTest(PropertyTest):
             "success_count": total_tests if valid_candidates else 0,
         }
 
-        if valid_candidates:
-            return {
-                "holds": True,
-                "counterexamples": [
-                    self.success_message(c, fut.func.__name__) for c in valid_candidates
-                ],
-                "stats": stats,
-            }
-        else:
-            return {
-                "holds": False,
-                "counterexamples": all_counterexamples,
-                "stats": stats,
-            }
+        return {
+            "holds": bool(valid_candidates),
+            "counterexamples": all_counterexamples,
+            "successes": [self.success_message(c, fut.func.__name__) for c in
+                          valid_candidates],
+            "stats": stats,
+        }
 
     @abstractmethod
-    def success_message(self, candidate, f_name) -> str: ...
+    def success_message(self, candidate, f_name) -> str:
+        ...
 
 
 class LeftIdentityElementTest(_CandidateElementTest):
     """Test for left identity: f(e, a, ...) == a"""
 
     def __init__(
-        self,
-        function_arity: int = 2,
-        identity_position: int = 0,
-        target_position: int = 1,
+            self,
+            function_arity: int = 2,
+            identity_position: int = 0,
+            target_position: int = 1,
     ):
         super().__init__(
             name="LeftIdentityElement",
@@ -348,10 +339,10 @@ class RightIdentityElementTest(_CandidateElementTest):
     """Test for right identity: f(a, e) == a"""
 
     def __init__(
-        self,
-        function_arity: int = 2,
-        identity_position: int = 1,
-        target_position: int = 0,
+            self,
+            function_arity: int = 2,
+            identity_position: int = 1,
+            target_position: int = 0,
     ):
         super().__init__(
             name="RightIdentityElement",
@@ -372,10 +363,10 @@ class IdentityElementTest(_CandidateElementTest):
     """Test for two-sided identity elements."""
 
     def __init__(
-        self,
-        function_arity: int = 2,
-        positions: list[int] = (0, 1),
-        targets: list[int] = (1, 0),
+            self,
+            function_arity: int = 2,
+            positions: list[int] = (0, 1),
+            targets: list[int] = (1, 0),
     ):
         super().__init__(
             name="IdentityElement",
@@ -396,10 +387,10 @@ class LeftAbsorbingElementTest(_CandidateElementTest):
     """Test for left absorbing: f(z, a, ...) == z"""
 
     def __init__(
-        self,
-        function_arity: int = 2,
-        absorbing_position: int = 0,
-        target_position: int = 0,
+            self,
+            function_arity: int = 2,
+            absorbing_position: int = 0,
+            target_position: int = 0,
     ):
         super().__init__(
             name="LeftAbsorbingElement",
@@ -420,10 +411,10 @@ class RightAbsorbingElementTest(_CandidateElementTest):
     """Test for right absorbing: f(a, z) == z"""
 
     def __init__(
-        self,
-        function_arity: int = 2,
-        absorbing_position: int = 1,
-        target_position: int = 1,
+            self,
+            function_arity: int = 2,
+            absorbing_position: int = 1,
+            target_position: int = 1,
     ):
         super().__init__(
             name="RightAbsorbingElement",
@@ -444,10 +435,10 @@ class AbsorbingElementTest(_CandidateElementTest):
     """Test for two-sided absorbing elements."""
 
     def __init__(
-        self,
-        function_arity: int = 2,
-        positions: list[int] = (0, 1),
-        targets: list[int] = (0, 1),
+            self,
+            function_arity: int = 2,
+            positions: list[int] = (0, 1),
+            targets: list[int] = (0, 1),
     ):
         super().__init__(
             name="AbsorbingElement",
@@ -462,7 +453,6 @@ class AbsorbingElementTest(_CandidateElementTest):
             f"{candidate} is a two-sided absorbing element\n\t"
             f"{f_name}({candidate}, x) = {candidate} and {f_name}(x, {candidate}) = {candidate}\n"
         )
-
 
 # class TypePreservationTest(PropertyTest):
 #     """Test if function preserves input type"""

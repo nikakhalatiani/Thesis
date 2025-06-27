@@ -114,18 +114,25 @@ def create_comprehensive_registry() -> PropertyRegistry:
     """Create a comprehensive registry with all property categories."""
     registry = PropertyRegistry()
 
-    # Add all specialized registries
-    symmetry_reg = create_symmetry_registry()
-    algebraic_reg = create_algebraic_structure_registry()
-    elements_reg = create_special_elements_registry()
-    analysis_reg = create_function_analysis_registry()
-    composition_reg = create_composition_registry()
+    registry.register(CommutativityTest())
+    registry.register(LeftIdentityElementTest())
+    registry.register(RightIdentityElementTest())
+    registry.register(IdentityElementTest())
+    registry.register(LeftAbsorbingElementTest())
+    registry.register(RightAbsorbingElementTest())
+    registry.register(AbsorbingElementTest())
+    
+    registry.register(LeftCompositionTest())
+    registry.register(RightCompositionTest())
+    registry.register(InvolutionTest())
+    registry.register(LeftDistributivityTest())
+    registry.register(RightDistributivityTest())
+    registry.register(DistributivityTest())
+    registry.register(AssociativityTest())
 
-    # Merge all registries
-    for test_reg in [symmetry_reg, algebraic_reg, elements_reg, analysis_reg, composition_reg]:
-        for test in test_reg.get_all():
-            registry.register(test)
-
+    registry.register(InjectivityTest())
+    registry.register(FixedPointTest())
+    registry.register(DeterminismTest())
     return registry
 
 
@@ -241,12 +248,14 @@ def minimal_registry() -> PropertyRegistry:
 
     # Many data structure operations are commutative (set union, intersection)
     # registry.register(CommutativityTest())
+
     # registry.register(DistributivityTest())
     # registry.register(LeftDistributivityTest())
     # registry.register(RightDistributivityTest())
-    # registry.register(LeftIdentityElementTest())  # f(e, a) == a
-    # registry.register(RightIdentityElementTest())  # f(a, e) == a
-    # registry.register(IdentityElementTest())  # two-sided identity
+
+    registry.register(LeftIdentityElementTest())  # f(e, a) == a
+    registry.register(RightIdentityElementTest())  # f(a, e) == a
+    registry.register(IdentityElementTest())  # two-sided identity
     #
     # registry.register(LeftAbsorbingElementTest())  # f(z, a) == z
     # registry.register(RightAbsorbingElementTest())  # f(a, z) == z

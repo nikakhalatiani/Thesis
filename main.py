@@ -135,9 +135,9 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
                 f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
             )
             print(decision)
-            for ex in outcome["counterexamples"]:
-                print(f"\t{ex}")
-
+            messages = outcome["successes"] if holds else outcome["counterexamples"]
+            for msg in messages:
+                print(f"\t{msg}")
 
 if __name__ == "__main__":
     main()

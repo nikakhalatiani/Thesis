@@ -227,23 +227,37 @@ def list_available_properties(registry):
     """List all available properties in the registry."""
     print("Available Properties:")
     print("=" * 50)
-    properties = registry.get_all()
 
-    # Group by category if possible
+    # Get all property tests from the registry
+    all_tests = registry.get_all()
+
+    # Group by category
     by_category = {}
-    for prop_name in properties:
-        prop_obj = registry.get(prop_name)
-        category = getattr(prop_obj, 'category', 'Uncategorized')
+    for test in all_tests:
+        category = getattr(test, 'category', 'Uncategorized') or 'Uncategorized'
         if category not in by_category:
             by_category[category] = []
-        by_category[category].append(prop_name)
+        by_category[category].append(test.name)
 
+    # Remove duplicates within each category while preserving order
+    for category in by_category:
+        seen = set()
+        unique_props = []
+        for prop in by_category[category]:
+            if prop not in seen:
+                seen.add(prop)
+                unique_props.append(prop)
+        by_category[category] = unique_props
+
+    # Display properties grouped by category
     for category, props in sorted(by_category.items()):
         print(f"\n{category}:")
         for prop in sorted(props):
             print(f"  • {prop}")
 
-    print(f"\nTotal: {len(properties)} properties")
+    # Count unique property names
+    all_unique_names = set(test.name for test in all_tests)
+    print(f"\nTotal: {len(all_unique_names)} unique properties")
 
 
 def parse_arguments():
@@ -394,7 +408,7 @@ def create_combined_registry(registry_names: list[str]):
 
         registry = REGISTRY_FACTORIES[name]()
         # Assuming registry has a method to get all tests
-        for test in registry.get_all_tests():  # This method may need to be implemented
+        for test in registry.get_all():  # This method may need to be implemented
             combined.register(test)
 
     return combined
@@ -583,8 +597,9 @@ def format_results(results: dict, args) -> str:
                 )
                 output_lines.append(decision)
 
-                for ex in outcome["counterexamples"]:
-                    output_lines.append(f"\t{ex}")
+                messages = outcome["successes"] if holds else outcome["counterexamples"]
+                for msg in messages:
+                    output_lines.append(f"\t{msg}")
 
     return "\n".join(output_lines)
 
