@@ -10,6 +10,9 @@ from config.grammar_config import GrammarConfig
 import inspect
 import importlib.util
 
+from dotenv import load_dotenv
+load_dotenv()
+
 
 def load_user_module(path: str):
     """Load a Python module from a file path."""
@@ -94,7 +97,7 @@ def print_constraints_evolution(prop, constraints_history):
             print(f"\t\t\t  Iteration {i}: No new constraints inferred")
 
 
-def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None):
+def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None, feedback_enabled: bool = True):
     registry = minimal_registry()
 
     default_parser = InputParser.for_numbers()
@@ -105,7 +108,8 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
               .set_use_input_cache(True)
               .set_example_count(100)
               .set_max_counterexamples(100)
-              .set_max_feedback_attempts(5))
+              .set_max_feedback_attempts(5)
+              .set_feedback_enabled(feedback_enabled))
 
     module = load_user_module(user_funcs_path)
 

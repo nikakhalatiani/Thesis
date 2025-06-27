@@ -8,7 +8,7 @@ from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest, TestResult
-from core.constraint_inference_engine import ConstraintInferenceEngine, GeminiModel, TestCase
+from core.constraint_inference_engine import ConstraintInferenceEngine, GeminiModel
 
 
 class InferenceResult(TypedDict):
@@ -118,27 +118,12 @@ class PropertyInferenceEngine:
     def _test_property(property_test: PropertyTest, function: CombinedFunctionUnderTest, input_sets: list,
                        max_counterexamples: int) -> TestResult:
         result = property_test.test(function, input_sets, max_counterexamples)
-
-        traces = result.get('execution_traces', [])
-        cases: list[TestCase] = []
-        for tr in traces:
-            cases.append(
-                TestCase(
-                    property=tr.get('property_name', property_test.name),
-                    original_args=tuple(tr.get('input', ())),
-                    passed=bool(tr.get('comparison_result')),
-                    result1=tr.get('output'),
-                    result2=tr.get('expected_output', tr.get('swapped_output')),
-                )
-            )
-
         return TestResult(
             holds=result['holds'],
             counterexamples=result['counterexamples'][:max_counterexamples],
             successes=result['successes'][:max_counterexamples],
             stats=result['stats'],
-            execution_traces=traces,
-            cases=cases,
+            execution_traces=result['execution_traces']
         )
 
     def _test_property_with_feedback(
@@ -185,10 +170,10 @@ class PropertyInferenceEngine:
             )
             last_result = result
 
-            if result["holds"]:
+            if result["holds"] or not self.config.feedback_enabled:
                 return result, constraints_history
 
-            new_constraints = self.constraint_engine.infer(result.get("cases", []), current_grammar)
+            new_constraints = self.constraint_engine.infer(result["execution_traces"], current_grammar)
             constraints_history.append(new_constraints)
 
             print(f"Function: {fut.names()}")

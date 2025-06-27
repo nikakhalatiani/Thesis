@@ -7,6 +7,9 @@ import re
 from urllib import request, error
 
 from config.grammar_config import GrammarConfig
+from dotenv import load_dotenv
+load_dotenv()
+
 
 
 class TestCase(TypedDict):
@@ -31,8 +34,24 @@ class ConstraintInferenceEngine:
     def __init__(self, model: Optional[ConstraintModel] = None) -> None:
         self.model = model or SimpleNumericModel()
 
-    def infer(self, cases: list[TestCase], grammar: GrammarConfig) -> list[str]:
-        """Infer new constraints from executed test cases."""
+    def _traces_to_cases(self, traces: list[dict]) -> list[TestCase]:
+        """Convert execution traces to ``TestCase`` structures."""
+        cases: list[TestCase] = []
+        for tr in traces:
+            cases.append(
+                TestCase(
+                    property=tr.get("property_name", ""),
+                    original_args=tuple(tr.get("input", ())),
+                    passed=bool(tr.get("comparison_result")),
+                    result1=tr.get("output"),
+                    result2=tr.get("expected_output", tr.get("swapped_output")),
+                )
+            )
+        return cases
+
+    def infer(self, traces: list[dict], grammar: GrammarConfig) -> list[str]:
+        """Infer new constraints from execution traces."""
+        cases = self._traces_to_cases(traces)
         return self.model.infer_constraints(cases, grammar)
 
     @staticmethod
