@@ -1,7 +1,7 @@
 from abc import abstractmethod
 
 from core.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult, TestStats
+from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 
 
 class _SwapArgumentsTest(PropertyTest):
@@ -57,7 +57,7 @@ class _SwapArgumentsTest(PropertyTest):
         orig_conv = list(fut.arg_converter)
         total_tests = 0
         counterexamples: list[str] = []
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for args in valid_inputs:
             # Create swapped argument list
@@ -81,13 +81,7 @@ class _SwapArgumentsTest(PropertyTest):
             execution_traces.append(
                 {
                     "input": tuple(args),
-                    "converted_input": tuple(conv_args),
-                    "swapped_converted_input": tuple(conv_swapped),
-                    "output": r1,
-                    "swapped_output": r2,
-                    "expected_output": r1,
                     "comparison_result": comparison,
-                    "function_name": f_name,
                     "property_name": self.name,
                 }
             )
@@ -228,7 +222,7 @@ class _CandidateElementTest(PropertyTest):
             orig_conv,
             default_conv,
             fut,
-            execution_traces,
+            execution_traces: list[ExecutionTrace],
     ):
         """Validate a single candidate across all inputs and positions."""
         candidate_conv = converter_map[candidate]
@@ -253,13 +247,7 @@ class _CandidateElementTest(PropertyTest):
                 execution_traces.append(
                     {
                         "input": tuple(raw_args),
-                        "candidate": candidate,
-                        "position": pos,
-                        "converted_input": tuple(conv_args),
-                        "output": result,
-                        "expected_output": expected,
                         "comparison_result": comparison,
-                        "function_name": fut.func.__name__,
                         "property_name": self.name,
                     }
                 )
@@ -310,7 +298,7 @@ class _CandidateElementTest(PropertyTest):
         valid_candidates = []
         all_counterexamples = []
         total_tests = 0
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for candidate in candidates:
             is_valid, counterexamples, test_count = self._validate_candidate(

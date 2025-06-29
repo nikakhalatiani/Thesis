@@ -1,5 +1,5 @@
 from core.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult, TestStats
+from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 
 from collections.abc import Hashable
 
@@ -66,7 +66,7 @@ class InjectivityTest(PropertyTest):
         counterexamples = []
         total_tests = 0
         result_map = {}  # Maps projected results to the input that produced them
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for args in valid_inputs:
             total_tests += 1
@@ -96,10 +96,7 @@ class InjectivityTest(PropertyTest):
             execution_traces.append(
                 {
                     "input": tuple(args),
-                    "converted_input": tuple(conv_args),
-                    "output": result,
                     "comparison_result": is_unique,
-                    "function_name": f_name,
                     "property_name": self.name,
                 }
             )
@@ -167,7 +164,7 @@ class FixedPointTest(PropertyTest):
         total_tests = 0
         fixed_points = []
         counterexamples = []
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for valid_input in valid_inputs:
             total_tests += 1
@@ -191,11 +188,7 @@ class FixedPointTest(PropertyTest):
                 execution_traces.append(
                     {
                         "input": tuple(args),
-                        "converted_input": tuple(conv_args),
-                        "output": result1,
-                        "expected_output": expected,
                         "comparison_result": comparison,
-                        "function_name": f_name,
                         "property_name": self.name,
                     }
                 )
@@ -268,7 +261,7 @@ class DeterminismTest(PropertyTest):
         # Test determinism for each valid input
         total_tests = 0
         counterexamples = []
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for args in valid_inputs:
             total_tests += 1
@@ -291,11 +284,7 @@ class DeterminismTest(PropertyTest):
             execution_traces.append(
                 {
                     "input": tuple(args),
-                    "converted_input": tuple(conv_args),
-                    "output": first_result,
-                    "expected_output": first_result,
                     "comparison_result": deterministic,
-                    "function_name": f_name,
                     "property_name": self.name,
                 }
             )

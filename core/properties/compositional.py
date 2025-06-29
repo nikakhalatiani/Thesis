@@ -1,5 +1,5 @@
 from core.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult, TestStats
+from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 from abc import abstractmethod
 
 
@@ -72,7 +72,7 @@ class _CompositionTest(PropertyTest):
 
         total_tests = 0
         counterexamples = []
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for args in valid_inputs:
             total_tests += 1
@@ -82,11 +82,7 @@ class _CompositionTest(PropertyTest):
             execution_traces.append(
                 {
                     "input": tuple(args),
-                    "converted_input": {"composition": conv_1, "baseline": conv_2},
-                    "output": r1,
-                    "expected_output": r2,
                     "comparison_result": comparison,
-                    "function_name": f"{f_name},{g_name}",
                     "property_name": self.name,
                 }
             )
@@ -316,7 +312,7 @@ class _DistributivityTest(PropertyTest):
 
         total_tests = 0
         counterexamples = []
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for a, b, c in valid_inputs:
             total_tests += 1
@@ -325,10 +321,7 @@ class _DistributivityTest(PropertyTest):
             execution_traces.append(
                 {
                     "input": (a, b, c),
-                    "output": r1,
-                    "expected_output": r2,
                     "comparison_result": comparison,
-                    "function_name": f"{f_name},{g_name}",
                     "property_name": self.name,
                 }
             )
@@ -498,7 +491,7 @@ class AssociativityTest(PropertyTest):
         # Test associativity for each valid input
         total_tests = 0
         counterexamples = []
-        execution_traces: list[dict] = []
+        execution_traces: list[ExecutionTrace] = []
 
         for args in valid_inputs:
             a, b, c = args
@@ -518,11 +511,7 @@ class AssociativityTest(PropertyTest):
             execution_traces.append(
                 {
                     "input": (a, b, c),
-                    "converted_input": {"r1": conv_r1, "r2": conv_r2},
-                    "output": r1,
-                    "expected_output": r2,
                     "comparison_result": comparison,
-                    "function_name": f"{f_name},{g_name}",
                     "property_name": self.name,
                 }
             )

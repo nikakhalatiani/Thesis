@@ -80,6 +80,20 @@ def process_parser_override(func_name: str, value: Any) -> InputParser:
         raise ValueError(f"Invalid parser spec for {func_name}: {value}")
 
 
+def print_constraints_evolution(prop, constraints_history):
+    """Print how constraints evolved during testing."""
+    if not constraints_history:
+        print("🔄 No constraint evolution (property held on first attempt)")
+        return
+
+    print(f"🔄 Constraint evolution ({len(constraints_history)} iterations):")
+    for i, constraints in enumerate(constraints_history, 1):
+        if constraints:
+            print(f"\tIteration {i}: {', '.join(constraints)}")
+        else:
+            print(f"\tIteration {i}: No new constraints inferred")
+
+
 def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None):
     registry = minimal_registry()
 
@@ -90,7 +104,9 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
               .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)
               .set_use_input_cache(True)
               .set_example_count(100)
-              .set_max_counterexamples(3))
+              .set_max_counterexamples(100)
+              .set_max_feedback_attempts(10)
+              .set_feedback_enabled(True))
 
     module = load_user_module(user_funcs_path)
 
@@ -130,11 +146,14 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
             tests_run = outcome["stats"]["total_count"]
             confidence = (outcome["stats"]["success_count"] / tests_run * 100) if tests_run > 0 else 0.0
             status = "🟢" if holds else "🔴"
+            constraints_history = result["constraints_history"][prop]
             decision = (
                 f"{status} {prop} "
                 f"(Confidence: {confidence:.1f}%; Tests ran to infer: {tests_run})"
             )
             print(decision)
+            if constraints_history:
+                print_constraints_evolution(prop, constraints_history)
             messages = outcome["successes"] if holds else outcome["counterexamples"]
             for msg in messages:
                 print(f"\t{msg}")

@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from typing import Any
+from enum import Enum
 
 
 class FunctionConvertError:
@@ -172,9 +173,6 @@ class FunctionUnderTest:
             f"arg_converter={'[' + ', '.join(c.__name__ for c in self.arg_converter) + ']'}, "
             f"result_comparator={self.result_comparator.__name__})"
         )
-
-
-from enum import Enum
 
 
 class ComparisonStrategy(Enum):

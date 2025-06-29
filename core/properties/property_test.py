@@ -9,12 +9,19 @@ class TestStats(TypedDict):
     success_count: int
 
 
+class ExecutionTrace(TypedDict):
+    """Type definition for execution trace data from property tests."""
+    input: tuple
+    comparison_result: bool
+    property_name: str
+
+
 class TestResult(TypedDict):
     holds: bool
     counterexamples: list[str]
     successes: list[str]
     stats: TestStats
-    execution_traces: list[dict]
+    execution_traces: list[ExecutionTrace]
 
 
 class MultitonMeta(ABCMeta):

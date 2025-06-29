@@ -247,15 +247,15 @@ def minimal_registry() -> PropertyRegistry:
     registry = PropertyRegistry()
 
     # Many data structure operations are commutative (set union, intersection)
-    # registry.register(CommutativityTest())
+    registry.register(CommutativityTest())
 
     # registry.register(DistributivityTest())
     # registry.register(LeftDistributivityTest())
     # registry.register(RightDistributivityTest())
 
-    registry.register(LeftIdentityElementTest())  # f(e, a) == a
-    registry.register(RightIdentityElementTest())  # f(a, e) == a
-    registry.register(IdentityElementTest())  # two-sided identity
+    # registry.register(LeftIdentityElementTest())  # f(e, a) == a
+    # registry.register(RightIdentityElementTest())  # f(a, e) == a
+    # registry.register(IdentityElementTest())  # two-sided identity
     #
     # registry.register(LeftAbsorbingElementTest())  # f(z, a) == z
     # registry.register(RightAbsorbingElementTest())  # f(a, z) == z

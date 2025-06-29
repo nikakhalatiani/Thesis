@@ -33,6 +33,9 @@ class PropertyInferenceConfig:
         self.max_counterexamples: int = 100
         self.comparison_strategy = ComparisonStrategy.CONSENSUS
         self.use_input_cache = True
+        self.max_feedback_attempts: int = 3
+        self.feedback_enabled = True
+
 
     def add_function(
             self,
@@ -122,6 +125,17 @@ class PropertyInferenceConfig:
         """How many failing examples to store for each property."""
         self.max_counterexamples = n
         return self
+
+    def set_max_feedback_attempts(self, n: int) -> "PropertyInferenceConfig":
+        """Set maximum attempts in feedback loop."""
+        self.max_feedback_attempts = n
+        return self
+
+    def set_feedback_enabled(self, enabled: bool) -> 'PropertyInferenceConfig':
+        """Control whether the adaptive feedback loop is used."""
+        self.feedback_enabled = enabled
+        return self
+
 
     def set_comparison_strategy(self, strategy: ComparisonStrategy) -> 'PropertyInferenceConfig':
         """Set the comparison strategy for combined functions."""
