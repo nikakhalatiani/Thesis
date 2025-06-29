@@ -80,7 +80,7 @@ def process_parser_override(func_name: str, value: Any) -> InputParser:
         raise ValueError(f"Invalid parser spec for {func_name}: {value}")
 
 
-def print_constraints_evolution(prop, constraints_history):
+def print_constraints_evolution(constraints_history):
     """Print how constraints evolved during testing."""
     if not constraints_history:
         print("🔄 No constraint evolution (property held on first attempt)")
@@ -105,7 +105,7 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
               .set_use_input_cache(True)
               .set_example_count(100)
               .set_max_counterexamples(100)
-              .set_max_feedback_attempts(10)
+              .set_max_feedback_attempts(3)
               .set_feedback_enabled(True))
 
     module = load_user_module(user_funcs_path)
@@ -153,7 +153,7 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
             )
             print(decision)
             if constraints_history:
-                print_constraints_evolution(prop, constraints_history)
+                print_constraints_evolution(constraints_history)
             messages = outcome["successes"] if holds else outcome["counterexamples"]
             for msg in messages:
                 print(f"\t{msg}")

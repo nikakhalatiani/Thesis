@@ -8,7 +8,7 @@ from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest, TestResult
-from core.constraint_inference_engine import ConstraintInferenceEngine, GeminiModel
+from core.constraint_inference_engine import ConstraintInferenceEngine, LocalModel
 
 
 class InferenceResult(TypedDict):
@@ -28,7 +28,7 @@ class PropertyInferenceEngine:
         self._input_cache: dict[tuple[str, ...], list[tuple] | None] = {}
 
         # Initialize constraint inference engine
-        self.constraint_engine = ConstraintInferenceEngine(GeminiModel())
+        self.constraint_engine = ConstraintInferenceEngine(LocalModel("qwen2.5-coder:7b-instruct-q4_K_M"))
 
     def _build_grammar_for_functions(self, funcs: tuple) -> GrammarConfig | None:
         """Build a combined grammar configuration from multiple functions.
@@ -226,8 +226,8 @@ class PropertyInferenceEngine:
                     #             f"[Warning] The constraint '{constraint}' may be overfitting to a small set of passing examples.")
 
                     # If no new constraints, stop trying
-                    # if not new_constraints:
-                    #     break
+                    if not new_constraints:
+                        break
 
                     # Apply new constraints to grammar
                     current_grammar = base_grammar.add_constraints(new_constraints)
