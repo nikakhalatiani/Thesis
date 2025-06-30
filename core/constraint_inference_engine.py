@@ -54,28 +54,39 @@ class ConstraintModel(ABC):
 
         cheatsheet = (
             "ALLOWED CONSTRUCTS:\n"
-            "• int(<numeric_nt>) – where <numeric_nt> expands to digits only\n"
-            "• len(<string_nt>) – where <string_nt> expands to a sequence of characters\n"
-            "• abs(), min(), max(), sum() on numeric expressions already wrapped in int()\n"
+            "int(<numeric_nt>) – where <numeric_nt> expands to digits only\n"
+            "len(<string_nt>) – where <string_nt> expands to a sequence of characters\n"
+            "abs(), min(), max(), sum() on numeric expressions already wrapped in int()\n"
             "\n"
             "FORBIDDEN CONSTRUCTS (never output these):\n"
-            "• int(<any_nt>) if <any_nt> may contain non-digits or commas\n"
-            "• len(<numeric_nt>)\n"
-            "• Mixing int() and len() in the same comparison\n"
-            "• Using raw <nonterminal> without a wrapper\n"
+            "int(<any_nt>) if <any_nt> may contain non-digits or commas\n"
+            "len(<numeric_nt>)\n"
+            "Mixing int() and len() in the same comparison\n"
+            "Using raw <nonterminal> without a wrapper\n"
         )
-
         # Prepare trace descriptions
         passing_traces = [t for t in traces if t.get("comparison_result")]
         failing_traces = [t for t in traces if not t.get("comparison_result")]
 
-        lines = ["PASSING TEST CASES:"]
-        for trace in passing_traces:
-            lines.append(f"  input={trace['input']}, property={trace['property_name']}")
+        lines = []
 
-        lines.append("\nFAILING TEST CASES:")
-        for trace in failing_traces:
-            lines.append(f"  input={trace['input']}, property={trace['property_name']}")
+        # ----- Passing cases -----
+        if passing_traces:
+            prop = passing_traces[0]["property_name"]
+            lines.append(f"PASSING TEST CASES for {prop}:")
+            for trace in passing_traces:
+                lines.append(f"  input={trace['input']}")
+        else:
+            lines.append("NO PASSING TEST CASES")
+
+        # ----- Failing cases -----
+        if failing_traces:
+            prop = failing_traces[0]["property_name"]
+            lines.append(f"\nFAILING TEST CASES for {prop}:")
+            for trace in failing_traces:
+                lines.append(f"  input={trace['input']}")
+        else:
+            lines.append("\nNO FAILING TEST CASES")
 
         cases_text = "\n".join(lines)
 
@@ -91,10 +102,10 @@ class ConstraintModel(ABC):
             f"{examples_text}\n\n"
             f"{cheatsheet}\n"
             "IMPORTANT: Only use non-terminals listed below.\n"
+            f"Available grammar nonterminals: {nonterminals_text}\n"
             "Do NOT invent or use any nonterminals that are not present in the grammar.\n"
             "- Cast to int() **only** non-terminals that expand exclusively to plain digits.\n"
             "- Cast to len() **only** non-terminals that expand to strings or sequences.\n"
-            f"Available grammar nonterminals: {nonterminals_text}\n"
             f"Current constraints: {grammar.extra_constraints or 'None'}\n\n"
             f"{cases_text}\n\n"
             "Feedback Loop Instructions:\n"
