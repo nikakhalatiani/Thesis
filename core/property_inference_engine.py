@@ -8,7 +8,7 @@ from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest, TestResult
-from core.constraint_inference_engine import ConstraintInferenceEngine, LocalModel
+from core.constraint_inference_engine import ConstraintInferenceEngine, LocalModel, OllamaService
 
 
 class InferenceResult(TypedDict):
@@ -28,7 +28,7 @@ class PropertyInferenceEngine:
         self._input_cache: dict[tuple[str, ...], list[tuple] | None] = {}
 
         # Initialize constraint inference engine
-        self.constraint_engine = ConstraintInferenceEngine(LocalModel("qwen2.5-coder:14b-instruct-q4_K_M"))
+        self.constraint_engine = ConstraintInferenceEngine(LocalModel(OllamaService("qwen2.5-coder:14b-instruct-q4_K_M")))
 
     def _build_grammar_for_functions(self, funcs: tuple) -> GrammarConfig | None:
         """Build a combined grammar configuration from multiple functions.
@@ -49,11 +49,11 @@ class PropertyInferenceEngine:
             if base_grammar is None:
                 base_grammar = fg
             elif fg.path != base_grammar.path:
-                print(
-                    f"⚠️ Cannot combine grammars with different spec paths: "
-                    f"{base_grammar.path} vs {fg.path}. Skipping combination: "
-                    f"{', '.join(f.func.__name__ for f in funcs)}."
-                )
+                # print(
+                #     f"⚠️ Cannot combine grammars with different spec paths: "
+                #     f"{base_grammar.path} vs {fg.path}. Skipping combination: "
+                #     f"{', '.join(f.func.__name__ for f in funcs)}."
+                # )
                 return None
             if fg.extra_constraints:
                 combined_constraints.update(fg.extra_constraints)
@@ -79,11 +79,11 @@ class PropertyInferenceEngine:
         if len(unique_parsers) == 1:
             return unique_parsers.pop()
         else:
-            print(
-                f"⚠️ Cannot combine different parsers for functions: "
-                f"{', '.join(fut.func.__name__ for fut in funcs)}. "
-                f"Skipping combination: {', '.join(f.func.__name__ for f in funcs)}."
-            )
+            # print(
+            #     f"⚠️ Cannot combine different parsers for functions: "
+            #     f"{', '.join(fut.func.__name__ for fut in funcs)}. "
+            #     f"Skipping combination: {', '.join(f.func.__name__ for f in funcs)}."
+            # )
             return None
 
     def _get_inputs_for_combination(self, funcs: tuple, grammar_override: GrammarConfig = None) -> list[tuple] | None:
@@ -188,11 +188,6 @@ class PropertyInferenceEngine:
                 constraints_history: list[list[str]] = []
                 max_attempts = self.config.max_feedback_attempts
 
-                # First attempt: use cached inputs from _get_inputs_for_combination
-                input_sets = self._get_inputs_for_combination(funcs)
-                if not input_sets:
-                    continue
-
                 # Build base grammar for potential feedback iterations
                 base_grammar = self._build_grammar_for_functions(funcs)
                 if base_grammar is None:
@@ -204,12 +199,22 @@ class PropertyInferenceEngine:
                 outcome = None
 
                 while attempts <= max_attempts:
-                    # Test the property
+                    # Generate inputs with current grammar (first iteration uses base grammar)
+                    input_sets = self._get_inputs_for_combination(funcs, grammar_override=current_grammar)
+                    if not input_sets:
+                        break
+
                     print(input_sets)
+
+                    # Test the property with current inputs
                     outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
 
                     # If property holds or feedback is disabled, we're done
                     if outcome["holds"] or not self.config.feedback_enabled:
+                        break
+
+                    # If we've reached max attempts, don't generate more constraints
+                    if attempts >= max_attempts:
                         break
 
                     # Infer new constraints from execution traces
@@ -230,17 +235,9 @@ class PropertyInferenceEngine:
                     if not new_constraints:
                         break
 
-                    # Apply new constraints to grammar
+                    # Apply new constraints to grammar for next iteration
                     current_grammar = base_grammar.add_constraints(new_constraints)
 
-                    # Generate new inputs with updated constraints using the same method
-                    input_sets = self._get_inputs_for_combination(funcs, grammar_override=current_grammar)
-                    if not input_sets:
-                        break
-
-                    # input_sets = [("11", "11"), ("22", "22"), ("33", "33"), ("44", "44"), ("55", "55"), ("66", "66"),
-                    #               ("77", "77"), ("88", "88"),
-                    #               ("99", "99")] + input_sets  # Add some trivial inputs for testing
                     attempts += 1
 
                 # Store results

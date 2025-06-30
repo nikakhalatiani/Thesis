@@ -390,6 +390,18 @@ Examples:
         help='Show configuration without running tests'
     )
 
+    advanced_group.add_argument(
+        '--advanced-mode',
+        action='store_true',
+        help='Enable model-based feedback loop for constraint generation'
+    )
+    advanced_group.add_argument(
+        '--feedback-iterations',
+        type=int,
+        default=3,
+        help='Number of feedback iterations when advanced mode is enabled (default: 3)'
+    )
+
     return parser.parse_args()
 
 
@@ -446,6 +458,10 @@ def validate_arguments(args):
     if args.max_counterexamples < 0:
         errors.append("Max counterexamples must be non-negative")
 
+    # Validate feedback iterations when advanced mode is enabled
+    if args.advanced_mode and args.feedback_iterations <= 0:
+        errors.append("Feedback iterations must be positive when advanced mode is enabled")
+
     # Check for conflicting quiet/verbose flags
     if args.quiet and args.verbose:
         errors.append("Cannot use both --quiet and --verbose flags")
@@ -493,22 +509,31 @@ def setup_config(args):
         'MOST_RESTRICTIVE': ComparisonStrategy.MOST_RESTRICTIVE
     }
 
+    # Determine max counterexamples. Advanced mode keeps more examples
+    max_cex = args.max_counterexamples
+    if args.advanced_mode:
+        max_cex = max(args.examples, args.max_counterexamples)
+
     config = (PropertyInferenceConfig(registry)
               .set_default_grammar(args.grammar)
               .set_default_parser(default_parser)
-              .set_max_counterexamples(args.max_counterexamples)
+              .set_max_counterexamples(max_cex)
               .set_example_count(args.examples)
               .set_comparison_strategy(strategy_map[args.comparison_strategy])
-              .set_use_input_cache(not args.no_cache))
-
+              .set_use_input_cache(not args.no_cache)
+              .set_max_feedback_attempts(args.feedback_iterations)
+              .set_feedback_enabled(args.advanced_mode))
     if args.verbose:
         print(f"Configuration:")
         print(f"  • Registry: {registry_description}")
         print(f"  • Examples per test: {args.examples}")
-        print(f"  • Max counterexamples: {args.max_counterexamples}")
+        print(f"  • Max counterexamples: {max_cex}")
         print(f"  • Grammar file: {args.grammar}")
         print(f"  • Comparison strategy: {args.comparison_strategy}")
         print(f"  • Use input cache: {not args.no_cache}")
+        print(f"  • Advanced mode: {args.advanced_mode}")
+        if args.advanced_mode:
+            print(f"  • Feedback iterations: {args.feedback_iterations}")
 
     return config
 

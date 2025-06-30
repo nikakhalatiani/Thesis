@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-import subprocess
 import requests
+import subprocess
+import time
 
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import ExecutionTrace
@@ -22,75 +23,110 @@ class ConstraintModel(ABC):
         """Return a list of constraint expressions using grammar nonterminals."""
         ...
 
+
+class ModelService(ABC):
+    """Abstract service for interacting with language models."""
+
+    @abstractmethod
+    def generate(self, prompt: str, options=None) -> str:
+        """Generate text using the model service."""
+        ...
+
+
+class OllamaService(ModelService):
+    """Service for interacting with Ollama API."""
+
+    def __init__(self, model_name: str, api_url: str = "http://localhost:11434/api/generate"):
+        self.model_name = model_name
+        self.api_url = api_url
+
+    def generate(self, prompt: str, options=None) -> str:
+        """Generate text using Ollama API."""
+        default_options = {
+            "temperature": 0.1,
+            "top_p": 0.5,
+            "num_predict": 500,
+            "stop": ["\n\n", "Explanation:", "Analysis:"]
+        }
+
+        if options:
+            default_options.update(options)
+
+        payload = {
+            "model": self.model_name,
+            "prompt": prompt,
+            "stream": False,
+            "options": default_options
+        }
+
+        try:
+            response = requests.post(self.api_url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            return result.get("response", "")
+        except Exception as e:
+            raise RuntimeError(f"Ollama API request failed: {e}")
+
+
+class ServiceHealthChecker(ABC):
+    """Abstract health checker for external services."""
+
+    @abstractmethod
+    def is_healthy(self) -> bool:
+        """Check if the service is healthy and accessible."""
+        ...
+
+    @abstractmethod
+    def start_if_needed(self) -> None:
+        """Start the service if it's not running."""
+        ...
+
+
+class OllamaHealthChecker(ServiceHealthChecker):
+    """Health checker for Ollama service."""
+
+    def __init__(self, health_check_url: str = "http://localhost:11434/api/tags"):
+        self.health_check_url = health_check_url
+
+    def is_healthy(self) -> bool:
+        """Check if Ollama server is running and accessible."""
+        try:
+            response = requests.get(self.health_check_url, timeout=5)
+            return response.status_code == 200
+        except requests.RequestException:
+            return False
+
+    def start_if_needed(self) -> None:
+        """Attempt to start Ollama if it's not running."""
+        if not self.is_healthy():
+            try:
+                subprocess.Popen(
+                    ["ollama", "serve"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                # Give it time to start
+                time.sleep(2)
+
+                if not self.is_healthy():
+                    raise RuntimeError("Failed to start Ollama service")
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                raise RuntimeError(f"Could not start Ollama: {e}")
+
+
+class PromptBuilder:
+    """Builder for creating constraint inference prompts."""
+
     @staticmethod
-    def _build_prompt(traces: list[ExecutionTrace], grammar: GrammarConfig) -> str:
+    def build_constraint_prompt(traces: list[ExecutionTrace], grammar: GrammarConfig) -> str:
+        """Build a prompt for constraint inference."""
         nonterminals = grammar.nonterminals()
         nonterminals_text = ", ".join(f"<{nt}>" for nt in nonterminals)
 
-        # Get the grammar structure
-        grammar_structure = grammar.get_structure()
+        examples_text = PromptBuilder._get_examples_text()
+        cheatsheet = PromptBuilder._get_cheatsheet()
+        cases_text = PromptBuilder._format_traces(traces)
 
-        # Few-shot examples – keep them very close to real output format
-        valid_examples = [
-            "int(<number>) != 0",
-            "abs(int(<number>)) >= 1",
-            "int(<number>) == int(<number>)",
-            "int(<number>) + int(<number>) < 100",
-            "len(<word>) > 0",
-        ]
-
-        invalid_examples = [
-            "int(<term>) != 0                        # <term> may be algebraic text",
-            "int(<expr>) == int(<expr>)              # <expr> can expand to '1,2'",
-            "<number> > 10                           # raw NT not allowed",
-        ]
-
-        examples_text = (
-                "Examples of valid constraints:\n"
-                + "\n".join(f"- {c}" for c in valid_examples)
-                + "\n\nExamples of invalid constraints:\n"
-                + "\n".join(f"- {c}" for c in invalid_examples)
-        )
-
-        cheatsheet = (
-            "ALLOWED CONSTRUCTS:\n"
-            "int(<numeric_nt>) – where <numeric_nt> expands to digits only\n"
-            "len(<string_nt>) – where <string_nt> expands to a sequence of characters\n"
-            "abs(), min(), max(), sum() on numeric expressions already wrapped in int()\n"
-            "\n"
-            "FORBIDDEN CONSTRUCTS (never output these):\n"
-            "int(<any_nt>) if <any_nt> may contain non-digits or commas\n"
-            "len(<numeric_nt>)\n"
-            "Mixing int() and len() in the same comparison\n"
-            "Using raw <nonterminal> without a wrapper\n"
-        )
-        # Prepare trace descriptions
-        passing_traces = [t for t in traces if t.get("comparison_result")]
-        failing_traces = [t for t in traces if not t.get("comparison_result")]
-
-        lines = []
-
-        # ----- Passing cases -----
-        if passing_traces:
-            prop = passing_traces[0]["property_name"]
-            lines.append(f"PASSING TEST CASES for {prop}:")
-            for trace in passing_traces:
-                lines.append(f"  input={trace['input']}")
-        else:
-            lines.append("NO PASSING TEST CASES")
-
-        # ----- Failing cases -----
-        if failing_traces:
-            prop = failing_traces[0]["property_name"]
-            lines.append(f"\nFAILING TEST CASES for {prop}:")
-            for trace in failing_traces:
-                lines.append(f"  input={trace['input']}")
-        else:
-            lines.append("\nNO FAILING TEST CASES")
-
-        cases_text = "\n".join(lines)
-
-        # Simplified prompt for local models
         return (
             "You are an expert in mathematical property testing and constraint inference.\n"
             "Your main goal is to analyze the provided execution traces and discover correlations "
@@ -98,7 +134,6 @@ class ConstraintModel(ABC):
             "You must generate new constraints that, when applied, will cause future generated inputs "
             "to follow these correlations—so that inputs likely to pass the property are included, "
             "and those likely to fail are excluded.\n\n"
-            "Examples of valid Fandango constraints:\n"
             f"{examples_text}\n\n"
             f"{cheatsheet}\n"
             "IMPORTANT: Only use non-terminals listed below.\n"
@@ -115,13 +150,137 @@ class ConstraintModel(ABC):
             "- Your main objective is to propose Fandango constraint expressions that will generate inputs matching "
             "the observed correlations: inputs that pass should be allowed, and those that fail should be excluded.\n"
             "- Prefer constraints that are as general as possible, while still excluding the failing cases.\n"
-            # "- Avoid constraints that are overly specific to the current set of passing examples.\n"
-            # "- If multiple constraints are possible, choose the one that allows the broadest set of passing inputs.\n"
             "- Each constraint must use only the allowed grammar nonterminals.\n"
             "- Constraints must be syntactically valid for the Fandango constraint system.\n"
             "- Focus on constraints that are likely to distinguish between passing and failing input patterns.\n"
             "- Return only the constraint expressions, one per line, with no extra explanation.\n"
         )
+
+    @staticmethod
+    def _get_examples_text() -> str:
+        """Get examples text for the prompt."""
+        valid_examples = [
+            "int(<number>) != 0",
+            "abs(int(<number>)) >= 1",
+            "int(<number>) == int(<number>)",
+            "int(<number>) + int(<number>) < 100",
+            "len(<word>) > 0",
+        ]
+
+        invalid_examples = [
+            "int(<term>) != 0                        # <term> may be algebraic text",
+            "int(<expr>) == int(<expr>)              # <expr> can expand to '1,2'",
+            "<number> > 10                           # raw NT not allowed",
+        ]
+
+        return (
+                "Examples of valid constraints:\n"
+                + "\n".join(f"- {c}" for c in valid_examples)
+                + "\n\nExamples of invalid constraints:\n"
+                + "\n".join(f"- {c}" for c in invalid_examples)
+        )
+
+    @staticmethod
+    def _get_cheatsheet() -> str:
+        """Get cheatsheet text for the prompt."""
+        return (
+            "ALLOWED CONSTRUCTS:\n"
+            "int(<numeric_nt>) – where <numeric_nt> expands to digits only\n"
+            "len(<string_nt>) – where <string_nt> expands to a sequence of characters\n"
+            "abs(), min(), max(), sum() on numeric expressions already wrapped in int()\n"
+            "\n"
+            "FORBIDDEN CONSTRUCTS (never output these):\n"
+            "int(<any_nt>) if <any_nt> may contain non-digits or commas\n"
+            "len(<numeric_nt>)\n"
+            "Mixing int() and len() in the same comparison\n"
+            "Using raw <nonterminal> without a wrapper\n"
+        )
+
+    @staticmethod
+    def _format_traces(traces: list[ExecutionTrace]) -> str:
+        """Format execution traces for the prompt."""
+        passing_traces = [t for t in traces if t.get("comparison_result")]
+        failing_traces = [t for t in traces if not t.get("comparison_result")]
+
+        lines = []
+
+        if passing_traces:
+            prop = passing_traces[0]["property_name"]
+            lines.append(f"PASSING TEST CASES for {prop}:")
+            for trace in passing_traces:
+                lines.append(f"  input={trace['input']}")
+        else:
+            lines.append("NO PASSING TEST CASES")
+
+        if failing_traces:
+            prop = failing_traces[0]["property_name"]
+            lines.append(f"\nFAILING TEST CASES for {prop}:")
+            for trace in failing_traces:
+                lines.append(f"  input={trace['input']}")
+        else:
+            lines.append("\nNO FAILING TEST CASES")
+
+        return "\n".join(lines)
+
+
+class ConstraintParser:
+    """Parser for extracting valid constraints from model output."""
+
+    @staticmethod
+    def parse_constraints(raw_text: str, grammar: GrammarConfig) -> list[str]:
+        """Parse and validate constraints from raw model output."""
+        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+        valid_constraints = []
+
+        for line in lines:
+            # Skip explanation lines
+            if ConstraintParser._is_explanation_line(line):
+                continue
+
+            # Validate and collect constraints
+            if grammar.validate_constraint(line):
+                valid_constraints.append(line)
+
+        return valid_constraints
+
+    @staticmethod
+    def _is_explanation_line(line: str) -> bool:
+        """Check if a line is an explanation rather than a constraint."""
+        explanation_keywords = ['analysis:', 'explanation:', 'note:', 'based on']
+        return any(word in line.lower() for word in explanation_keywords)
+
+
+class LocalModel(ConstraintModel):
+    """Local inference model using dependency injection for better testability."""
+
+    def __init__(
+            self,
+            model_service: ModelService,
+            health_checker: ServiceHealthChecker | None = None,
+            prompt_builder: PromptBuilder | None = None,
+            constraint_parser: ConstraintParser | None = None
+    ):
+        self.model_service = model_service
+        self.health_checker = health_checker
+        self.prompt_builder = prompt_builder or PromptBuilder()
+        self.constraint_parser = constraint_parser or ConstraintParser()
+
+        # Ensure service is healthy if health checker is provided
+        if self.health_checker:
+            self.health_checker.start_if_needed()
+
+    def infer_constraints(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> list[str]:
+        """Infer constraints using the injected model service."""
+        if not traces:
+            return []
+
+        prompt = self.prompt_builder.build_constraint_prompt(traces, grammar)
+
+        try:
+            raw_text = self.model_service.generate(prompt)
+            return self.constraint_parser.parse_constraints(raw_text, grammar)
+        except Exception as e:
+            raise RuntimeError(f"Constraint inference failed: {e}")
 
 
 class ConstraintInferenceEngine:
@@ -134,74 +293,6 @@ class ConstraintInferenceEngine:
         """Infer new constraints from execution traces."""
         return self.model.infer_constraints(traces, grammar)
 
-
-class LocalModel(ConstraintModel):
-    """Local inference model using Ollama for constraint generation."""
-
-    def __init__(self, model_name):
-        self.model_name = model_name
-        self.api_url = "http://localhost:11434/api/generate"
-
-        # Verify Ollama is running
-        self._verify_ollama_running()
-
-    @staticmethod
-    def _verify_ollama_running():
-        """Check if Ollama server is running."""
-        try:
-            response = requests.get("http://localhost:11434/api/tags")
-            if response.status_code != 200:
-                raise RuntimeError("Ollama server is not responding properly")
-        except requests.ConnectionError:
-            # Try to start Ollama
-            subprocess.Popen(["ollama", "serve"],
-                             stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
-            import time
-            time.sleep(2)  # Give it time to start
-
-    def infer_constraints(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> list[str]:
-        """Infer constraints using local model via Ollama."""
-        if not traces:
-            return []
-
-        prompt = self._build_prompt(traces, grammar)
-
-        # Call Ollama API
-        payload = {
-            "model": self.model_name,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,  # maybe make bigger
-                "top_p": 0.5,  # maybe change to 0.8
-                "num_predict": 500,  # Shorter responses
-                "stop": ["\n\n", "Explanation:", "Analysis:"]  # Stop on explanation words
-            }
-        }
-
-        try:
-            response = requests.post(self.api_url, json=payload)
-            response.raise_for_status()
-            result = response.json()
-            raw_text = result.get("response", "")
-        except Exception as e:
-            raise RuntimeError(f"Local model inference failed: {e}")
-
-        # Parse constraints from response
-        lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
-        print(lines)
-        valid_constraints = []
-
-        for line in lines:
-            # Skip explanation lines
-            if any(word in line.lower() for word in ['analysis:', 'explanation:', 'note:', 'based on']):
-                continue
-            # Validate and collect constraints
-            if grammar.validate_constraint(line):
-                valid_constraints.append(line)
-
-        return valid_constraints
 
 # class GeminiModel(ConstraintModel):
 #     """Inference model backed by the Gemini generative API (v1beta, generateContent)."""

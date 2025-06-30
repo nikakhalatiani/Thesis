@@ -34,7 +34,7 @@ class PropertyInferenceConfig:
         self.comparison_strategy = ComparisonStrategy.CONSENSUS
         self.use_input_cache = True
         self.max_feedback_attempts: int = 3
-        self.feedback_enabled = True
+        self.feedback_enabled = False
 
 
     def add_function(
