@@ -28,7 +28,7 @@ class PropertyInferenceEngine:
         self._input_cache: dict[tuple[str, ...], list[tuple] | None] = {}
 
         # Initialize constraint inference engine
-        self.constraint_engine = ConstraintInferenceEngine(LocalModel("qwen2.5-coder:7b-instruct-q4_K_M"))
+        self.constraint_engine = ConstraintInferenceEngine(LocalModel("qwen2.5-coder:14b-instruct-q4_K_M"))
 
     def _build_grammar_for_functions(self, funcs: tuple) -> GrammarConfig | None:
         """Build a combined grammar configuration from multiple functions.
@@ -147,7 +147,7 @@ class PropertyInferenceEngine:
                 fuzz_kwargs["extra_constraints"] = extra_constraints
 
             fuzz_kwargs["desired_solutions"] = int(num_examples)
-            fuzz_kwargs["population_size"] = int(num_examples * 2)
+            # fuzz_kwargs["population_size"] = int(num_examples * 2)
 
             examples: list[DerivationTree] = fan.fuzz(**fuzz_kwargs)
             # for example in examples:
@@ -205,6 +205,7 @@ class PropertyInferenceEngine:
 
                 while attempts < max_attempts:
                     # Test the property
+                    print(input_sets)
                     outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
 
                     # If property holds or feedback is disabled, we're done
@@ -234,7 +235,6 @@ class PropertyInferenceEngine:
 
                     # Generate new inputs with updated constraints using the same method
                     input_sets = self._get_inputs_for_combination(funcs, grammar_override=current_grammar)
-                    print(input_sets)
                     if not input_sets:
                         break
 

@@ -128,27 +128,27 @@ class SetOperations:
 #       - minimum, maximum
 #     """
 #
-    # @staticmethod
-    # def add(x, y):
-    #     """Return x + y."""
-    #     return x + y
-    #
+    @staticmethod
+    def add(x, y):
+        """Return x + y."""
+        return x + y
+
     @staticmethod
     def subtract(x, y):
         """Return x - y."""
         return x - y
 
-#     @staticmethod
-#     def multiply(x, y):
-#         """Return x * y."""
-#         return x * y
-#
-    # @staticmethod
-    # def divide(x, y):
-    #     """Return x / y, raising ZeroDivisionError for y == 0."""
-    #     if y == 0:
-    #         raise ZeroDivisionError("Division by zero")
-    #     return x / y
+    @staticmethod
+    def multiply(x, y):
+        """Return x * y."""
+        return x * y
+
+    @staticmethod
+    def divide(x, y):
+        """Return x / y, raising ZeroDivisionError for y == 0."""
+        if y == 0:
+            raise ZeroDivisionError("Division by zero")
+        return x / y
 
 #     @staticmethod
 #     def sqrt(x):

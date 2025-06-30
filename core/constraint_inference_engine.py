@@ -1,14 +1,17 @@
 from abc import ABC, abstractmethod
-import json
-import os
-from urllib import request, error
+import subprocess
+import requests
+
 
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import ExecutionTrace
 
-from dotenv import load_dotenv
-
-load_dotenv()
+# from dotenv import load_dotenv
+#
+# load_dotenv()
+# import json
+# import os
+# from urllib import request, error
 
 
 class ConstraintModel(ABC):
@@ -19,52 +22,47 @@ class ConstraintModel(ABC):
         """Return a list of constraint expressions using grammar nonterminals."""
         ...
 
-
-class ConstraintInferenceEngine:
-    """Engine coordinating constraint inference and grammar updates."""
-
-    def __init__(self, model: ConstraintModel) -> None:
-        self.model = model
-
-    def infer(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> list[str]:
-        """Infer new constraints from execution traces."""
-        return self.model.infer_constraints(traces, grammar)
-
-
-class GeminiModel(ConstraintModel):
-    """Inference model backed by the Gemini generative API (v1beta, generateContent)."""
-
-    def __init__(self, api_key: str | None = None, model: str = "gemini-2.0-flash") -> None:
-        if api_key is None:
-            api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("Gemini API key not provided. Please set GEMINI_API_KEY in your environment or .env file.")
-        self.api_key = api_key
-        self.model = model
-
-    def _build_prompt(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> str:
+    @staticmethod
+    def _build_prompt(traces: list[ExecutionTrace], grammar: GrammarConfig) -> str:
         nonterminals = grammar.nonterminals()
         nonterminals_text = ", ".join(f"<{nt}>" for nt in nonterminals)
 
-        # Few-shot examples
-        valid_examples = [
-            "int(<number>) >= 0",
-            "len(<set>) > >",
-            "5 <= int(<number>)",
-            "len(<set>) != 2  #  prevent generating empty sets",
-            "int(<number_to_add>) == int(<number>)"
+        # Get the grammar structure
+        grammar_structure = grammar.get_structure()
 
+        # Few-shot examples – keep them very close to real output format
+        valid_examples = [
+            "int(<number>) != 0",
+            "abs(int(<number>)) >= 1",
+            "int(<number>) == int(<number>)",
+            "int(<number>) + int(<number>) < 100",
+            "len(<word>) > 0",
         ]
+
         invalid_examples = [
-            "int(<set>) >= 0   # invalid: cannot convert set to int",
-            "int(<elements>) == 0  # invalid: cannot convert elements to int",
-            "len(<number>) > 0    # invalid: cannot take length of a number"
+            "int(<term>) != 0                        # <term> may be algebraic text",
+            "int(<expr>) == int(<expr>)              # <expr> can expand to '1,2'",
+            "<number> > 10                           # raw NT not allowed",
         ]
+
         examples_text = (
                 "Examples of valid constraints:\n"
                 + "\n".join(f"- {c}" for c in valid_examples)
                 + "\n\nExamples of invalid constraints:\n"
                 + "\n".join(f"- {c}" for c in invalid_examples)
+        )
+
+        cheatsheet = (
+            "ALLOWED CONSTRUCTS:\n"
+            "• int(<numeric_nt>) – where <numeric_nt> expands to digits only\n"
+            "• len(<string_nt>) – where <string_nt> expands to a sequence of characters\n"
+            "• abs(), min(), max(), sum() on numeric expressions already wrapped in int()\n"
+            "\n"
+            "FORBIDDEN CONSTRUCTS (never output these):\n"
+            "• int(<any_nt>) if <any_nt> may contain non-digits or commas\n"
+            "• len(<numeric_nt>)\n"
+            "• Mixing int() and len() in the same comparison\n"
+            "• Using raw <nonterminal> without a wrapper\n"
         )
 
         # Prepare trace descriptions
@@ -81,6 +79,7 @@ class GeminiModel(ConstraintModel):
 
         cases_text = "\n".join(lines)
 
+        # Simplified prompt for local models
         return (
             "You are an expert in mathematical property testing and constraint inference.\n"
             "Your main goal is to analyze the provided execution traces and discover correlations "
@@ -90,9 +89,14 @@ class GeminiModel(ConstraintModel):
             "and those likely to fail are excluded.\n\n"
             "Examples of valid Fandango constraints:\n"
             f"{examples_text}\n\n"
-            "IMPORTANT: Only use nonterminals that are explicitly listed in the grammar below when writing constraints.\n"
+            f"{cheatsheet}\n"
+            "GRAMMAR STRUCTURE:\n"
+            "The following shows the complete grammar definition with production rules:\n"
+            f"{grammar_structure}\n\n"
+            "IMPORTANT: Only use non-terminals listed below.\n"
             "Do NOT invent or use any nonterminals that are not present in the grammar.\n"
-            "- Use int(<nonterminal>) for numeric comparisons, e.g., int(<number>) >= 0.\n\n"
+            "- Cast to int() **only** non-terminals that expand exclusively to plain digits.\n"
+            "- Cast to len() **only** non-terminals that expand to strings or sequences.\n"
             f"Available grammar nonterminals: {nonterminals_text}\n"
             f"Current constraints: {grammar.extra_constraints or 'None'}\n\n"
             f"{cases_text}\n\n"
@@ -100,6 +104,8 @@ class GeminiModel(ConstraintModel):
             "- Carefully compare the patterns in passing and failing execution traces.\n"
             "- Pay attention to the converted_input values which show how inputs were processed.\n"
             "- Consider candidate values and positions for identity/absorbing element properties.\n"
+            "- IMPORTANT: You must produce NEW constraints that are different from existing ones. "
+            "Repeating existing constraints is not optimal as it clearly won't change the outcome.\n"
             "- Your main objective is to propose Fandango constraint expressions that will generate inputs matching "
             "the observed correlations: inputs that pass should be allowed, and those that fail should be excluded.\n"
             "- Prefer constraints that are as general as possible, while still excluding the failing cases.\n"
@@ -111,46 +117,141 @@ class GeminiModel(ConstraintModel):
             "- Return only the constraint expressions, one per line, with no extra explanation.\n"
         )
 
+
+class ConstraintInferenceEngine:
+    """Engine coordinating constraint inference and grammar updates."""
+
+    def __init__(self, model: ConstraintModel) -> None:
+        self.model = model
+
+    def infer(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> list[str]:
+        """Infer new constraints from execution traces."""
+        return self.model.infer_constraints(traces, grammar)
+
+
+class LocalModel(ConstraintModel):
+    """Local inference model using Ollama for constraint generation."""
+
+    def __init__(self, model_name):
+        self.model_name = model_name
+        self.api_url = "http://localhost:11434/api/generate"
+
+        # Verify Ollama is running
+        self._verify_ollama_running()
+
+    @staticmethod
+    def _verify_ollama_running():
+        """Check if Ollama server is running."""
+        try:
+            response = requests.get("http://localhost:11434/api/tags")
+            if response.status_code != 200:
+                raise RuntimeError("Ollama server is not responding properly")
+        except requests.ConnectionError:
+            # Try to start Ollama
+            subprocess.Popen(["ollama", "serve"],
+                             stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+            import time
+            time.sleep(2)  # Give it time to start
+
+
+
     def infer_constraints(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> list[str]:
+        """Infer constraints using local model via Ollama."""
         if not traces:
             return []
+
         prompt = self._build_prompt(traces, grammar)
 
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/"
-            f"models/{self.model}:generateContent?key={self.api_key}"
-        )
-
-        body = {
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"temperature": 0.3, "maxOutputTokens": 500, "topP": 0.8},
+        # Call Ollama API
+        payload = {
+            "model": self.model_name,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,  # maybe make bigger
+                "top_p": 0.5,  # maybe change to 0.8
+                "num_predict": 500,  # Shorter responses
+                "stop": ["\n\n", "Explanation:", "Analysis:"]  # Stop on explanation words
+            }
         }
-        data = json.dumps(body).encode("utf-8")
-
-        req = request.Request(url, data=data, method="POST") # type: ignore[arg-type]
-        req.add_header("Content-Type", "application/json")
 
         try:
-            with request.urlopen(req) as resp:
-                resp_data = json.load(resp)
-        except error.HTTPError as e:
-            if e.code == 404:
-                raise RuntimeError(f"Gemini endpoint not found: check API version & model name ({self.model})") from e
-            elif e.code == 400:
-                raise RuntimeError("Gemini API error (400): Invalid request - check API key and model") from e
-            raise RuntimeError(f"Gemini request failed: {e.reason}") from e
+            response = requests.post(self.api_url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+            raw_text = result.get("response", "")
+        except Exception as e:
+            raise RuntimeError(f"Local model inference failed: {e}")
 
-        try:
-            raw_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError, TypeError):
-            raise RuntimeError("Unexpected Gemini response structure")
-
+        # Parse constraints from response
         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+        print(lines)
         valid_constraints = []
+
         for line in lines:
+            # Skip explanation lines
             if any(word in line.lower() for word in ['analysis:', 'explanation:', 'note:', 'based on']):
                 continue
+            # Validate and collect constraints
             if grammar.validate_constraint(line):
                 valid_constraints.append(line)
+
         return valid_constraints
 
+
+
+# class GeminiModel(ConstraintModel):
+#     """Inference model backed by the Gemini generative API (v1beta, generateContent)."""
+#
+#     def __init__(self, api_key: str | None = None, model: str = "gemini-2.0-flash") -> None:
+#         if api_key is None:
+#             api_key = os.environ.get("GEMINI_API_KEY")
+#         if not api_key:
+#             raise ValueError("Gemini API key not provided. Please set GEMINI_API_KEY in your environment or .env file.")
+#         self.api_key = api_key
+#         self.model = model
+#
+#
+#     def infer_constraints(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> list[str]:
+#         if not traces:
+#             return []
+#         prompt = self._build_prompt(traces, grammar)
+#
+#         url = (
+#             "https://generativelanguage.googleapis.com/v1beta/"
+#             f"models/{self.model}:generateContent?key={self.api_key}"
+#         )
+#
+#         body = {
+#             "contents": [{"parts": [{"text": prompt}]}],
+#             "generationConfig": {"temperature": 0.3, "maxOutputTokens": 500, "topP": 0.8},
+#         }
+#         data = json.dumps(body).encode("utf-8")
+#
+#         req = request.Request(url, data=data, method="POST") # type: ignore[arg-type]
+#         req.add_header("Content-Type", "application/json")
+#
+#         try:
+#             with request.urlopen(req) as resp:
+#                 resp_data = json.load(resp)
+#         except error.HTTPError as e:
+#             if e.code == 404:
+#                 raise RuntimeError(f"Gemini endpoint not found: check API version & model name ({self.model})") from e
+#             elif e.code == 400:
+#                 raise RuntimeError("Gemini API error (400): Invalid request - check API key and model") from e
+#             raise RuntimeError(f"Gemini request failed: {e.reason}") from e
+#
+#         try:
+#             raw_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
+#         except (KeyError, IndexError, TypeError):
+#             raise RuntimeError("Unexpected Gemini response structure")
+#
+#         lines = [line.strip() for line in raw_text.splitlines() if line.strip()]
+#         valid_constraints = []
+#         for line in lines:
+#             if any(word in line.lower() for word in ['analysis:', 'explanation:', 'note:', 'based on']):
+#                 continue
+#             if grammar.validate_constraint(line):
+#                 valid_constraints.append(line)
+#         return valid_constraints
