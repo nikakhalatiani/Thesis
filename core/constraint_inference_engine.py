@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 import subprocess
 import requests
 
-
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import ExecutionTrace
+
 
 # from dotenv import load_dotenv
 #
@@ -90,9 +90,6 @@ class ConstraintModel(ABC):
             "Examples of valid Fandango constraints:\n"
             f"{examples_text}\n\n"
             f"{cheatsheet}\n"
-            "GRAMMAR STRUCTURE:\n"
-            "The following shows the complete grammar definition with production rules:\n"
-            f"{grammar_structure}\n\n"
             "IMPORTANT: Only use non-terminals listed below.\n"
             "Do NOT invent or use any nonterminals that are not present in the grammar.\n"
             "- Cast to int() **only** non-terminals that expand exclusively to plain digits.\n"
@@ -102,15 +99,13 @@ class ConstraintModel(ABC):
             f"{cases_text}\n\n"
             "Feedback Loop Instructions:\n"
             "- Carefully compare the patterns in passing and failing execution traces.\n"
-            "- Pay attention to the converted_input values which show how inputs were processed.\n"
-            "- Consider candidate values and positions for identity/absorbing element properties.\n"
             "- IMPORTANT: You must produce NEW constraints that are different from existing ones. "
             "Repeating existing constraints is not optimal as it clearly won't change the outcome.\n"
             "- Your main objective is to propose Fandango constraint expressions that will generate inputs matching "
             "the observed correlations: inputs that pass should be allowed, and those that fail should be excluded.\n"
             "- Prefer constraints that are as general as possible, while still excluding the failing cases.\n"
-            "- Avoid constraints that are overly specific to the current set of passing examples.\n"
-            "- If multiple constraints are possible, choose the one that allows the broadest set of passing inputs.\n"
+            # "- Avoid constraints that are overly specific to the current set of passing examples.\n"
+            # "- If multiple constraints are possible, choose the one that allows the broadest set of passing inputs.\n"
             "- Each constraint must use only the allowed grammar nonterminals.\n"
             "- Constraints must be syntactically valid for the Fandango constraint system.\n"
             "- Focus on constraints that are likely to distinguish between passing and failing input patterns.\n"
@@ -154,8 +149,6 @@ class LocalModel(ConstraintModel):
             import time
             time.sleep(2)  # Give it time to start
 
-
-
     def infer_constraints(self, traces: list[ExecutionTrace], grammar: GrammarConfig) -> list[str]:
         """Infer constraints using local model via Ollama."""
         if not traces:
@@ -198,8 +191,6 @@ class LocalModel(ConstraintModel):
                 valid_constraints.append(line)
 
         return valid_constraints
-
-
 
 # class GeminiModel(ConstraintModel):
 #     """Inference model backed by the Gemini generative API (v1beta, generateContent)."""

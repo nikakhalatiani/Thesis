@@ -147,7 +147,7 @@ class PropertyInferenceEngine:
                 fuzz_kwargs["extra_constraints"] = extra_constraints
 
             fuzz_kwargs["desired_solutions"] = int(num_examples)
-            # fuzz_kwargs["population_size"] = int(num_examples * 2)
+            fuzz_kwargs["population_size"] = int(num_examples * 2)
 
             examples: list[DerivationTree] = fan.fuzz(**fuzz_kwargs)
             # for example in examples:
@@ -203,7 +203,7 @@ class PropertyInferenceEngine:
                 attempts = 0
                 outcome = None
 
-                while attempts < max_attempts:
+                while attempts <= max_attempts:
                     # Test the property
                     print(input_sets)
                     outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
@@ -238,6 +238,9 @@ class PropertyInferenceEngine:
                     if not input_sets:
                         break
 
+                    # input_sets = [("11", "11"), ("22", "22"), ("33", "33"), ("44", "44"), ("55", "55"), ("66", "66"),
+                    #               ("77", "77"), ("88", "88"),
+                    #               ("99", "99")] + input_sets  # Add some trivial inputs for testing
                     attempts += 1
 
                 # Store results

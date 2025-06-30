@@ -200,9 +200,7 @@ class _CandidateElementTest(PropertyTest):
         args[pos] = candidate
 
         # Build converter list that preserves candidate's type
-        test_conv = self._build_test_converter(
-            orig_conv, pos, candidate_conv, default_conv
-        )
+        test_conv = self._build_test_converter(orig_conv, pos, candidate_conv, default_conv)
 
         # Convert arguments and execute function
         conv_args = combined.convert_args(0, *args, arg_converter=test_conv)
@@ -221,10 +219,10 @@ class _CandidateElementTest(PropertyTest):
             converter_map,
             orig_conv,
             default_conv,
-            fut,
             execution_traces: list[ExecutionTrace],
     ):
         """Validate a single candidate across all inputs and positions."""
+        fut = combined.funcs[0]
         candidate_conv = converter_map[candidate]
         counterexamples = []
         test_count = 0
@@ -263,9 +261,9 @@ class _CandidateElementTest(PropertyTest):
         return True, [], test_count
 
     def test(
-            self, combined: CombinedFunctionUnderTest, inputs, max_counterexamples: int
+            self, function: CombinedFunctionUnderTest, inputs, max_counterexamples: int
     ) -> TestResult:
-        fut = combined.funcs[0]
+        fut = function.funcs[0]
         orig_conv = list(fut.arg_converter)
         input_arity = self.input_arity
         default_conv = orig_conv[-1] if orig_conv else fut._smart_converter
@@ -302,13 +300,12 @@ class _CandidateElementTest(PropertyTest):
 
         for candidate in candidates:
             is_valid, counterexamples, test_count = self._validate_candidate(
-                combined,
+                function,
                 candidate,
                 valid_inputs,
                 converter_map,
                 orig_conv,
                 default_conv,
-                fut,
                 execution_traces,
             )
             total_tests += test_count
