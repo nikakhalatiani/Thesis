@@ -11,10 +11,17 @@ import os
 import time
 import json
 import inspect
-import importlib.util
 from typing import Any
 
-from core.properties import (
+from core.generation import (
+    load_user_module,
+    get_user_classes,
+    extract_overrides,
+    process_grammar_override,
+    process_parser_override,
+)
+
+from core.library import (
     create_symmetry_registry, create_algebraic_structure_registry,
     create_special_elements_registry, create_function_analysis_registry,
     create_composition_registry, create_comprehensive_registry,
@@ -22,11 +29,13 @@ from core.properties import (
     create_logical_operations_registry, create_cryptographic_registry,
     create_data_structure_registry
 )
-from input.input_parser import InputParser
+from core.generation.input_parser import InputParser
+
 from config.property_inference_config import PropertyInferenceConfig
+from config.grammar_config import GrammarConfig
+
 from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
-from config.grammar_config import GrammarConfig
 
 # Registry mapping for CLI options
 REGISTRY_FACTORIES = {
@@ -64,103 +73,6 @@ REGISTRY_DESCRIPTIONS = {
     'crypto': 'Properties for cryptographic and encoding functions',
     'datastructure': 'Properties for data structure operations (union, merge, etc.)',
 }
-
-
-def load_user_module(path: str):
-    """Load a Python module from a file path."""
-    try:
-        spec = importlib.util.spec_from_file_location("user_defined_functions", path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Could not load module from {path}")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-    except Exception as e:
-        raise ImportError(f"Failed to load module from {path}: {e}") from e
-
-
-def get_user_classes(module, class_name: str | None = None) -> list[tuple[str, type]]:
-    """Extract relevant classes from user module with proper filtering."""
-    if class_name:
-        if not hasattr(module, class_name):
-            raise ValueError(f"Class '{class_name}' not found in module")
-        return [(class_name, getattr(module, class_name))]
-
-    # Get all classes defined in this module (not imported)
-    classes = []
-    for name, obj in inspect.getmembers(module, inspect.isclass):
-        if obj.__module__ == module.__name__:
-            classes.append((name, obj))
-
-    if not classes:
-        available = [name for name, obj in inspect.getmembers(module, inspect.isclass)]
-        raise ValueError(f"No user-defined classes found in module. Available classes: {available}")
-
-    return classes
-
-
-def extract_overrides(module) -> dict[str, dict[str, Any]]:
-    """Extract all function overrides from module using a unified approach."""
-    overrides = {
-        'converter': {},
-        'grammar': {},
-        'parser': {},
-        'comparator': {}
-    }
-
-    override_patterns = {
-        'converter_': 'converter',
-        'grammar_': 'grammar',
-        'parser_': 'parser',
-        'comparator_': 'comparator'
-    }
-
-    for name, value in vars(module).items():
-        for prefix, override_type in override_patterns.items():
-            if name.startswith(prefix):
-                func_name = name[len(prefix):]
-                overrides[override_type][func_name] = value
-                break
-
-    return overrides
-
-
-def process_grammar_override(func_name: str, value: Any, default_grammar) -> GrammarConfig:
-    """Process grammar override with proper validation."""
-    if isinstance(value, GrammarConfig):
-        return value
-    elif isinstance(value, str):
-        return GrammarConfig(value)
-    elif isinstance(value, (list, tuple)):
-        try:
-            if value and isinstance(value[0], str) and value[0].endswith(".fan"):
-                return GrammarConfig(value[0], extra_constraints=value[1:])
-            else:
-                return GrammarConfig(default_grammar.path, extra_constraints=value)
-        except (IndexError, AttributeError) as e:
-            raise ValueError(f"Invalid grammar spec for {func_name}: {value}") from e
-    else:
-        raise ValueError(f"Unsupported grammar type for {func_name}: {type(value)}")
-
-
-def process_parser_override(func_name: str, value: Any) -> InputParser:
-    """Process parser override with proper validation."""
-    if isinstance(value, InputParser):
-        return value
-    elif isinstance(value, str):
-        val = value.strip()
-        if val.startswith("<") and val.endswith(">"):
-            return InputParser.for_nonterminal(val)
-        else:
-            raise ValueError(f"String parser spec must be nonterminal like '<number>' for {func_name}: {value}")
-    elif isinstance(value, list):
-        if all(isinstance(v, str) for v in value):
-            return InputParser.for_grammar_pattern(*value)
-        else:
-            raise ValueError(f"List parser spec must contain only strings for {func_name}: {value}")
-    else:
-        raise ValueError(f"Invalid parser spec for {func_name}: {value}")
-
 
 def get_override(func, override_dict: dict[str, Any], func_name: str, attr_name: str) -> Any:
     """Get override value from dict or function attribute."""
@@ -411,7 +323,7 @@ def create_combined_registry(registry_names: list[str]):
         return REGISTRY_FACTORIES[registry_names[0]]()
 
     # For multiple registries, create a new registry and merge them
-    from core.properties import PropertyRegistry
+    from core.library import PropertyRegistry
     combined = PropertyRegistry()
 
     for name in registry_names:
@@ -585,6 +497,21 @@ def load_and_register_functions(config: PropertyInferenceConfig, args) -> Proper
         print(f"Error processing functions: {e}", file=sys.stderr)
         sys.exit(1)
 
+def print_constraints_evolution_to_lines(constraints_history):
+    """Append how constraints evolved during testing to output_lines."""
+    lines = []
+    if not constraints_history:
+        lines.append("🔄 No constraint evolution (property held on first attempt)")
+        return lines
+
+    lines.append(f"🔄 Constraint evolution ({len(constraints_history)} iterations):")
+    for i, constraints in enumerate(constraints_history, 1):
+        if constraints:
+            lines.append(f"\tIteration {i}: {', '.join(constraints)}")
+        else:
+            lines.append(f"\tIteration {i}: No new constraints inferred")
+    return lines
+
 
 def format_results(results: dict, args) -> str:
     """Format results for output."""
@@ -615,12 +542,16 @@ def format_results(results: dict, args) -> str:
                 success_count = outcome["stats"]["success_count"]
                 confidence = (success_count / tests_run * 100) if tests_run > 0 else 0.0
                 status = "🟢" if holds else "🔴"
+                constraints_history = result["constraints_history"][prop]
 
                 decision = (
-                    f"  {status} {prop} "
+                    f"{status} {prop}"
                     f"(Confidence: {confidence:.1f}%; Tests run: {tests_run})"
                 )
                 output_lines.append(decision)
+
+                if constraints_history:
+                    output_lines.extend(print_constraints_evolution_to_lines(constraints_history))
 
                 messages = outcome["successes"] if holds else outcome["counterexamples"]
                 for msg in messages:

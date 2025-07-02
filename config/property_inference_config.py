@@ -1,5 +1,5 @@
 from core.function_under_test import FunctionUnderTest, ComparisonStrategy
-from core.properties import PropertyRegistry
+from core.library import PropertyRegistry
 from input.input_parser import InputParser
 from config.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest
