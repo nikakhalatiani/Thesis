@@ -4,7 +4,7 @@ from itertools import product
 from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest, TestResult
-from core.constraint_inference_engine import ConstraintInferenceEngine, LocalModel, OllamaService
+from core.correlation import ConstraintInferenceEngine, LocalModel, OllamaService
 from core.generation.input_generator import InputGenerator
 
 
@@ -65,25 +65,24 @@ class PropertyInferenceEngine:
                     continue
                 current_grammar = base_grammar
 
+                input_sets = self.input_generator.get_inputs_for_combination(funcs, grammar_override=current_grammar)
+
+                if not input_sets:
+                    continue
+
                 # Feedback loop
                 attempts = 0
                 outcome = None
 
                 while attempts <= max_attempts:
-                    # Generate inputs with current grammar (first iteration uses base grammar)
-                    input_sets = self.input_generator.get_inputs_for_combination(funcs,
-                                                                                 grammar_override=current_grammar)
-                    if not input_sets:
-                        break
-
-                    # print(input_sets)
-
                     # Test the property with current inputs
                     outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
 
                     # If property holds or feedback is disabled, we're done
                     if outcome["holds"] or not self.config.feedback_enabled:
                         break
+
+                    attempts += 1
 
                     # If we've reached max attempts, don't generate more constraints
                     if attempts >= max_attempts:
@@ -110,7 +109,14 @@ class PropertyInferenceEngine:
                     # Apply new constraints to grammar for next iteration
                     current_grammar = base_grammar.add_constraints(new_constraints)
 
-                    attempts += 1
+                    # Skip input generation on first iteration (already done above)
+                    input_sets = self.input_generator.get_inputs_for_combination(funcs,
+                                                                                     grammar_override=current_grammar)
+                    if not input_sets:
+                        break
+
+                    # print(input_sets)
+
 
                 # Store results
                 key = f"combination ({combined.names()})"

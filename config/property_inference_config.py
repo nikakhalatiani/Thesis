@@ -127,6 +127,8 @@ class PropertyInferenceConfig:
 
     def set_max_feedback_attempts(self, n: int) -> "PropertyInferenceConfig":
         """Set maximum attempts in feedback loop."""
+        if n < 1:
+            raise ValueError("Maximum feedback attempts must be at least 1.")
         self.max_feedback_attempts = n
         return self
 

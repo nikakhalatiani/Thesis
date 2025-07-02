@@ -47,6 +47,7 @@ class InputGenerator:
 
         return GrammarConfig(base_grammar.path, list(combined_constraints))
 
+    #TODO need to handle parser better as set functions are not combined because of this
     def get_parser_for_functions(self, funcs: tuple):
         """Get a compatible parser for multiple functions.
 

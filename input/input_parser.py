@@ -130,4 +130,4 @@ class InputParser:
         return cls(extract_pattern)
 
     def __str__(self) -> str:
-        return f"InputParser(extraction_strategy={self.extraction_strategy.__name__})"
+        return f"InputParser(extraction_strategy={self.extraction_strategy})"

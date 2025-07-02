@@ -26,7 +26,7 @@ def print_constraints_evolution(constraints_history):
             print(f"\tIteration {i}: No new constraints inferred")
 
 
-def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None):
+def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = "SetOperations"):
     registry = minimal_registry()
 
     default_parser = InputParser.for_numbers()
@@ -38,7 +38,7 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
               .set_example_count(100)
               .set_max_counterexamples(3)
               .set_max_feedback_attempts(3)
-              .set_feedback_enabled(True))
+              .set_feedback_enabled(False))
 
     module = load_user_module(user_funcs_path)
     overrides = extract_overrides(module)

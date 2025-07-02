@@ -1,4 +1,3 @@
-from .algebraic import *
 from .compositional import *
 from .behavioral import *
 from .structural import *
@@ -253,6 +252,9 @@ def minimal_registry() -> PropertyRegistry:
     # registry.register(LeftDistributivityTest())
     # registry.register(RightDistributivityTest())
 
+    registry.register(AssociativityTest())
+
+
     # registry.register(LeftIdentityElementTest())  # f(e, a) == a
     # registry.register(RightIdentityElementTest())  # f(a, e) == a
     # registry.register(IdentityElementTest())  # two-sided identity
@@ -265,7 +267,7 @@ def minimal_registry() -> PropertyRegistry:
     # registry.register(LeftCompositionTest(2))
     # registry.register(RightCompositionTest(2))
 
-    registry.register(InjectivityTest())
+    # registry.register(InjectivityTest())
     # registry.register(FixedPointTest(2))
 
     # registry.register(DeterminismTest(2))

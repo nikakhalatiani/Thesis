@@ -88,98 +88,98 @@ grammar_sqrt = ["int(<term>) >= 0"]
 # --- Use Case Classes -----------------------------------------------------
 class SetOperations:
     """Simple set-based operations for testing."""
-    #
-    # @staticmethod
-    # def add_to_set(s, x):
-    #     """Return a new set with x added to s."""
-    #     if not isinstance(s, set):
-    #         s = {s}
-    #     result = set(s)
-    #     result.add(x)
-    #     return result
-#
-#     @staticmethod
-#     def remove_from_set(s, x):
-#         """Return a new set with x removed from s."""
-#         if not isinstance(s, set):
-#             s = {s}
-#         result = set(s)
-#         result.discard(x)
-#         return result
-#
-#     @staticmethod
-#     def union_sets(a, b):
-#         """Return the union of a and b."""
-#         if not isinstance(a, set):
-#             a = {a}
-#         if not isinstance(b, set):
-#             b = {b}
-#         return a | b
-#
-#
-# class Calculator:
-#     """
-#     A simple calculator with common arithmetic and utility functions.
-#
-#     Available operations:
-#       - add, subtract, multiply, divide
-#       - power (x ** y), sqrt(x)
-#       - modulo, negate
-#       - minimum, maximum
-#     """
-# #
-#     @staticmethod
-#     def add(x, y):
-#         """Return x + y."""
-#         return x + y
-#
-#     @staticmethod
-#     def subtract(x, y):
-#         """Return x - y."""
-#         return x - y
-#
-#     @staticmethod
-#     def multiply(x, y):
-#         """Return x * y."""
-#         return x * y
-#
-#     @staticmethod
-#     def divide(x, y):
-#         """Return x / y, raising ZeroDivisionError for y == 0."""
-#         if y == 0:
-#             raise ZeroDivisionError("Division by zero")
-#         return x / y
 
-#     @staticmethod
-#     def sqrt(x):
-#         """Return the square root of x, raising ValueError if x < 0."""
-#         if x < 0:
-#             raise ValueError("Square root of negative number")
-#         return math.sqrt(x)
-#
-#     @staticmethod
-#     def modulo(x, y):
-#         """Return x % y, raising ZeroDivisionError for y == 0."""
-#         if y == 0:
-#             raise ZeroDivisionError("Modulo by zero")
-#         return x % y
-#
-#     @staticmethod
-#     def negate(x):
-#         """Return the negation of x."""
-#         return -x
-#
-#     @staticmethod
-#     def minimum(x, y):
-#         """Return the smaller of x and y."""
-#         return x if x <= y else y
-#
-#     @staticmethod
-#     def maximum(x, y):
-#         """Return the larger of x and y."""
-#         return x if x >= y else y
-#
-#
+    @staticmethod
+    def add_to_set(s, x):
+        """Return a new set with x added to s."""
+        if not isinstance(s, set):
+            s = {s}
+        result = set(s)
+        result.add(x)
+        return result
+
+    @staticmethod
+    def remove_from_set(s, x):
+        """Return a new set with x removed from s."""
+        if not isinstance(s, set):
+            s = {s}
+        result = set(s)
+        result.discard(x)
+        return result
+
+    @staticmethod
+    def union_sets(a, b):
+        """Return the union of a and b."""
+        if not isinstance(a, set):
+            a = {a}
+        if not isinstance(b, set):
+            b = {b}
+        return a | b
+
+
+class Calculator:
+    """
+    A simple calculator with common arithmetic and utility functions.
+
+    Available operations:
+      - add, subtract, multiply, divide
+      - power (x ** y), sqrt(x)
+      - modulo, negate
+      - minimum, maximum
+    """
+
+    @staticmethod
+    def add(x, y):
+        """Return x + y."""
+        return x + y
+
+    @staticmethod
+    def subtract(x, y):
+        """Return x - y."""
+        return x - y
+
+    @staticmethod
+    def multiply(x, y):
+        """Return x * y."""
+        return x * y
+
+    @staticmethod
+    def divide(x, y):
+        """Return x / y, raising ZeroDivisionError for y == 0."""
+        if y == 0:
+            raise ZeroDivisionError("Division by zero")
+        return x / y
+
+    @staticmethod
+    def sqrt(x):
+        """Return the square root of x, raising ValueError if x < 0."""
+        if x < 0:
+            raise ValueError("Square root of negative number")
+        return math.sqrt(x)
+
+    @staticmethod
+    def modulo(x, y):
+        """Return x % y, raising ZeroDivisionError for y == 0."""
+        if y == 0:
+            raise ZeroDivisionError("Modulo by zero")
+        return x % y
+
+    @staticmethod
+    def negate(x):
+        """Return the negation of x."""
+        return -x
+
+    @staticmethod
+    def minimum(x, y):
+        """Return the smaller of x and y."""
+        return x if x <= y else y
+
+    @staticmethod
+    def maximum(x, y):
+        """Return the larger of x and y."""
+        return x if x >= y else y
+
+
 class DataChecksum:
     """Checksum utilities for validating data integrity."""
 
