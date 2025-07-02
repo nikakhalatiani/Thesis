@@ -1,8 +1,6 @@
 from core.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 
-from collections.abc import Hashable
-
 
 class InjectivityTest(PropertyTest):
     """Test whether a function is injective (one-to-one) for the given arity and projection strategy.
@@ -28,23 +26,7 @@ class InjectivityTest(PropertyTest):
         )
         self.projection_func = projection_func or (lambda x: x)
 
-    @staticmethod
-    def _make_hashable(obj):
-        """Convert an object to a hashable representation."""
-        if isinstance(obj, Hashable):
-            return obj
-        elif isinstance(obj, set):
-            return frozenset(obj)
-        elif isinstance(obj, list):
-            return tuple(obj)
-        elif isinstance(obj, dict):
-            return tuple(sorted(obj.items()))
-        else:
-            return str(obj)
-
-    def test(
-            self, function: CombinedFunctionUnderTest, inputs, max_counterexamples
-    ) -> TestResult:
+    def test(self, function: CombinedFunctionUnderTest, inputs, max_counterexamples) -> TestResult:
         fut = function.funcs[0]
         f_name = fut.func.__name__
 
@@ -65,7 +47,7 @@ class InjectivityTest(PropertyTest):
 
         counterexamples = []
         total_tests = 0
-        result_map = {}  # Maps projected results to the input that produced them
+        result_map = []  # List of (projected_result, args, result) tuples
         execution_traces: list[ExecutionTrace] = []
 
         for args in valid_inputs:
@@ -77,12 +59,19 @@ class InjectivityTest(PropertyTest):
             result = function.call(0, *conv_args)
 
             projected_result = self.projection_func(result)
-            projected_result = self._make_hashable(projected_result)
 
-            # Check if we've seen this projected result before
-            is_unique = projected_result not in result_map
+            # Check if we've seen an equivalent projected result before using custom comparison
+            is_unique = True
+            matching_entry = None
+
+            for prev_projected_result, prev_args, prev_result in result_map:
+                if function.compare_results(projected_result, prev_projected_result):
+                    is_unique = False
+                    matching_entry = (prev_projected_result, prev_args, prev_result)
+                    break
+
             if not is_unique:
-                prev_args, prev_result = result_map[projected_result]
+                _, prev_args, prev_result = matching_entry
                 counterexamples.append(
                     f"{f_name}{tuple(conv_args)} = {result}\n\t"
                     f"{f_name}{tuple(prev_args)} = {prev_result}\n"
@@ -91,7 +80,7 @@ class InjectivityTest(PropertyTest):
                 if len(counterexamples) >= max_counterexamples:
                     break
             else:
-                result_map[projected_result] = (conv_args, result)
+                result_map.append((projected_result, conv_args, result))
 
             execution_traces.append(
                 {

@@ -36,13 +36,12 @@ class PropertyInferenceConfig:
         self.max_feedback_attempts: int = 3
         self.feedback_enabled = False
 
-
     def add_function(
             self,
             fut: FunctionUnderTest,
             grammar: GrammarConfig | None = None,
             parser: InputParser | None = None,
-    ) -> 'PropertyInferenceConfig':
+    ) -> "PropertyInferenceConfig":
         """
         Add a function to the list of functions under test.
 
@@ -61,7 +60,7 @@ class PropertyInferenceConfig:
             self.function_to_parser[fut.func.__name__] = parser
         return self
 
-    def add_property_by_name(self, property_name: str) -> 'PropertyInferenceConfig':
+    def add_property_by_name(self, property_name: str) -> "PropertyInferenceConfig":
         """
         Add a property to the list of properties to test.
         A single property name can map to multiple test variants in the
@@ -85,7 +84,7 @@ class PropertyInferenceConfig:
             raise ValueError(f"Property '{property_name}' not found in registry. Please register it first.")
         return self
 
-    def add_property_by_category(self, category: str) -> 'PropertyInferenceConfig':
+    def add_property_by_category(self, category: str) -> "PropertyInferenceConfig":
         """Add all properties from a specific category."""
         category_tests = self.registry.get_by_category(category)
         for test in category_tests:
@@ -94,7 +93,7 @@ class PropertyInferenceConfig:
         return self
 
     def set_default_grammar(self, spec_path: str,
-                            extra_constraints: list[str] | None = None) -> 'PropertyInferenceConfig':
+                            extra_constraints: list[str] | None = None) -> "PropertyInferenceConfig":
         """
         Set the default grammar file path.
 
@@ -108,7 +107,7 @@ class PropertyInferenceConfig:
         self.default_grammar = GrammarConfig(spec_path, extra_constraints)
         return self
 
-    def set_default_parser(self, parser: InputParser) -> 'PropertyInferenceConfig':
+    def set_default_parser(self, parser: InputParser) -> "PropertyInferenceConfig":
         """
         Set the default parser.
 
@@ -131,23 +130,22 @@ class PropertyInferenceConfig:
         self.max_feedback_attempts = n
         return self
 
-    def set_feedback_enabled(self, enabled: bool) -> 'PropertyInferenceConfig':
+    def set_feedback_enabled(self, enabled: bool) -> "PropertyInferenceConfig":
         """Control whether the adaptive feedback loop is used."""
         self.feedback_enabled = enabled
         return self
 
-
-    def set_comparison_strategy(self, strategy: ComparisonStrategy) -> 'PropertyInferenceConfig':
+    def set_comparison_strategy(self, strategy: ComparisonStrategy) -> "PropertyInferenceConfig":
         """Set the comparison strategy for combined functions."""
         self.comparison_strategy = strategy
         return self
 
-    def set_use_input_cache(self, enabled: bool) -> 'PropertyInferenceConfig':
+    def set_use_input_cache(self, enabled: bool) -> "PropertyInferenceConfig":
         """Enable or disable caching of generated input sets."""
         self.use_input_cache = enabled
         return self
 
-    def set_example_count(self, count: int) -> 'PropertyInferenceConfig':
+    def set_example_count(self, count: int) -> "PropertyInferenceConfig":
         """Set the number of examples to generate for testing."""
         self.example_count = count
         return self

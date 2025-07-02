@@ -204,7 +204,7 @@ class PropertyInferenceEngine:
                     if not input_sets:
                         break
 
-                    print(input_sets)
+                    # print(input_sets)
 
                     # Test the property with current inputs
                     outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
@@ -221,8 +221,8 @@ class PropertyInferenceEngine:
                     new_constraints = self.constraint_engine.infer(outcome["execution_traces"], current_grammar)
                     constraints_history.append(new_constraints)
 
-                    print(f"Function: {combined.names()}")
-                    print(f"[Feedback Iteration {attempts + 1}] New inferred constraints: {new_constraints}")
+                    # print(f"Function: {combined.names()}")
+                    # print(f"[Feedback Iteration {attempts + 1}] New inferred constraints: {new_constraints}")
 
                     # Check for potential overfitting warnings
                     # for constraint in new_constraints:
