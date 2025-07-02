@@ -1,10 +1,10 @@
 from util.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
+from core.library.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 from abc import abstractmethod
 
 
 class _CompositionTest(PropertyTest):
-    """Generic base class for tests that check compositional properties between two functions, such as left/right composition and involution."""
+    """Generic base class for tests that check compositional library between two functions, such as left/right composition and involution."""
 
     def __init__(
             self, name: str, description: str, function_arity: int, result_index: int

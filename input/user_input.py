@@ -202,7 +202,7 @@ class DataChecksum:
 
 #
 # class CompositionTestFunctions:
-#     """Functions designed to test composition properties."""
+#     """Functions designed to test composition library."""
 #
 #     @staticmethod
 #     def conditional_identity(x):

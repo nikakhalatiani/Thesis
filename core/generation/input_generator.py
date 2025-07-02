@@ -11,7 +11,7 @@ class InputGenerator:
     def __init__(self, config: PropertyInferenceConfig):
         self.config = config
         # Cache generated input sets for function combinations so they can be
-        # reused across properties. The key is the tuple of function names in
+        # reused across library. The key is the tuple of function names in
         # the combination and the value is the list of parsed input tuples. If
         # a combination cannot be processed (e.g. grammar mismatch) we store
         # ``None`` to avoid repeating work.

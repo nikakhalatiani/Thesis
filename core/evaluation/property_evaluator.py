@@ -1,13 +1,13 @@
 """
-Property evaluation module for testing properties against functions.
+Property evaluation module for testing library against functions.
 """
 
 from util.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult
+from core.library.property_test import PropertyTest, TestResult
 
 
 class PropertyEvaluator:
-    """Evaluates properties against functions under test."""
+    """Evaluates library against functions under test."""
 
     @staticmethod
     def test_property(

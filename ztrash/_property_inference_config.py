@@ -1,8 +1,8 @@
 # from core.function_under_test import FunctionUnderTest, ComparisonStrategy
-# from core.properties import PropertyRegistry
+# from core.library import PropertyRegistry
 # from util.input_parser import InputParser
 # from util.grammar_config import GrammarConfig
-# from core.properties.property_test import PropertyTest
+# from core.library.property_test import PropertyTest
 #
 #
 # class PropertyInferenceConfig:
@@ -12,13 +12,13 @@
 #     Attributes:
 #         registry: The registry containing property definitions.
 #         functions_under_test: List of functions to test.
-#         properties_to_test: List of properties to test.
+#         properties_to_test: List of library to test.
 #         default_grammar: Default grammar for input generation.
 #         default_parser: Default parser for input parsing.
 #         function_to_grammar: Mapping of function names to grammar.
 #         function_to_parser: Mapping of function names to parsers.
 #         example_count: Number of examples to generate for testing.
-#         use_input_cache: Whether to reuse generated inputs across properties.
+#         use_input_cache: Whether to reuse generated inputs across library.
 #     """
 #
 #     def __init__(self, registry: PropertyRegistry) -> None:
@@ -62,7 +62,7 @@
 #
 #     def add_property_by_name(self, property_name: str) -> "PropertyInferenceConfig":
 #         """
-#         Add a property to the list of properties to test.
+#         Add a property to the list of library to test.
 #         A single property name can map to multiple test variants in the
 #         registry. All variants will be added.
 #
@@ -85,7 +85,7 @@
 #         return self
 #
 #     def add_property_by_category(self, category: str) -> "PropertyInferenceConfig":
-#         """Add all properties from a specific category."""
+#         """Add all library from a specific category."""
 #         category_tests = self.registry.get_by_category(category)
 #         for test in category_tests:
 #             if test not in self.properties_to_test:

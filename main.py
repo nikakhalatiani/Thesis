@@ -1,4 +1,4 @@
-from core.properties import minimal_registry
+from core.library import minimal_registry
 from util.input_parser import InputParser
 from core.config import PropertyInferenceConfig
 from util.function_under_test import FunctionUnderTest, ComparisonStrategy

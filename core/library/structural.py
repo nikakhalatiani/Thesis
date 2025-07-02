@@ -1,11 +1,11 @@
 from abc import abstractmethod
 
 from util.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
+from core.library.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 
 
 class _SwapArgumentsTest(PropertyTest):
-    """Generic base class for tests that check the effect of swapping two arguments of a function. Used for commutativity and similar properties."""
+    """Generic base class for tests that check the effect of swapping two arguments of a function. Used for commutativity and similar library."""
 
     def __init__(
             self,

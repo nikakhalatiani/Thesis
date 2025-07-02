@@ -22,7 +22,7 @@ def create_symmetry_registry() -> PropertyRegistry:
 
 
 def create_algebraic_structure_registry() -> PropertyRegistry:
-    """Registry for fundamental algebraic laws and structural properties."""
+    """Registry for fundamental algebraic laws and structural library."""
     registry = PropertyRegistry()
 
     # Associativity - fundamental for groups, monoids
@@ -59,7 +59,7 @@ def create_special_elements_registry() -> PropertyRegistry:
 
 
 def create_function_analysis_registry() -> PropertyRegistry:
-    """Registry for analyzing general function behavior and properties."""
+    """Registry for analyzing general function behavior and library."""
     registry = PropertyRegistry()
 
     # Injectivity - one-to-one mapping
@@ -136,13 +136,13 @@ def create_comprehensive_registry() -> PropertyRegistry:
 
 
 def create_basic_registry() -> PropertyRegistry:
-    """Create a basic registry with commonly used properties."""
+    """Create a basic registry with commonly used library."""
     registry = PropertyRegistry()
 
     # Most common symmetry test
     registry.register(CommutativityTest())
 
-    # Core algebraic properties
+    # Core algebraic library
     registry.register(AssociativityTest())
     registry.register(DistributivityTest())
 
@@ -154,7 +154,7 @@ def create_basic_registry() -> PropertyRegistry:
     registry.register(InjectivityTest())
     registry.register(FixedPointTest())
 
-    # Key composition properties
+    # Key composition library
     registry.register(InvolutionTest())
 
     return registry
@@ -236,7 +236,7 @@ def create_data_structure_registry() -> PropertyRegistry:
     # Some operations have absorbing elements
     registry.register(AbsorbingElementTest())
 
-    # Test uniqueness properties for keys, IDs
+    # Test uniqueness library for keys, IDs
     registry.register(InjectivityTest())
 
     return registry

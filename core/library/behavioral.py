@@ -1,5 +1,5 @@
 from util.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
+from core.library.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 
 
 class InjectivityTest(PropertyTest):

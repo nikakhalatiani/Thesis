@@ -1,5 +1,5 @@
 from util.grammar_config import GrammarConfig
-from core.properties.property_test import ExecutionTrace
+from core.library.property_test import ExecutionTrace
 from .constraint_model import ConstraintModel
 from .model_services import ModelService, ServiceHealthChecker
 from .prompt_builder import PromptBuilder

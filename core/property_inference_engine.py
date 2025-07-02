@@ -3,7 +3,7 @@ from itertools import product
 
 from core.config import PropertyInferenceConfig
 from util.function_under_test import CombinedFunctionUnderTest
-from core.properties.property_test import PropertyTest, TestResult
+from core.library.property_test import PropertyTest, TestResult
 from core.correlation import ConstraintInferenceEngine, LocalModel, OllamaService
 from core.generation import InputGenerator
 from core.evaluation import PropertyEvaluator
@@ -43,7 +43,7 @@ class PropertyInferenceEngine:
         """
         results: dict[str, InferenceResult] = {}
 
-        # Gather properties to test. A single property name may correspond to
+        # Gather library to test. A single property name may correspond to
         # several variants, so we work with a flat list.
         properties_to_test: list[PropertyTest] = (self.config.properties_to_test or self.config.registry.get_all())
 

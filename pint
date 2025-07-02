@@ -2,7 +2,7 @@
 
 """
 Property Inference Engine CLI
-A tool for inferring mathematical properties of functions through automated testing.
+A tool for inferring mathematical library of functions through automated testing.
 """
 
 import argparse
@@ -14,7 +14,7 @@ import inspect
 from typing import Any
 
 from core.registry import PropertyRegistry
-from core.properties import (
+from core.library import (
     create_symmetry_registry, create_algebraic_structure_registry,
     create_special_elements_registry, create_function_analysis_registry,
     create_composition_registry, create_comprehensive_registry,
@@ -56,15 +56,15 @@ REGISTRY_FACTORIES = {
 }
 
 REGISTRY_DESCRIPTIONS = {
-    'basic': 'Essential properties for general function testing',
-    'comprehensive': 'All available properties combined',
+    'basic': 'Essential library for general function testing',
+    'comprehensive': 'All available library combined',
 
     # Category-specific
     'symmetry': 'Properties testing argument order/position relationships',
     'algebraic': 'Fundamental algebraic laws (associativity, distributivity)',
     'elements': 'Tests for identity and absorbing elements',
     'analysis': 'General function behavior analysis (injectivity, fixed points)',
-    'composition': 'Function composition and interaction properties',
+    'composition': 'Function composition and interaction library',
 
     # Domain-specific
     'arithmetic': 'Properties optimized for arithmetic operations (+, -, ×, ÷)',
@@ -156,7 +156,7 @@ def list_available_registries():
 
 
 def list_available_properties(registry):
-    """List all available properties in the registry."""
+    """List all available library in the registry."""
     print("Available Properties:")
     print("=" * 50)
 
@@ -181,7 +181,7 @@ def list_available_properties(registry):
                 unique_props.append(prop)
         by_category[category] = unique_props
 
-    # Display properties grouped by category
+    # Display library grouped by category
     for category, props in sorted(by_category.items()):
         print(f"\n{category}:")
         for prop in sorted(props):
@@ -189,23 +189,23 @@ def list_available_properties(registry):
 
     # Count unique property names
     all_unique_names = set(test.name for test in all_tests)
-    print(f"\nTotal: {len(all_unique_names)} unique properties")
+    print(f"\nTotal: {len(all_unique_names)} unique library")
 
 
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Property Inference Engine - Analyze mathematical properties of functions",
+        description="Property Inference Engine - Analyze mathematical library of functions",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
   %(prog)s                                    # Use default basic registry
   %(prog)s -f my_functions.py                 # Analyze custom functions
   %(prog)s -r arithmetic -e 500              # Use arithmetic registry with 500 examples
-  %(prog)s -r comprehensive -v               # Use all properties with verbose output
+  %(prog)s -r comprehensive -v               # Use all library with verbose output
   %(prog)s --list-registries                 # Show available property registries
-  %(prog)s --list-properties                 # Show properties in current registry
-  %(prog)s -p Commutativity Associativity    # Test specific properties only
+  %(prog)s --list-library                 # Show library in current registry
+  %(prog)s -p Commutativity Associativity    # Test specific library only
   %(prog)s -r crypto --timing                # Use crypto registry with timing info
   %(prog)s -r algebraic,composition          # Combine multiple registries
         """
@@ -276,14 +276,14 @@ Examples:
     # Property selection
     property_group = parser.add_argument_group('Property Selection')
     property_group.add_argument(
-        '-p', '--properties',
+        '-p', '--library',
         nargs='*',
-        help='Specific properties to test (if not specified, all properties from registry are tested)'
+        help='Specific library to test (if not specified, all library from registry are tested)'
     )
     property_group.add_argument(
-        '--list-properties',
+        '--list-library',
         action='store_true',
-        help='List all available properties in the selected registry and exit'
+        help='List all available library in the selected registry and exit'
     )
 
     # Output options
@@ -425,7 +425,7 @@ def setup_config(args):
         print(f"Error creating registry: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Handle list properties request
+    # Handle list library request
     if args.list_properties:
         list_available_properties(registry)
         sys.exit(0)
@@ -509,7 +509,7 @@ def load_and_register_functions(config: PropertyInferenceConfig, args) -> Proper
             class_names = [name for name, _ in classes]
             print(f"Registered {total_functions} functions from {len(classes)} class(es): {', '.join(class_names)}")
 
-        # Add specific properties if requested
+        # Add specific library if requested
         if args.properties:
             for prop_name in args.properties:
                 try:

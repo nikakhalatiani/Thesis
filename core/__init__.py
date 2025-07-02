@@ -50,7 +50,7 @@ from .correlation import (
 )
 
 # Properties module (keeping existing exports)
-from . import properties
+from . import library
 
 __all__ = [
     # Main orchestrator

@@ -4,7 +4,7 @@
 # import time
 #
 # from util.grammar_config import GrammarConfig
-# from core.properties.property_test import ExecutionTrace
+# from core.library.property_test import ExecutionTrace
 #
 #
 #

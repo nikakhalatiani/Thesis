@@ -1,5 +1,5 @@
 # from core.function_under_test import CombinedFunctionUnderTest
-# from core.properties.property_test import PropertyTest
+# from core.library.property_test import PropertyTest
 #
 #
 # class PropertyRegistry:
