@@ -3,7 +3,7 @@
 # import subprocess
 # import time
 #
-# from config.grammar_config import GrammarConfig
+# from util.grammar_config import GrammarConfig
 # from core.properties.property_test import ExecutionTrace
 #
 #

@@ -1,11 +1,12 @@
 from typing import TypedDict
 from itertools import product
 
-from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import CombinedFunctionUnderTest
+from core.config import PropertyInferenceConfig
+from util.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest, TestResult
 from core.correlation import ConstraintInferenceEngine, LocalModel, OllamaService
-from core.generation.input_generator import InputGenerator
+from core.generation import InputGenerator
+from core.evaluation import PropertyEvaluator
 
 
 class InferenceResult(TypedDict):
@@ -15,30 +16,31 @@ class InferenceResult(TypedDict):
 
 
 class PropertyInferenceEngine:
+    """
+    Orchestrates the property inference process using generation, evaluation, and correlation modules.
+
+    This engine coordinates:
+    1. Input generation using grammar-based fuzzing
+    2. Property evaluation against functions under test
+    3. Constraint inference and feedback loops for improved testing
+    """
+
     def __init__(self, config: PropertyInferenceConfig) -> None:
         self.config: PropertyInferenceConfig = config
 
-        # Initialize input generator
+        # Initialize the three main modules
         self.input_generator = InputGenerator(config)
-
-        # Initialize constraint inference engine
+        self.evaluator = PropertyEvaluator()
         self.constraint_engine = ConstraintInferenceEngine(
             LocalModel(OllamaService("qwen2.5-coder:14b-instruct-q4_K_M")))
 
-    @staticmethod
-    def _test_property(property_test: PropertyTest, function: CombinedFunctionUnderTest, input_sets: list,
-                       max_counterexamples: int) -> TestResult:
-        result = property_test.test(function, input_sets, max_counterexamples)
-
-        return TestResult(
-            holds=result['holds'],
-            counterexamples=result['counterexamples'][:max_counterexamples],
-            successes=result['successes'][:max_counterexamples],
-            stats=result['stats'],
-            execution_traces=result['execution_traces']
-        )
-
     def run(self) -> dict[str, InferenceResult]:
+        """
+        Run the complete property inference process.
+
+        Returns:
+            Dictionary mapping function combinations to their inference results
+        """
         results: dict[str, InferenceResult] = {}
 
         # Gather properties to test. A single property name may correspond to
@@ -75,8 +77,8 @@ class PropertyInferenceEngine:
                 outcome = None
 
                 while attempts <= max_attempts:
-                    # Test the property with current inputs
-                    outcome = self._test_property(prop, combined, input_sets, self.config.max_counterexamples)
+                    # Test the property with current inputs using the evaluator
+                    outcome = self.evaluator.test_property(prop, combined, input_sets, self.config.max_counterexamples)
 
                     # If property holds or feedback is disabled, we're done
                     if outcome["holds"] or not self.config.feedback_enabled:
@@ -109,14 +111,13 @@ class PropertyInferenceEngine:
                     # Apply new constraints to grammar for next iteration
                     current_grammar = base_grammar.add_constraints(new_constraints)
 
-                    # Skip input generation on first iteration (already done above)
+                    # Generate new inputs with updated constraints
                     input_sets = self.input_generator.get_inputs_for_combination(funcs,
-                                                                                     grammar_override=current_grammar)
+                                                                                 grammar_override=current_grammar)
                     if not input_sets:
                         break
 
                     # print(input_sets)
-
 
                 # Store results
                 key = f"combination ({combined.names()})"

@@ -1,7 +1,7 @@
 from .compositional import *
 from .behavioral import *
 from .structural import *
-from core.property_registry import PropertyRegistry
+from core.registry import PropertyRegistry
 
 
 def create_symmetry_registry() -> PropertyRegistry:
@@ -246,7 +246,7 @@ def minimal_registry() -> PropertyRegistry:
     registry = PropertyRegistry()
 
     # Many data structure operations are commutative (set union, intersection)
-    # registry.register(CommutativityTest())
+    registry.register(CommutativityTest())
 
     # registry.register(DistributivityTest())
     # registry.register(LeftDistributivityTest())

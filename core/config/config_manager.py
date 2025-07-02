@@ -1,7 +1,11 @@
-from core.function_under_test import FunctionUnderTest, ComparisonStrategy
+"""
+Configuration management utilities for the property inference system.
+"""
+
+from util.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.properties import PropertyRegistry
-from input.input_parser import InputParser
-from config.grammar_config import GrammarConfig
+from util.input_parser import InputParser
+from util.grammar_config import GrammarConfig
 from core.properties.property_test import PropertyTest
 
 
@@ -122,6 +126,8 @@ class PropertyInferenceConfig:
 
     def set_max_counterexamples(self, n: int) -> "PropertyInferenceConfig":
         """How many failing examples to store for each property."""
+        if n < 1:
+            raise ValueError("Maximum counterexamples must be at least 1.")
         self.max_counterexamples = n
         return self
 

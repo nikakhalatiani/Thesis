@@ -1,4 +1,8 @@
-from core.function_under_test import CombinedFunctionUnderTest
+"""
+Property registry for managing and organizing property tests.
+"""
+
+from util.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest
 
 

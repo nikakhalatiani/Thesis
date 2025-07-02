@@ -13,6 +13,7 @@ import json
 import inspect
 from typing import Any
 
+from core.registry import PropertyRegistry
 from core.properties import (
     create_symmetry_registry, create_algebraic_structure_registry,
     create_special_elements_registry, create_function_analysis_registry,
@@ -21,13 +22,12 @@ from core.properties import (
     create_logical_operations_registry, create_cryptographic_registry,
     create_data_structure_registry
 )
-from input.input_parser import InputParser
-from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import FunctionUnderTest, ComparisonStrategy
+from util.input_parser import InputParser
+from core.config import PropertyInferenceConfig
+from util.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
-from config.grammar_config import GrammarConfig
+from util.grammar_config import GrammarConfig
 
-# Import from the new generation module
 from core.generation import (
     load_user_module,
     extract_overrides,
@@ -343,7 +343,6 @@ def create_combined_registry(registry_names: list[str]):
         return REGISTRY_FACTORIES[registry_names[0]]()
 
     # For multiple registries, create a new registry and merge them
-    from core.properties import PropertyRegistry
     combined = PropertyRegistry()
 
     for name in registry_names:
@@ -351,6 +350,7 @@ def create_combined_registry(registry_names: list[str]):
             raise ValueError(f"Unknown registry: {name}")
 
         registry = REGISTRY_FACTORIES[name]()
+        # Get all tests from the registry and add them to combined registry
         for test in registry.get_all():
             combined.register(test)
 
@@ -430,7 +430,7 @@ def setup_config(args):
         list_available_properties(registry)
         sys.exit(0)
 
-    # Build base config
+    # Build base util
     default_parser = InputParser.for_numbers()
 
     # Set comparison strategy
@@ -464,7 +464,7 @@ def setup_config(args):
         print(f"  • Use input cache: {not args.no_cache}")
         print(f"  • Advanced mode: {args.advanced_mode}")
         if args.advanced_mode:
-            print(f"  • Feedback-loop iterations: {args.feedback_iterations}")
+            print(f"  • Feedback iterations: {args.feedback_iterations}")
 
     return config
 

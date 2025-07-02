@@ -1,4 +1,4 @@
-from config.grammar_config import GrammarConfig
+from util.grammar_config import GrammarConfig
 
 
 class ConstraintParser:

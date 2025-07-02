@@ -1,4 +1,4 @@
-from core.function_under_test import CombinedFunctionUnderTest
+from util.function_under_test import CombinedFunctionUnderTest
 from core.properties.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 from abc import abstractmethod
 
@@ -304,7 +304,7 @@ class _DistributivityTest(PropertyTest):
         if not valid_inputs:
             return {
                 "holds": False,
-                "counterexamples": ["No valid inputs found"],
+                "counterexamples": ["No valid inputs found\n"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
                 "execution_traces": [],
@@ -482,7 +482,7 @@ class AssociativityTest(PropertyTest):
         if not valid_inputs:
             return {
                 "holds": False,
-                "counterexamples": ["Not enough elements provided\n"],
+                "counterexamples": ["No valid inputs found\n"],
                 "successes": [],
                 "stats": {"total_count": 0, "success_count": 0},
                 "execution_traces": [],

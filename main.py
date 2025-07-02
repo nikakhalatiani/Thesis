@@ -1,7 +1,7 @@
 from core.properties import minimal_registry
-from input.input_parser import InputParser
-from config.property_inference_config import PropertyInferenceConfig
-from core.function_under_test import FunctionUnderTest, ComparisonStrategy
+from util.input_parser import InputParser
+from core.config import PropertyInferenceConfig
+from util.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
 from core.generation import (
     load_user_module,

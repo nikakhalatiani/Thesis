@@ -1,7 +1,7 @@
 from typing import TypedDict
 from abc import ABC, ABCMeta, abstractmethod
 
-from core.function_under_test import CombinedFunctionUnderTest
+from util.function_under_test import CombinedFunctionUnderTest
 
 
 class TestStats(TypedDict):

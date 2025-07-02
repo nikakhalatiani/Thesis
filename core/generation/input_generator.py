@@ -1,8 +1,8 @@
 from fandango import Fandango
 from fandango.language.tree import DerivationTree
 
-from config.grammar_config import GrammarConfig
-from config.property_inference_config import PropertyInferenceConfig
+from util.grammar_config import GrammarConfig
+from core.config import PropertyInferenceConfig
 
 
 class InputGenerator:

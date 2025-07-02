@@ -2,8 +2,8 @@ import inspect
 import importlib.util
 from typing import Any
 
-from config.grammar_config import GrammarConfig
-from input.input_parser import InputParser
+from util.grammar_config import GrammarConfig
+from util.input_parser import InputParser
 
 
 def load_user_module(path: str):
