@@ -11,7 +11,6 @@ import os
 import time
 import json
 import inspect
-import importlib.util
 from typing import Any
 
 from core.properties import (
@@ -27,6 +26,15 @@ from config.property_inference_config import PropertyInferenceConfig
 from core.function_under_test import FunctionUnderTest, ComparisonStrategy
 from core.property_inference_engine import PropertyInferenceEngine
 from config.grammar_config import GrammarConfig
+
+# Import from the new generation module
+from core.generation import (
+    load_user_module,
+    extract_overrides,
+    process_grammar_override,
+    process_parser_override,
+    extract_functions_from_classes
+)
 
 # Registry mapping for CLI options
 REGISTRY_FACTORIES = {
@@ -66,19 +74,6 @@ REGISTRY_DESCRIPTIONS = {
 }
 
 
-def load_user_module(path: str):
-    """Load a Python module from a file path."""
-    try:
-        spec = importlib.util.spec_from_file_location("user_defined_functions", path)
-        if spec is None or spec.loader is None:
-            raise ImportError(f"Could not load module from {path}")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
-    except Exception as e:
-        raise ImportError(f"Failed to load module from {path}: {e}") from e
-
-
 def get_user_classes(module, class_name: str | None = None) -> list[tuple[str, type]]:
     """Extract relevant classes from user module with proper filtering."""
     if class_name:
@@ -97,69 +92,6 @@ def get_user_classes(module, class_name: str | None = None) -> list[tuple[str, t
         raise ValueError(f"No user-defined classes found in module. Available classes: {available}")
 
     return classes
-
-
-def extract_overrides(module) -> dict[str, dict[str, Any]]:
-    """Extract all function overrides from module using a unified approach."""
-    overrides = {
-        'converter': {},
-        'grammar': {},
-        'parser': {},
-        'comparator': {}
-    }
-
-    override_patterns = {
-        'converter_': 'converter',
-        'grammar_': 'grammar',
-        'parser_': 'parser',
-        'comparator_': 'comparator'
-    }
-
-    for name, value in vars(module).items():
-        for prefix, override_type in override_patterns.items():
-            if name.startswith(prefix):
-                func_name = name[len(prefix):]
-                overrides[override_type][func_name] = value
-                break
-
-    return overrides
-
-
-def process_grammar_override(func_name: str, value: Any, default_grammar) -> GrammarConfig:
-    """Process grammar override with proper validation."""
-    if isinstance(value, GrammarConfig):
-        return value
-    elif isinstance(value, str):
-        return GrammarConfig(value)
-    elif isinstance(value, (list, tuple)):
-        try:
-            if value and isinstance(value[0], str) and value[0].endswith(".fan"):
-                return GrammarConfig(value[0], extra_constraints=value[1:])
-            else:
-                return GrammarConfig(default_grammar.path, extra_constraints=value)
-        except (IndexError, AttributeError) as e:
-            raise ValueError(f"Invalid grammar spec for {func_name}: {value}") from e
-    else:
-        raise ValueError(f"Unsupported grammar type for {func_name}: {type(value)}")
-
-
-def process_parser_override(func_name: str, value: Any) -> InputParser:
-    """Process parser override with proper validation."""
-    if isinstance(value, InputParser):
-        return value
-    elif isinstance(value, str):
-        val = value.strip()
-        if val.startswith("<") and val.endswith(">"):
-            return InputParser.for_nonterminal(val)
-        else:
-            raise ValueError(f"String parser spec must be nonterminal like '<number>' for {func_name}: {value}")
-    elif isinstance(value, list):
-        if all(isinstance(v, str) for v in value):
-            return InputParser.for_grammar_pattern(*value)
-        else:
-            raise ValueError(f"List parser spec must contain only strings for {func_name}: {value}")
-    else:
-        raise ValueError(f"Invalid parser spec for {func_name}: {value}")
 
 
 def get_override(func, override_dict: dict[str, Any], func_name: str, attr_name: str) -> Any:
@@ -419,8 +351,7 @@ def create_combined_registry(registry_names: list[str]):
             raise ValueError(f"Unknown registry: {name}")
 
         registry = REGISTRY_FACTORIES[name]()
-        # Assuming registry has a method to get all tests
-        for test in registry.get_all():  # This method may need to be implemented
+        for test in registry.get_all():
             combined.register(test)
 
     return combined
@@ -533,13 +464,13 @@ def setup_config(args):
         print(f"  • Use input cache: {not args.no_cache}")
         print(f"  • Advanced mode: {args.advanced_mode}")
         if args.advanced_mode:
-            print(f"  • Feedback iterations: {args.feedback_iterations}")
+            print(f"  • Feedback-loop iterations: {args.feedback_iterations}")
 
     return config
 
 
 def load_and_register_functions(config: PropertyInferenceConfig, args) -> PropertyInferenceConfig:
-    """Load user module and register functions."""
+    """Load user module and register functions using the new architecture."""
     try:
         module = load_user_module(args.functions_file)
     except Exception as e:
@@ -547,8 +478,17 @@ def load_and_register_functions(config: PropertyInferenceConfig, args) -> Proper
         sys.exit(1)
 
     try:
-        # Get user classes
-        classes = get_user_classes(module, args.class_name)
+        # Get user classes using the new architecture
+        if args.class_name:
+            classes = [(args.class_name, getattr(module, args.class_name))]
+        else:
+            functions = extract_functions_from_classes(module)
+            # Group by class for display purposes
+            classes_dict = {}
+            for cls, func_name, func in functions:
+                if cls not in classes_dict:
+                    classes_dict[cls] = cls.__name__
+            classes = [(name, cls) for cls, name in classes_dict.items()]
 
         # Extract overrides
         overrides = extract_overrides(module)
@@ -586,6 +526,22 @@ def load_and_register_functions(config: PropertyInferenceConfig, args) -> Proper
         sys.exit(1)
 
 
+def print_constraints_evolution_to_lines(constraints_history):
+    """Append how constraints evolved during testing to output_lines."""
+    lines = []
+    if not constraints_history:
+        lines.append("🔄 No constraint evolution (property held on first attempt)")
+        return lines
+
+    lines.append(f"🔄 Constraint evolution ({len(constraints_history)} iterations):")
+    for i, constraints in enumerate(constraints_history, 1):
+        if constraints:
+            lines.append(f"\tIteration {i}: {', '.join(constraints)}")
+        else:
+            lines.append(f"\tIteration {i}: No new constraints inferred")
+    return lines
+
+
 def format_results(results: dict, args) -> str:
     """Format results for output."""
     if args.json:
@@ -615,12 +571,16 @@ def format_results(results: dict, args) -> str:
                 success_count = outcome["stats"]["success_count"]
                 confidence = (success_count / tests_run * 100) if tests_run > 0 else 0.0
                 status = "🟢" if holds else "🔴"
+                constraints_history = result["constraints_history"][prop]
 
                 decision = (
-                    f"  {status} {prop} "
+                    f"{status} {prop}"
                     f"(Confidence: {confidence:.1f}%; Tests run: {tests_run})"
                 )
                 output_lines.append(decision)
+
+                if constraints_history:
+                    output_lines.extend(print_constraints_evolution_to_lines(constraints_history))
 
                 messages = outcome["successes"] if holds else outcome["counterexamples"]
                 for msg in messages:
