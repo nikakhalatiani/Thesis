@@ -19,7 +19,7 @@ from .property_inference_engine import PropertyInferenceEngine
 from .config import PropertyInferenceConfig
 
 # Registry management
-from .registry import PropertyRegistry
+from core.library.registry import PropertyRegistry
 
 # Function testing utilities
 from util.function_under_test import (
