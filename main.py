@@ -1,4 +1,4 @@
-from core.library import minimal_registry
+from core.evaluation.library import minimal_registry
 from util.input_parser import InputParser
 from core.config import PropertyInferenceConfig
 from util.function_under_test import FunctionUnderTest, ComparisonStrategy
@@ -37,8 +37,8 @@ def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = 
               .set_use_input_cache(True)
               .set_example_count(100)
               .set_max_counterexamples(3)
-              .set_max_feedback_attempts(3)
-              .set_feedback_enabled(False))
+              .set_max_feedback_attempts(2)
+              .set_feedback_enabled(True))
 
     module = load_user_module(user_funcs_path)
     overrides = extract_overrides(module)

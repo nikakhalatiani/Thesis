@@ -3,7 +3,7 @@ Property registry for managing and organizing property tests.
 """
 
 from util.function_under_test import CombinedFunctionUnderTest
-from core.library.property_test import PropertyTest
+from core.evaluation.library.property_test import PropertyTest
 
 
 class PropertyRegistry:

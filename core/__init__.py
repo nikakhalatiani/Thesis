@@ -19,7 +19,7 @@ from .property_inference_engine import PropertyInferenceEngine
 from .config import PropertyInferenceConfig
 
 # Registry management
-from core.library.registry import PropertyRegistry
+from core.evaluation.library import PropertyRegistry
 
 # Function testing utilities
 from util.function_under_test import (
@@ -40,7 +40,7 @@ from .generation import (
 )
 
 from .evaluation import (
-    PropertyEvaluator,
+    PropertyEvaluator, library,
 )
 
 from .correlation import (
@@ -50,7 +50,6 @@ from .correlation import (
 )
 
 # Properties module (keeping existing exports)
-from . import library
 
 __all__ = [
     # Main orchestrator

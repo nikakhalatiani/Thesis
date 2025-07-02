@@ -13,8 +13,8 @@ import json
 import inspect
 from typing import Any
 
-from core.library.registry import PropertyRegistry
-from core.library import (
+from core.evaluation.library.registry import PropertyRegistry
+from core.evaluation.library import (
     create_symmetry_registry, create_algebraic_structure_registry,
     create_special_elements_registry, create_function_analysis_registry,
     create_composition_registry, create_comprehensive_registry,

@@ -3,7 +3,7 @@ from itertools import product
 
 from core.config import PropertyInferenceConfig
 from util.function_under_test import CombinedFunctionUnderTest
-from core.library.property_test import PropertyTest, TestResult
+from core.evaluation.library import PropertyTest, TestResult
 from core.correlation import ConstraintInferenceEngine, LocalModel, OllamaService
 from core.generation import InputGenerator
 from core.evaluation import PropertyEvaluator
@@ -87,7 +87,7 @@ class PropertyInferenceEngine:
                     attempts += 1
 
                     # If we've reached max attempts, don't generate more constraints
-                    if attempts >= max_attempts:
+                    if attempts > max_attempts:
                         break
 
                     # Infer new constraints from execution traces
@@ -117,7 +117,7 @@ class PropertyInferenceEngine:
                     if not input_sets:
                         break
 
-                    # print(input_sets)
+                    print(input_sets)
 
                 # Store results
                 key = f"combination ({combined.names()})"

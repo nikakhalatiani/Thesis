@@ -1,7 +1,7 @@
 from .compositional import *
 from .behavioral import *
 from .structural import *
-from core.library.registry import PropertyRegistry
+from core.evaluation.library.registry import PropertyRegistry
 
 
 def create_symmetry_registry() -> PropertyRegistry:

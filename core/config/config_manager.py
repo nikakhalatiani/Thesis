@@ -3,10 +3,10 @@ Configuration management utilities for the property inference system.
 """
 
 from util.function_under_test import FunctionUnderTest, ComparisonStrategy
-from core.library import PropertyRegistry
+from core.evaluation.library import PropertyRegistry
 from util.input_parser import InputParser
 from util.grammar_config import GrammarConfig
-from core.library.property_test import PropertyTest
+from core.evaluation.library import PropertyTest
 
 
 class PropertyInferenceConfig:

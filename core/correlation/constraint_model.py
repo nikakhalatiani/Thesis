@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from util.grammar_config import GrammarConfig
-from core.library.property_test import ExecutionTrace
+from core.evaluation.library import ExecutionTrace
 
 
 class ConstraintModel(ABC):

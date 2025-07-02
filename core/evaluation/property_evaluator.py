@@ -3,7 +3,7 @@ Property evaluation module for testing library against functions.
 """
 
 from util.function_under_test import CombinedFunctionUnderTest
-from core.library.property_test import PropertyTest, TestResult
+from core.evaluation.library import PropertyTest, TestResult
 
 
 class PropertyEvaluator:

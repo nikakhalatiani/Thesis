@@ -1,7 +1,7 @@
 from abc import abstractmethod
 
 from util.function_under_test import CombinedFunctionUnderTest
-from core.library.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
+from core.evaluation.library.property_test import PropertyTest, TestResult, TestStats, ExecutionTrace
 
 
 class _SwapArgumentsTest(PropertyTest):
