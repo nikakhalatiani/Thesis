@@ -39,8 +39,7 @@ class InputGenerator:
                 # print(
                 #     f"⚠️ Cannot combine grammars with different spec paths: "
                 #     f"{base_grammar.path} vs {fg.path}. Skipping combination: "
-                #     f"{', '.join(f.func.__name__ for f in funcs)}."
-                # )
+                #     f"{', '.join(f.func.__name__ for f in funcs)}.")
                 return None
             if fg.extra_constraints:
                 combined_constraints.update(fg.extra_constraints)
@@ -70,8 +69,7 @@ class InputGenerator:
             # print(
             #     f"⚠️ Cannot combine different parsers for functions: "
             #     f"{', '.join(fut.func.__name__ for fut in funcs)}. "
-            #     f"Skipping combination: {', '.join(f.func.__name__ for f in funcs)}."
-            # )
+            #     f"Skipping combination: {', '.join(f.func.__name__ for f in funcs)}.")
             return None
 
     def get_inputs_for_combination(self, funcs: tuple, grammar_override: GrammarConfig = None) -> list[tuple] | None:

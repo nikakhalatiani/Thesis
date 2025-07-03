@@ -378,7 +378,7 @@ def validate_arguments(args):
         errors.append(f"Functions file not found: {args.functions_file}")
 
     # Check if grammar file exists (only if not using list commands)
-    if not args.list_properties and not os.path.exists(args.grammar):
+    if not args.list_library and not os.path.exists(args.grammar):
         errors.append(f"Grammar file not found: {args.grammar}")
 
     # Validate examples count
@@ -426,7 +426,7 @@ def setup_config(args):
         sys.exit(1)
 
     # Handle list library request
-    if args.list_properties:
+    if args.list_library:
         list_available_properties(registry)
         sys.exit(0)
 
@@ -510,8 +510,8 @@ def load_and_register_functions(config: PropertyInferenceConfig, args) -> Proper
             print(f"Registered {total_functions} functions from {len(classes)} class(es): {', '.join(class_names)}")
 
         # Add specific library if requested
-        if args.properties:
-            for prop_name in args.properties:
+        if args.library:
+            for prop_name in args.library:
                 try:
                     config.add_property_by_name(prop_name)
                     if args.verbose:
@@ -605,8 +605,8 @@ def main():
         print(f"Grammar file: {args.grammar}")
         print(f"Comparison strategy: {args.comparison_strategy}")
         print(f"Use cache: {not args.no_cache}")
-        if args.properties:
-            print(f"Properties to test: {', '.join(args.properties)}")
+        if args.library:
+            print(f"Properties to test: {', '.join(args.library)}")
         else:
             print("Properties to test: all available in registry")
         return
