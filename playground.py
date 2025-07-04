@@ -8,7 +8,7 @@ def all_terms_nonzero(example: str) -> bool:
         return False
 
 def test_constraints(max_attempts=100):
-    with open("./grammars/test.fan", "r") as f:
+    with open("./grammars3/test.fan", "r") as f:
         fan = Fandango(f)
 
     for attempt in range(1, max_attempts + 1):

@@ -26,19 +26,19 @@ def print_constraints_evolution(constraints_history):
             print(f"\tIteration {i}: No new constraints inferred")
 
 
-def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = "SetOperations"):
+def main(user_funcs_path: str = "input/user_input.py", class_name: str | None = None):
     registry = minimal_registry()
 
     default_parser = InputParser.for_numbers()
     config = (PropertyInferenceConfig(registry)
-              .set_default_grammar("grammars/test.fan")
+              .set_default_grammar("grammars/ints.fan")
               .set_default_parser(default_parser)
               .set_comparison_strategy(ComparisonStrategy.FIRST_COMPATIBLE)
               .set_use_input_cache(True)
               .set_example_count(100)
               .set_max_counterexamples(3)
               .set_max_feedback_attempts(2)
-              .set_feedback_enabled(True))
+              .set_feedback_enabled(False))
 
     module = load_user_module(user_funcs_path)
     overrides = extract_overrides(module)

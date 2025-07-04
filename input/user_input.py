@@ -37,11 +37,11 @@ converter_remove_from_set = [converter_intset, int]
 converter_union_sets = [converter_intset, converter_intset]
 
 # Grammar and parser overrides
-grammar_add_to_set = "grammars/set_and_element.fan"
-parser_add_to_set = ["<set>", "<number_to_add>"]
+grammar_add_to_set = "grammars/int_set_and_int.fan"
+parser_add_to_set = ["<set>", "<extra_number>"]
 
-grammar_remove_from_set = ["grammars/set_and_element.fan"]
-parser_remove_from_set = ["<set>", "<number_to_add>"]
+grammar_remove_from_set = ["grammars/int_set_and_int.fan"]
+parser_remove_from_set = ["<set>", "<extra_number>"]
 
 grammar_union_sets = "grammars/int_sets.fan"
 parser_union_sets = "<set>"

@@ -258,8 +258,8 @@ Examples:
     config_group.add_argument(
         '-g', '--grammar',
         type=str,
-        default="grammars/test.fan",
-        help='Default grammar file to use (default: grammars/test.fan)'
+        default="grammars/ints.fan",
+        help='Default grammar file to use (default: grammars/ints.fan)'
     )
     config_group.add_argument(
         '--comparison-strategy',
