@@ -3,6 +3,7 @@ from fandango.language.tree import DerivationTree
 
 from util.grammar_config import GrammarConfig
 from core.config import PropertyInferenceConfig
+from util.input_parser import InputParser
 
 
 class InputGenerator:
@@ -47,7 +48,7 @@ class InputGenerator:
         return GrammarConfig(base_grammar.path, list(combined_constraints))
 
     #TODO need to handle parser better as set functions are not combined because of this
-    def get_parser_for_functions(self, funcs: tuple):
+    def get_parser_for_functions(self, funcs: tuple) -> InputParser | None:
         """Get a compatible parser for multiple functions.
 
         Args:
@@ -56,12 +57,11 @@ class InputGenerator:
         Returns:
             Compatible parser or None if functions have incompatible parsers
         """
-        unique_parsers = {
-            self.config.function_to_parser.get(
+        unique_parsers = set()
+        for fut in funcs:
+            unique_parsers.add(self.config.function_to_parser.get(
                 fut.func.__name__, self.config.default_parser
-            )
-            for fut in funcs
-        }
+            ))
 
         if len(unique_parsers) == 1:
             return unique_parsers.pop()

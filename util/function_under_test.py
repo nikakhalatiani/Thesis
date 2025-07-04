@@ -64,7 +64,7 @@ class FunctionUnderTest:
                 try:
                     return float(value)
                 except ValueError:
-                    # If all conversions fail, return the original value
+                    # If all conversions fail, return the string value
                     return value
 
         return value

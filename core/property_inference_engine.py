@@ -43,8 +43,7 @@ class PropertyInferenceEngine:
         """
         results: dict[str, InferenceResult] = {}
 
-        # Gather library to test. A single property name may correspond to
-        # several variants, so we work with a flat list.
+        # Gather library to test. A single property name may correspond to several variants, so we work with a flat list.
         properties_to_test: list[PropertyTest] = (self.config.properties_to_test or self.config.registry.get_all())
 
         for prop in properties_to_test:
